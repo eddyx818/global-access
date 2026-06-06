@@ -83,3 +83,42 @@ CREATE POLICY "auth_write_settings" ON site_settings FOR ALL TO authenticated US
 -- Add flavors columns to product_content if missing
 ALTER TABLE product_content ADD COLUMN IF NOT EXISTS flavors_retail TEXT;
 ALTER TABLE product_content ADD COLUMN IF NOT EXISTS flavors_distro TEXT;
+
+-- Email drafts table
+CREATE TABLE IF NOT EXISTS email_drafts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  brand_id TEXT,
+  brand_name TEXT,
+  subject_a TEXT,
+  subject_b TEXT,
+  subject_used TEXT,
+  preheader TEXT,
+  html_content TEXT,
+  copy_json TEXT,
+  audience TEXT DEFAULT 'both',
+  status TEXT DEFAULT 'pending',
+  sent_count INTEGER DEFAULT 0,
+  sent_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Email campaigns table
+CREATE TABLE IF NOT EXISTS email_campaigns (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  draft_id UUID REFERENCES email_drafts(id),
+  brand_id TEXT,
+  subject TEXT,
+  sent_count INTEGER DEFAULT 0,
+  failed_count INTEGER DEFAULT 0,
+  audience TEXT,
+  sent_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE email_drafts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE email_campaigns ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "auth_all_drafts" ON email_drafts;
+DROP POLICY IF EXISTS "auth_all_campaigns" ON email_campaigns;
+
+CREATE POLICY "auth_all_drafts" ON email_drafts FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_all_campaigns" ON email_campaigns FOR ALL TO authenticated USING (true) WITH CHECK (true);

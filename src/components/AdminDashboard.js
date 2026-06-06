@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import ContentEditor from './ContentEditor';
 import ContactMap from './ContactMap';
 import BrandManager from './BrandManager';
+import MarketingDashboard from './MarketingDashboard';
 import UserManager from './UserManager';
 
 export default function AdminDashboard({ onLogout, onViewPortal }) {
@@ -116,7 +117,7 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
       {alert && <div style={{ background: '#FEF3C7', border: '0.5px solid #FCD34D', padding: '12px 1.5rem', fontSize: 13, color: '#92400E', display: 'flex', justifyContent: 'space-between' }}>{alert}<button onClick={() => setAlert(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#92400E' }}>×</button></div>}
       <div style={{ padding: '1.5rem', maxWidth: 960, margin: '0 auto' }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          {['overview','pages','clicks','requests','inquiries','content','users','map','brands'].map(t => (
+          {['overview','pages','clicks','requests','inquiries','content','users','map','brands','marketing'].map(t => (
             <button key={t} onClick={() => setTab(t)} style={tabBtn(t)}>{t === 'requests' && pending.length > 0 ? `Requests (${pending.length})` : t.charAt(0).toUpperCase() + t.slice(1)}</button>
           ))}
           <button onClick={loadAll} style={{ ...tabBtn(''), marginLeft: 'auto' }}>↻ Refresh</button>
@@ -220,6 +221,9 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
       )}
       {tab === 'brands' && (
         <BrandManager onSaved={loadContentOverrides} />
+      )}
+      {tab === 'marketing' && (
+        <MarketingDashboard />
       )}
       </div>
     </div>
