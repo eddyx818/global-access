@@ -22,6 +22,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [regForm, setRegForm] = useState({ username: '', email: '', password: '', name: '', company: '', account_type: 'retailer' });
  
   const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
   const labelStyle = { fontSize: 11, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 };
@@ -65,6 +66,45 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     setError('');
   };
  
+  const handleRegister = async () => {
+    if (!regForm.email || !regForm.password || !regForm.name) {
+      setError('Email, password, and name are required.');
+      return;
+    }
+    if (regForm.password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+    setLoading(true); setError('');
+    const cleanUsername = regForm.username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (cleanUsername) {
+      const { data: taken } = await supabase.from('user_profiles').select('user_id').eq('username', cleanUsername).maybeSingle();
+      if (taken) { setError('Username is already taken.'); setLoading(false); return; }
+    }
+    const { data, error: err } = await supabase.auth.signUp({
+      email: regForm.email.trim().toLowerCase(),
+      password: regForm.password,
+      options: { data: { name: regForm.name, company: regForm.company, role: regForm.account_type } },
+    });
+    if (err) { setError(err.message); setLoading(false); return; }
+    if (data.user) {
+      await supabase.from('user_profiles').upsert({
+        user_id: data.user.id,
+        email: regForm.email.trim().toLowerCase(),
+        username: cleanUsername || null,
+        name: regForm.name,
+        company: regForm.company,
+        role: regForm.account_type,
+        user_type: regForm.account_type,
+        status: 'online',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+      setSuccess('Account created! Check your email to confirm, then sign in.');
+      setMode('login');
+    }
+    setLoading(false);
+  };
+
+  const setReg = (field, val) => setRegForm(f => ({ ...f, [field]: val }));
+
   const setReq = (field, val) => setReqForm(f => ({ ...f, [field]: val }));
  
   return (
@@ -92,6 +132,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
               <button onClick={handleCode} style={btnPrimary}>Continue →</button>
               <Divider />
               <button onClick={() => setMode('login')} style={{ ...btnPrimary, background: '#FFF', color: '#1A1A1A', border: '0.5px solid #E0DDD8' }}>Sign In with Account</button>
+              <div style={{ textAlign: 'center', marginTop: 8 }}><button onClick={() => setMode('register')} style={btnLink}>Create an account</button></div>
               <div style={{ textAlign: 'center' }}><button onClick={() => setMode('request')} style={btnLink}>Don't have access? Request it</button></div>
             </>
           )}
@@ -137,6 +178,38 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
             </>
           )}
  
+          {/* REGISTER */}
+          {mode === 'register' && (
+            <>
+              <p style={{ fontSize: 13, color: '#888', marginBottom: '1.25rem', lineHeight: 1.6 }}>Create your Global Access account.</p>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={labelStyle}>Username</label>
+                <input value={regForm.username} onChange={e => setReg('username', e.target.value)} placeholder="yourname" style={inputStyle} autoCapitalize="none" />
+              </div>
+              {[['name', 'Full name *'], ['company', 'Company'], ['email', 'Email *'], ['password', 'Password * (6+ chars)']].map(([field, label]) => (
+                <div key={field} style={{ marginBottom: '1rem' }}>
+                  <label style={labelStyle}>{label}</label>
+                  <input value={regForm[field]} onChange={e => setReg(field, e.target.value)} type={field === 'password' ? 'password' : 'text'} style={inputStyle} autoCapitalize={field === 'email' ? 'none' : 'words'} />
+                </div>
+              ))}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={labelStyle}>Account type</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {['retailer', 'distributor'].map(t => (
+                    <button key={t} onClick={() => setReg('account_type', t)}
+                      style={{ flex: 1, padding: '10px', border: `0.5px solid ${regForm.account_type === t ? '#1A1A1A' : '#E0DDD8'}`, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, background: regForm.account_type === t ? '#1A1A1A' : '#F8F6F3', color: regForm.account_type === t ? '#FFF' : '#888', textTransform: 'capitalize' }}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {error && <ErrBox msg={error} />}
+              {success && <OkBox msg={success} />}
+              <button onClick={handleRegister} disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.6 : 1 }}>{loading ? 'Creating...' : 'Create Account →'}</button>
+              <div style={{ textAlign: 'center' }}><button onClick={() => setMode('login')} style={btnLink}>← Back to sign in</button></div>
+            </>
+          )}
+
           {/* REQUEST ACCESS — full form */}
           {mode === 'request' && (
             <>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
+import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, clearPortalSession } from './lib/session';
+import { updateUserPresence } from './lib/community';
 import { WHATSAPP_NUMBER } from './lib/data';
 import { useBrandContent } from './lib/content';
 import { getFontFamily } from './lib/design';
@@ -10,6 +12,7 @@ import BrandView from './components/BrandView';
 import { InterestView, ThanksView } from './components/InterestView';
 import AdminDashboard from './components/AdminDashboard';
 import ProfileModal from './components/ProfileModal';
+import ChatSidebar from './components/messaging/ChatSidebar';
 
 export default function App() {
   const [authState, setAuthState] = useState('loading');
@@ -23,6 +26,7 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const { getMergedBrands, bgColor, globalStyles, navigation } = useBrandContent();
 
   useEffect(() => {
@@ -55,25 +59,48 @@ export default function App() {
         }
         // Load user type from profile
         try {
-          const { data: profile } = await supabase.from('user_profiles').select('user_type, name, company, phone').eq('user_id', session.user.id).single();
+          const { data: profile } = await supabase.from('user_profiles').select('user_type, name, company, phone, username, bio, profile_avatar_url').eq('user_id', session.user.id).single();
           if (profile?.user_type) setUserType(profile.user_type);
           if (profile?.name) setForm(f => ({ ...f, name: profile.name, company: profile.company || f.company, phone: profile.phone || f.phone }));
         } catch(_) {}
+        await linkPortalSessionToUser(session.user.id);
+        await updateUserPresence(session.user.id, 'online');
       } else {
-        const verified = sessionStorage.getItem('ga_code_verified');
+        const verified = await isPortalCodeVerified();
         setAuthState(verified ? 'browse' : 'gate');
       }
     };
     init();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_e, session) => {
       if (session?.user) {
         const isAdmin = session.user.email.toLowerCase() === (process.env.REACT_APP_ADMIN_EMAIL || '').toLowerCase();
         setUser(session.user);
         setAuthState(isAdmin ? 'admin' : 'portal');
+        await linkPortalSessionToUser(session.user.id);
+        await updateUserPresence(session.user.id, 'online');
       }
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user?.id || authState === 'gate' || authState === 'loading') return;
+    const tick = () => updateUserPresence(user.id, 'online');
+    tick();
+    const interval = setInterval(tick, 60000);
+    const onHide = () => updateUserPresence(user.id, 'away');
+    const onUnload = () => updateUserPresence(user.id, 'offline');
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) onHide();
+      else tick();
+    });
+    window.addEventListener('beforeunload', onUnload);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', onUnload);
+      updateUserPresence(user.id, 'offline');
+    };
+  }, [user?.id, authState]);
 
   useEffect(() => {
     const canTrack = authState === 'portal' || authState === 'browse' || (authState === 'admin' && adminMode === 'portal');
@@ -133,9 +160,10 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
-    supabase.auth.signOut();
-    sessionStorage.removeItem('ga_code_verified');
+  const handleLogout = async () => {
+    if (user?.id) await updateUserPresence(user.id, 'offline');
+    await supabase.auth.signOut();
+    await clearPortalSession();
     setUser(null);
     setAuthState('gate');
     setInterests([]);
@@ -147,10 +175,11 @@ export default function App() {
     doSubmit();
   };
 
-  const doSubmit = () => {
+  const doSubmit = async () => {
     const itemsList = interests.map(i => `• ${i.brandName} - ${i.productName}\n  ${i.flavor}\n  Qty: ${i.qty || 1} ${i.orderMode === 'pallet' ? 'Pallet(s)' : 'Master Case(s)'}`).join('\n');
     const msg = encodeURIComponent(`*New Inquiry - Global Access Portal*\n\nName: ${form.name}\nCompany: ${form.company}\nPhone: ${form.phone || '—'}\nEmail: ${form.email || '—'}\nAccount Type: ${userType}\n\nInterested In:\n${itemsList}\n\nNotes: ${form.notes || '—'}`);
-    supabase.from('inquiries').insert({ session_id: getSessionId(), user_id: user?.id || null, name: form.name, company: form.company, phone: form.phone, email: form.email, notes: form.notes, interests: interests, user_type: userType, created_at: new Date().toISOString() }).then(() => {});
+    const sessionId = await getSessionId();
+    supabase.from('inquiries').insert({ session_id: sessionId, user_id: user?.id || null, name: form.name, company: form.company, phone: form.phone, email: form.email, notes: form.notes, interests: interests, user_type: userType, created_at: new Date().toISOString() }).then(() => {});
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`, '_blank');
     setShowSignupPrompt(false);
     setView('thanks');
@@ -191,8 +220,8 @@ export default function App() {
     </div>
   );
 
-  if (authState === 'gate') return <LoginScreen showLogin={false} onCodeVerified={() => { sessionStorage.setItem('ga_code_verified', '1'); setAuthState('browse'); }} onLoggedIn={(u) => { setUser(u); setAuthState('portal'); }} onRequestAccess={handleRequestAccess} />;
-  if (authState === 'login') return <LoginScreen showLogin={true} onCodeVerified={() => { sessionStorage.setItem('ga_code_verified', '1'); setAuthState('browse'); }} onLoggedIn={(u) => { setUser(u); setAuthState('portal'); }} onRequestAccess={handleRequestAccess} />;
+  if (authState === 'gate') return <LoginScreen showLogin={false} onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }} onLoggedIn={(u) => { setUser(u); setAuthState('portal'); }} onRequestAccess={handleRequestAccess} />;
+  if (authState === 'login') return <LoginScreen showLogin={true} onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }} onLoggedIn={(u) => { setUser(u); setAuthState('portal'); }} onRequestAccess={handleRequestAccess} />;
   if (authState === 'admin' && adminMode === 'dashboard') return <AdminDashboard user={user} onLogout={handleLogout} onViewPortal={() => setAdminMode('portal')} />;
 
   return (
@@ -224,7 +253,8 @@ export default function App() {
         </div>
       )}
 
-      <Nav interests={interests} view={view} setView={setView} onLogout={authState === 'browse' ? null : handleLogout} navigation={navigation} globalStyles={globalStyles} onNavClick={handleNavClick} />
+      <Nav interests={interests} view={view} setView={setView} onLogout={authState === 'browse' ? null : handleLogout} navigation={navigation} globalStyles={globalStyles} onNavClick={handleNavClick} onProfile={user ? () => setShowProfile(true) : null} onChat={user ? () => setChatOpen(true) : null} />
+      {user && <ChatSidebar user={user} open={chatOpen} onClose={() => setChatOpen(false)} />}
       {showProfile && <ProfileModal user={user} form={form} setForm={setForm} userType={userType} setUserType={setUserType} onClose={() => setShowProfile(false)} />}
 
       {/* Signup prompt overlay */}
