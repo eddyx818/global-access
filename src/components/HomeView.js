@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useBrandContent } from '../lib/content';
+import { getButtonRadius } from '../lib/design';
 import { supabase } from '../lib/supabase';
 
 export default function HomeView({ onBrandClick, isMobile }) {
@@ -14,7 +15,7 @@ export default function HomeView({ onBrandClick, isMobile }) {
   const autoTimer = useRef(null);
   const galleryTimer = useRef(null);
   const heroRef = useRef(null);
-  const { getMergedBrands, loading } = useBrandContent();
+  const { getMergedBrands, loading, heroConfig, globalStyles } = useBrandContent();
   const allBrands = getMergedBrands();
 
   // Load saved brand order
@@ -35,6 +36,13 @@ export default function HomeView({ onBrandClick, isMobile }) {
 
   const brands = brandOrder || allBrands;
   const current = brands[slideIdx] || brands[0];
+  const heroBg = heroConfig.background_color || '#0D0D0D';
+  const heroHeadline = heroConfig.headline || current?.name;
+  const heroSubheadline = heroConfig.subheadline || current?.tagline;
+  const heroCtaText = heroConfig.cta_text || `Explore ${current?.name || 'Brand'}`;
+  const heroCtaBg = heroConfig.cta_color || 'rgba(255,255,255,0.95)';
+  const heroCtaColor = heroConfig.cta_color ? '#FFF' : globalStyles.primary_color || '#1A1A1A';
+  const ctaRadius = getButtonRadius(globalStyles.button_style);
 
   useEffect(() => {
     autoTimer.current = setInterval(() => setSlideIdx(i => (i + 1) % brands.length), 4500);
@@ -121,10 +129,10 @@ export default function HomeView({ onBrandClick, isMobile }) {
 
       {/* HERO */}
       <div ref={heroRef} onMouseMove={handleHeroMouseMove} onMouseLeave={() => setMousePos({ x: 0, y: 0 })}
-        style={{ margin: isMobile ? '0.75rem' : '1.25rem', borderRadius: 24, overflow: 'hidden', position: 'relative', height: isMobile ? 300 : 500, background: '#0D0D0D', userSelect: 'none' }}>
+        style={{ margin: isMobile ? '0.75rem' : '1.25rem', borderRadius: 24, overflow: 'hidden', position: 'relative', height: isMobile ? 300 : 500, background: heroBg, userSelect: 'none' }}>
         {brands.map((brand, i) => (
           <div key={brand.id} style={{ position: 'absolute', inset: 0, transition: 'opacity 0.7s ease', opacity: i === slideIdx ? 1 : 0, pointerEvents: 'none' }}>
-            <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 60%, ${brand.color}65 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, ${brand.color}30 0%, transparent 50%), #0D0D0D` }} />
+            <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 60%, ${brand.color}65 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, ${brand.color}30 0%, transparent 50%), ${heroBg}` }} />
             {brand.gallery && brand.gallery.length > 0 && (
               <div style={{ position: 'absolute', right: '-2%', top: 0, width: isMobile ? '70%' : '55%', height: '100%', transform: `translate(${mousePos.x * 0.4}px, ${mousePos.y * 0.4}px)`, transition: 'transform 0.4s ease-out' }}>
                 {brand.gallery.map((img, gi) => (
@@ -139,10 +147,10 @@ export default function HomeView({ onBrandClick, isMobile }) {
         <div key={slideIdx} onClick={() => onBrandClick(current.id)}
           style={{ position: 'relative', zIndex: 3, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: isMobile ? '2rem 4rem' : '3rem 8rem', animation: 'heroFadeIn 0.5s ease-out', cursor: 'pointer', transform: `perspective(800px) rotateY(${mousePos.x * 0.03}deg) rotateX(${-mousePos.y * 0.03}deg)`, transition: 'transform 0.35s ease-out' }}>
           <div style={{ display: 'inline-block', background: current.color + '28', border: `1px solid ${current.color}66`, borderRadius: 20, padding: '5px 16px', fontSize: 10, color: current.color, letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: 16, fontWeight: 700, backdropFilter: 'blur(6px)' }}>{current.category}</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 54 : 88, letterSpacing: '0.03em', color: '#FFF', lineHeight: 0.85, marginBottom: 14, textShadow: '0 4px 32px rgba(0,0,0,0.5)' }}>{current.name}</div>
-          <div style={{ fontSize: isMobile ? 13 : 15, color: 'rgba(255,255,255,0.5)', marginBottom: 30, letterSpacing: '0.04em', maxWidth: 360 }}>{current.tagline}</div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.95)', color: '#1A1A1A', borderRadius: 14, padding: isMobile ? '12px 22px' : '14px 30px', fontSize: isMobile ? 13 : 14, fontWeight: 700, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', letterSpacing: '0.03em' }}>
-            Explore {current.name} <span style={{ fontSize: 16 }}>→</span>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 54 : 88, letterSpacing: '0.03em', color: '#FFF', lineHeight: 0.85, marginBottom: 14, textShadow: '0 4px 32px rgba(0,0,0,0.5)' }}>{heroHeadline}</div>
+          <div style={{ fontSize: isMobile ? 13 : 15, color: 'rgba(255,255,255,0.5)', marginBottom: 30, letterSpacing: '0.04em', maxWidth: 360 }}>{heroSubheadline}</div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: heroCtaBg, color: heroCtaColor, borderRadius: ctaRadius, padding: isMobile ? '12px 22px' : '14px 30px', fontSize: isMobile ? 13 : 14, fontWeight: 700, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', letterSpacing: '0.03em' }}>
+            {heroCtaText} <span style={{ fontSize: 16 }}>→</span>
           </div>
         </div>
         <div className="hero-arrow-zone" onClick={(e) => { e.stopPropagation(); changeSlide((slideIdx - 1 + brands.length) % brands.length); }}

@@ -1,12 +1,37 @@
 import React from 'react';
+import { getFontFamily, getButtonRadius } from '../lib/design';
 
-export default function Nav({ interests, view, setView, onLogout, isAdmin, onAdminClick }) {
+export default function Nav({ interests, view, setView, onLogout, isAdmin, onAdminClick, navigation = [], globalStyles = {}, onNavClick }) {
+  const primary = globalStyles.primary_color || '#1A1A1A';
+  const btnRadius = getButtonRadius(globalStyles.button_style);
+  const fontFamily = getFontFamily(globalStyles.font_family);
+
+  const handleNavItem = (item) => {
+    if (onNavClick) { onNavClick(item); return; }
+    if (item.url?.startsWith('#')) {
+      const brandId = item.url.replace('#', '');
+      window.location.hash = brandId;
+    } else if (item.url?.startsWith('http')) {
+      window.open(item.url, '_blank');
+    } else {
+      setView('home');
+    }
+  };
+
   return (
     <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(245,242,237,0.88)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderBottom: '0.5px solid rgba(224,221,216,0.6)', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1.25rem' }}>
-      <button onClick={() => setView('home')} style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.1em', color: '#1A1A1A', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Global Access</button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <button onClick={() => setView('home')} style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.1em', color: primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Global Access</button>
+        {navigation.map(item => (
+          <button key={item.id} onClick={() => handleNavItem(item)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#666', fontFamily, padding: '4px 0', letterSpacing: '0.02em' }}>
+            {item.label}
+          </button>
+        ))}
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {interests.length > 0 && view !== 'interest' && (
-          <button onClick={() => setView('interest')} style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 20, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          <button onClick={() => setView('interest')} style={{ background: primary, color: '#FFF', border: 'none', borderRadius: btnRadius >= 18 ? 20 : btnRadius, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             My List ({interests.length})
           </button>
         )}

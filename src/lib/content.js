@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import { BRANDS } from './data';
+import { DEFAULT_GLOBAL_STYLES, parseJsonField } from './design';
 
 export function useBrandContent() {
   const [brandOverrides, setBrandOverrides] = useState({});
@@ -42,6 +43,9 @@ export function useBrandContent() {
   const [hiddenBrands, setHiddenBrands] = useState([]);
   const [customBrands, setCustomBrands] = useState([]);
   const [bgColor, setBgColor] = useState('#F5F2ED');
+  const [heroConfig, setHeroConfig] = useState({});
+  const [globalStyles, setGlobalStyles] = useState(DEFAULT_GLOBAL_STYLES);
+  const [navigation, setNavigation] = useState([]);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -52,11 +56,17 @@ export function useBrandContent() {
             if (s.key === 'hidden_brands') setHiddenBrands(JSON.parse(s.value || '[]'));
             if (s.key === 'custom_brands') setCustomBrands(JSON.parse(s.value || '[]'));
             if (s.key === 'bg_color') setBgColor(s.value || '#F5F2ED');
+            if (s.key === 'hero_config') setHeroConfig(parseJsonField(s.value, {}));
+            if (s.key === 'global_styles') setGlobalStyles({ ...DEFAULT_GLOBAL_STYLES, ...parseJsonField(s.value, {}) });
+            if (s.key === 'navigation') setNavigation(parseJsonField(s.value, []));
           });
         }
       } catch (_) {}
     };
     loadSettings();
+    const onUpdate = () => { loadContent(); loadSettings(); };
+    window.addEventListener('ga-content-updated', onUpdate);
+    return () => window.removeEventListener('ga-content-updated', onUpdate);
   }, []);
 
   const getMergedBrands = () => {
@@ -87,6 +97,8 @@ export function useBrandContent() {
         description: override.description || brand.description,
         color: override.color || brand.color,
         fontStyle: override.font_style || 'modern',
+        logoUrl: override.logo_url || null,
+        layout: parseJsonField(override.layout_config, {}),
         gallery: finalGallery,
         products: brand.products.map(product => {
           const po = productOverrides[product.sku] || {};
@@ -110,7 +122,7 @@ export function useBrandContent() {
     });
   };
 
-  return { getMergedBrands, loadContent, loading, brandOverrides, productOverrides, bgColor };
+  return { getMergedBrands, loadContent, loading, brandOverrides, productOverrides, bgColor, heroConfig, globalStyles, navigation };
 }
 
 export async function saveBrandContent(brandId, data) {

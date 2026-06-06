@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
 import { WHATSAPP_NUMBER } from './lib/data';
 import { useBrandContent } from './lib/content';
+import { getFontFamily } from './lib/design';
 import LoginScreen from './components/LoginScreen';
 import Nav from './components/Nav';
 import HomeView from './components/HomeView';
@@ -22,7 +23,7 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const { getMergedBrands, bgColor } = useBrandContent();
+  const { getMergedBrands, bgColor, globalStyles, navigation } = useBrandContent();
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -122,6 +123,16 @@ export default function App() {
     setActiveBrand(null);
   };
 
+  const handleNavClick = (item) => {
+    if (item.url?.startsWith('#')) {
+      goToBrand(item.url.replace('#', ''));
+    } else if (item.url?.startsWith('http')) {
+      window.open(item.url, '_blank');
+    } else {
+      goHome();
+    }
+  };
+
   const handleLogout = () => {
     supabase.auth.signOut();
     sessionStorage.removeItem('ga_code_verified');
@@ -185,7 +196,7 @@ export default function App() {
   if (authState === 'admin' && adminMode === 'dashboard') return <AdminDashboard user={user} onLogout={handleLogout} onViewPortal={() => setAdminMode('portal')} />;
 
   return (
-    <div style={{ minHeight: '100vh', background: bgColor || '#F5F2ED', fontFamily: "'DM Sans', sans-serif", color: '#1A1A1A', transition: 'background 0.5s ease' }}>
+    <div style={{ minHeight: '100vh', background: bgColor || '#F5F2ED', fontFamily: getFontFamily(globalStyles.font_family), color: globalStyles.primary_color || '#1A1A1A', transition: 'background 0.5s ease' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
 
       {/* Admin bar */}
@@ -213,7 +224,7 @@ export default function App() {
         </div>
       )}
 
-      <Nav interests={interests} view={view} setView={setView} onLogout={authState === 'browse' ? null : handleLogout} onProfile={authState !== 'browse' ? () => setShowProfile(true) : null} user={user} authState={authState} />
+      <Nav interests={interests} view={view} setView={setView} onLogout={authState === 'browse' ? null : handleLogout} navigation={navigation} globalStyles={globalStyles} onNavClick={handleNavClick} />
       {showProfile && <ProfileModal user={user} form={form} setForm={setForm} userType={userType} setUserType={setUserType} onClose={() => setShowProfile(false)} />}
 
       {/* Signup prompt overlay */}

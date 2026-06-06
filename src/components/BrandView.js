@@ -54,6 +54,21 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
 
   if (!brand) return null;
 
+  const layout = brand.layout || {};
+  const headerStyle = layout.header_style || 'hero';
+  const gridColumns = layout.grid_columns || (isMobile ? 1 : null);
+  const cardStyle = layout.card_style || 'elevated';
+  const headerHeights = { hero: isMobile ? 260 : 260, compact: isMobile ? 160 : 180, minimal: isMobile ? 120 : 140 };
+  const headerMinHeight = headerHeights[headerStyle] || headerHeights.hero;
+  const productCardStyles = {
+    flat: { boxShadow: 'none', border: '0.5px solid #E8E4DF' },
+    elevated: { boxShadow: '0 2px 12px rgba(0,0,0,0.04)', border: '0.5px solid #E8E4DF' },
+    bordered: { boxShadow: 'none', border: `2px solid ${brand.color}` },
+  };
+  const flavorGridCols = gridColumns
+    ? `repeat(${gridColumns}, 1fr)`
+    : (isMobile ? '1fr' : 'repeat(auto-fill, minmax(200px, 1fr))');
+
   const unitLabel = (product) => {
     const mode = getOrderMode(product);
     return mode === 'pallet' ? 'Pallet' : 'Master Case';
@@ -66,19 +81,26 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
       <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#AAA', cursor: 'pointer', fontSize: 13, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6, padding: 0, fontFamily: 'inherit' }}>← All Brands</button>
 
       {/* Hero */}
-      <div style={{ background: '#0D0D0D', borderRadius: 20, overflow: 'hidden', marginBottom: '1.5rem', position: 'relative', minHeight: isMobile ? 200 : 260 }}>
+      <div style={{ background: '#0D0D0D', borderRadius: headerStyle === 'minimal' ? 12 : 20, overflow: 'hidden', marginBottom: '1.5rem', position: 'relative', minHeight: headerMinHeight }}>
         <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 50%, ${brand.color}55 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, ${brand.color}33 0%, transparent 60%)` }} />
-        {brand.gallery && brand.gallery[0] && (
-          <img src={brand.gallery[0]} alt={brand.name} style={{ position: 'absolute', right: 0, top: 0, height: '100%', width: '50%', objectFit: 'cover', opacity: 0.25, WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)', maskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)' }} onError={e => { e.target.style.display = 'none'; }} />
+        {headerStyle !== 'minimal' && brand.gallery && brand.gallery[0] && (
+          <img src={brand.gallery[0]} alt={brand.name} style={{ position: 'absolute', right: 0, top: 0, height: '100%', width: headerStyle === 'compact' ? '40%' : '50%', objectFit: 'cover', opacity: 0.25, WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)', maskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)' }} onError={e => { e.target.style.display = 'none'; }} />
         )}
         <div style={{ position: 'relative', zIndex: 2, padding: isMobile ? '1.5rem' : '2rem' }}>
+          {brand.logoUrl && (
+            <img src={brand.logoUrl} alt={`${brand.name} logo`} style={{ height: headerStyle === 'compact' ? 32 : 44, marginBottom: 10, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
+          )}
           <div style={{ display: 'inline-block', background: brand.color + '22', border: `0.5px solid ${brand.color}55`, borderRadius: 20, padding: '4px 12px', fontSize: 10, color: brand.color, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 600 }}>{brand.category}</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 38 : 52, color: '#FFF', lineHeight: 0.95, marginBottom: 10 }}>{brand.name}</div>
-          <div style={{ fontSize: 13, color: '#AAA', maxWidth: 460, lineHeight: 1.7 }}>{brand.description}</div>
-          <div style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6, background: isDistributor ? 'rgba(201,168,76,0.15)' : 'rgba(76,175,125,0.15)', border: `0.5px solid ${isDistributor ? '#C9A84C' : '#4CAF7D'}55`, borderRadius: 20, padding: '5px 12px' }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: isDistributor ? '#C9A84C' : '#4CAF7D' }} />
-            <span style={{ fontSize: 11, color: isDistributor ? '#C9A84C' : '#4CAF7D', fontWeight: 500, letterSpacing: '0.06em' }}>{isDistributor ? 'Distributor Account' : 'Retailer Account'}</span>
-          </div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: headerStyle === 'compact' ? (isMobile ? 30 : 40) : (isMobile ? 38 : 52), color: '#FFF', lineHeight: 0.95, marginBottom: 10 }}>{brand.name}</div>
+          {headerStyle !== 'minimal' && (
+            <div style={{ fontSize: headerStyle === 'compact' ? 12 : 13, color: '#AAA', maxWidth: 460, lineHeight: 1.7 }}>{brand.description}</div>
+          )}
+          {headerStyle === 'hero' && (
+            <div style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6, background: isDistributor ? 'rgba(201,168,76,0.15)' : 'rgba(76,175,125,0.15)', border: `0.5px solid ${isDistributor ? '#C9A84C' : '#4CAF7D'}55`, borderRadius: 20, padding: '5px 12px' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: isDistributor ? '#C9A84C' : '#4CAF7D' }} />
+              <span style={{ fontSize: 11, color: isDistributor ? '#C9A84C' : '#4CAF7D', fontWeight: 500, letterSpacing: '0.06em' }}>{isDistributor ? 'Distributor Account' : 'Retailer Account'}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -158,7 +180,7 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
           const showToggle = isDistributor && product.orderUnit === 'both';
 
           return (
-            <div key={product.sku} style={{ background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
+            <div key={product.sku} style={{ background: '#FFF', borderRadius: 16, overflow: 'hidden', ...productCardStyles[cardStyle] }}>
               {/* Product image */}
               {product.image && (
                 <div style={{ position: 'relative', height: 160, overflow: 'hidden' }}>
@@ -216,7 +238,7 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
                 </div>
 
                 {/* Flavors/options grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: flavorGridCols, gap: 8 }}>
                   {productFlavors.map(flavor => {
                     const isSoldOut = flavor.includes('SOLD OUT');
                     const selected = isInterested(product.sku, flavor);
