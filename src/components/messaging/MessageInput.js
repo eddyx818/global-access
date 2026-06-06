@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function MessageInput({ onSend }) {
+export default function MessageInput({ onSend, placeholder = 'Type a message...' }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -20,7 +20,7 @@ export default function MessageInput({ onSend }) {
         value={text}
         onChange={e => setText(e.target.value)}
         onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-        placeholder="Type a message..."
+        placeholder={placeholder}
         style={{ flex: 1, background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
       />
       <button onClick={handleSend} disabled={!text.trim() || sending}

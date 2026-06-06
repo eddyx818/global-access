@@ -81,7 +81,7 @@ export async function getOrCreateDirectConversation(userId, otherUserId) {
   return data;
 }
 
-export async function sendMessage({ conversationId, fromUserId, toUserId, content }) {
+export async function sendMessage({ conversationId, fromUserId, toUserId, content, isGroup = false }) {
   const trimmed = content?.trim();
   if (!trimmed) return null;
 
@@ -90,7 +90,7 @@ export async function sendMessage({ conversationId, fromUserId, toUserId, conten
     .insert({
       conversation_id: conversationId,
       from_user_id: fromUserId,
-      to_user_id: toUserId,
+      to_user_id: isGroup ? null : toUserId,
       content: trimmed,
       read_status: false,
     })
@@ -102,8 +102,89 @@ export async function sendMessage({ conversationId, fromUserId, toUserId, conten
     last_message_at: new Date().toISOString(),
   }).eq('id', conversationId);
 
-  await logUserActivity('message_send', `/chat/${conversationId}`, { to_user_id: toUserId }, fromUserId);
+  await logUserActivity('message_send', `/chat/${conversationId}`, {
+    to_user_id: toUserId,
+    is_group: isGroup,
+  }, fromUserId);
   return data;
+}
+
+export async function createGroupConversation(creatorId, groupName, participantIds = []) {
+  const name = groupName?.trim();
+  if (!name) throw new Error('Group name is required');
+
+  const ids = [...new Set([creatorId, ...participantIds])];
+  const { data, error } = await supabase
+    .from('conversations')
+    .insert({
+      participant_user_ids: ids,
+      is_group: true,
+      group_name: name,
+      last_message_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchBrandGroupChannels() {
+  const { data } = await supabase
+    .from('conversations')
+    .select('*')
+    .eq('is_group', true)
+    .not('brand_id', 'is', null)
+    .order('group_name', { ascending: true });
+  return data || [];
+}
+
+export async function getOrCreateBrandGroup(brandId, brandName, userId) {
+  const { data: existing } = await supabase
+    .from('conversations')
+    .select('*')
+    .eq('is_group', true)
+    .eq('brand_id', brandId)
+    .maybeSingle();
+
+  if (existing) {
+    const joined = await joinGroupChat(existing.id);
+    return joined || existing;
+  }
+
+  const { data, error } = await supabase
+    .from('conversations')
+    .insert({
+      participant_user_ids: [userId],
+      is_group: true,
+      group_name: `${brandName} Channel`,
+      brand_id: brandId,
+      last_message_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function joinGroupChat(conversationId) {
+  const { data, error } = await supabase.rpc('join_group_chat', {
+    p_conversation_id: conversationId,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export function getConversationTitle(convo, profiles, currentUserId) {
+  if (convo.is_group) {
+    return convo.group_name || 'Group chat';
+  }
+  const otherId = convo.participant_user_ids.find(id => id !== currentUserId);
+  const p = profiles[otherId] || {};
+  return p.username || p.name || 'User';
+}
+
+export function isGroupConversation(convo) {
+  return !!convo?.is_group;
 }
 
 export async function markMessagesRead(conversationId, userId) {

@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   fetchConversations, fetchMessages, sendMessage, markMessagesRead,
   getOrCreateDirectConversation, subscribeToMessages, getUnreadCount, fetchOnlineUsers,
+  getConversationTitle, isGroupConversation,
 } from '../../lib/community';
 import { supabase } from '../../lib/supabase';
 import ConversationList from './ConversationList';
 import MessageThread from './MessageThread';
 import MessageInput from './MessageInput';
 import UserList from './UserList';
+import GroupList from './GroupList';
 
 export default function ChatSidebar({ user, open, onClose }) {
   const [tab, setTab] = useState('chats');
@@ -52,16 +54,20 @@ export default function ChatSidebar({ user, open, onClose }) {
     setLoading(true);
     fetchMessages(activeConvo.id).then(msgs => {
       setMessages(msgs);
-      markMessagesRead(activeConvo.id, user.id);
+      if (!isGroupConversation(activeConvo)) {
+        markMessagesRead(activeConvo.id, user.id);
+      }
       setLoading(false);
     });
     if (subRef.current) subRef.current.unsubscribe();
     subRef.current = subscribeToMessages(activeConvo.id, (msg) => {
       setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg]);
-      if (msg.to_user_id === user.id) markMessagesRead(activeConvo.id, user.id);
+      if (!isGroupConversation(activeConvo) && msg.to_user_id === user.id) {
+        markMessagesRead(activeConvo.id, user.id);
+      }
     });
     return () => subRef.current?.unsubscribe();
-  }, [activeConvo?.id, user.id]);
+  }, [activeConvo?.id, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openChatWith = async (otherUserId) => {
     const convo = await getOrCreateDirectConversation(user.id, otherUserId);
@@ -70,21 +76,32 @@ export default function ChatSidebar({ user, open, onClose }) {
     await refresh();
   };
 
+  const openGroup = async (convo) => {
+    setActiveConvo(convo);
+    setTab('groups');
+    await refresh();
+  };
+
   const handleSend = async (text) => {
     if (!activeConvo) return;
-    const otherId = activeConvo.participant_user_ids.find(id => id !== user.id);
+    const isGroup = isGroupConversation(activeConvo);
+    const otherId = isGroup ? null : activeConvo.participant_user_ids.find(id => id !== user.id);
     await sendMessage({
       conversationId: activeConvo.id,
       fromUserId: user.id,
       toUserId: otherId,
       content: text,
+      isGroup,
     });
   };
 
-  const otherParticipant = (convo) => {
-    const oid = convo.participant_user_ids.find(id => id !== user.id);
-    return profiles[oid] || { name: 'User', user_id: oid };
-  };
+  const activeIsGroup = isGroupConversation(activeConvo);
+  const headerTitle = activeConvo
+    ? getConversationTitle(activeConvo, profiles, user.id)
+    : `Messages${unread ? ` (${unread})` : ''}`;
+  const headerSub = activeIsGroup
+    ? `${activeConvo.participant_user_ids.length} members`
+    : null;
 
   if (!open) return null;
 
@@ -96,17 +113,18 @@ export default function ChatSidebar({ user, open, onClose }) {
           {activeConvo ? (
             <button onClick={() => setActiveConvo(null)} style={{ background: 'none', border: 'none', color: '#FFF', cursor: 'pointer', fontSize: 18, padding: 0, fontFamily: 'inherit' }}>‹</button>
           ) : null}
-          <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#FFF' }}>
-            {activeConvo ? (otherParticipant(activeConvo).username || otherParticipant(activeConvo).name || 'Chat') : `Messages${unread ? ` (${unread})` : ''}`}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#FFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headerTitle}</div>
+            {headerSub && <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>{headerSub}</div>}
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 20, fontFamily: 'inherit' }}>×</button>
         </div>
 
         {!activeConvo && (
           <div style={{ display: 'flex', borderBottom: '0.5px solid #E8E4DF' }}>
-            {[['chats', 'Chats'], ['people', 'Online']].map(([id, label]) => (
+            {[['chats', 'Chats'], ['groups', 'Groups'], ['people', 'Online']].map(([id, label]) => (
               <button key={id} onClick={() => setTab(id)}
-                style={{ flex: 1, padding: '10px', border: 'none', background: tab === id ? '#F8F6F3' : '#FFF', fontSize: 12, fontWeight: tab === id ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit', color: tab === id ? '#1A1A1A' : '#888' }}>
+                style={{ flex: 1, padding: '10px 6px', border: 'none', background: tab === id ? '#F8F6F3' : '#FFF', fontSize: 11, fontWeight: tab === id ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit', color: tab === id ? '#1A1A1A' : '#888' }}>
                 {label}
               </button>
             ))}
@@ -115,11 +133,19 @@ export default function ChatSidebar({ user, open, onClose }) {
 
         {activeConvo ? (
           <>
-            <MessageThread messages={messages} currentUserId={user.id} profiles={profiles} loading={loading} />
-            <MessageInput onSend={handleSend} />
+            <MessageThread messages={messages} currentUserId={user.id} profiles={profiles} loading={loading} isGroup={activeIsGroup} />
+            <MessageInput onSend={handleSend} placeholder={activeIsGroup ? 'Message the group...' : 'Type a message...'} />
           </>
         ) : tab === 'chats' ? (
           <ConversationList conversations={conversations} profiles={profiles} currentUserId={user.id} onSelect={setActiveConvo} />
+        ) : tab === 'groups' ? (
+          <GroupList
+            user={user}
+            conversations={conversations}
+            onlineUsers={onlineUsers}
+            onOpenGroup={openGroup}
+            onCreated={openGroup}
+          />
         ) : (
           <UserList users={onlineUsers} onSelect={(u) => openChatWith(u.user_id)} />
         )}
