@@ -121,7 +121,7 @@ export default function HomeView({ onBrandClick, isMobile }) {
 
       {/* HERO */}
       <div ref={heroRef} onMouseMove={handleHeroMouseMove} onMouseLeave={() => setMousePos({ x: 0, y: 0 })}
-        style={{ margin: isMobile ? '0.75rem' : '1.25rem', borderRadius: 24, overflow: 'hidden', position: 'relative', height: isMobile ? 300 : 500, background: '#0D0D0D', userSelect: 'none' }}>
+        style={{ margin: isMobile ? '0.75rem' : '1.25rem', borderRadius: 24, overflow: 'hidden', position: 'relative', height: isMobile ? 300 : 520, background: '#0D0D0D', userSelect: 'none' }}>
         {brands.map((brand, i) => (
           <div key={brand.id} style={{ position: 'absolute', inset: 0, transition: 'opacity 0.7s ease', opacity: i === slideIdx ? 1 : 0, pointerEvents: 'none' }}>
             <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 60%, ${brand.color}65 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, ${brand.color}30 0%, transparent 50%), #0D0D0D` }} />
