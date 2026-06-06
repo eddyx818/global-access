@@ -60,16 +60,15 @@ export default function AdminAgent() {
       }));
       history.push({ role: 'user', content: userMessage });
  
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+      const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+      const res = await fetch(`${supabaseUrl}/functions/v1/claude-agent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': process.env.REACT_APP_ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
+          'Authorization': `Bearer ${supabaseKey}`,
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
-          max_tokens: 1000,
           system: SYSTEM_PROMPT,
           messages: history,
         }),
