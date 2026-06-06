@@ -48,7 +48,7 @@ export default function MarketingDashboard() {
       setTimeout(() => setSaved(''), 4000);
       loadData();
     } catch (err) {
-      setError('Could not generate draft. Make sure ANTHROPIC_API_KEY is set in Supabase Edge Function secrets.');
+      setError(`Error: ${err.message || JSON.stringify(err)}`);
     }
     setGenerating(false);
   };
