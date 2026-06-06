@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { ACCESS_CODE } from '../lib/data';
-
+ 
 const STORE_TYPES = {
   retailer: ['Smoke Shop', 'Convenience Store', 'Liquor Store', 'Vape Shop', 'CBD Shop', 'Dispensary', 'Gas Station', 'Other'],
   distributor: ['Regional Distributor', 'National Distributor', 'Wholesale', 'Broker', 'Other'],
 };
-
+ 
 export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAccess, showLogin }) {
   const [mode, setMode] = useState(showLogin ? 'login' : 'gate');
   const [code, setCode] = useState('');
@@ -22,12 +22,12 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
+ 
   const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
   const labelStyle = { fontSize: 11, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 };
   const btnPrimary = { width: '100%', background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '13px', fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', cursor: 'pointer', fontFamily: 'inherit', marginBottom: '1rem' };
   const btnLink = { background: 'none', border: 'none', fontSize: 12, color: '#AAA', cursor: 'pointer', padding: 0, fontFamily: 'inherit' };
-
+ 
   const handleCode = () => {
     if (code.trim().toLowerCase() === ACCESS_CODE.toLowerCase()) {
       onCodeVerified(); setMode('login'); setError('');
@@ -35,7 +35,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
       setError('Incorrect access code. Please try again or request access.');
     }
   };
-
+ 
   const handleLogin = async () => {
     setLoading(true); setError('');
     const { data, error: err } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
@@ -43,7 +43,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     if (err) setError('Invalid email or password.');
     else onLoggedIn(data.user);
   };
-
+ 
   const handleReset = async () => {
     if (!resetEmail.trim()) { setError('Please enter your email.'); return; }
     setLoading(true);
@@ -52,7 +52,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     if (err) setError('Could not send reset email.');
     else { setSuccess('Reset email sent! Check your inbox.'); setError(''); }
   };
-
+ 
   const handleRequest = async () => {
     if (!reqForm.name || !reqForm.company || !reqForm.email) {
       setError('Please fill in name, company, and email.');
@@ -64,9 +64,9 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     setSuccess("Request sent! We'll reach out within 1 business day.");
     setError('');
   };
-
+ 
   const setReq = (field, val) => setReqForm(f => ({ ...f, [field]: val }));
-
+ 
   return (
     <div style={{ minHeight: '100vh', background: '#F5F2ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: '1.5rem' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
@@ -77,9 +77,9 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: '0.06em', color: '#1A1A1A', lineHeight: 1 }}>Global Access</div>
           <div style={{ width: 36, height: 2, background: '#C9A84C', margin: '14px auto 0', borderRadius: 1 }} />
         </div>
-
+ 
         <div style={{ background: '#FFF', border: '0.5px solid #E0DDD8', borderRadius: 14, padding: '2rem', boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
-
+ 
           {/* GATE */}
           {mode === 'gate' && (
             <>
@@ -95,7 +95,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
               <div style={{ textAlign: 'center' }}><button onClick={() => setMode('request')} style={btnLink}>Don't have access? Request it</button></div>
             </>
           )}
-
+ 
           {/* LOGIN */}
           {mode === 'login' && (
             <>
@@ -121,7 +121,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
               </div>
             </>
           )}
-
+ 
           {/* RESET */}
           {mode === 'reset' && (
             <>
@@ -136,12 +136,12 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
               <div style={{ textAlign: 'center' }}><button onClick={() => setMode('login')} style={btnLink}>← Back to sign in</button></div>
             </>
           )}
-
+ 
           {/* REQUEST ACCESS — full form */}
           {mode === 'request' && (
             <>
               <p style={{ fontSize: 13, color: '#888', marginBottom: '1.25rem', lineHeight: 1.6 }}>Tell us about your business. We'll review and reach out within 1 business day.</p>
-
+ 
               {/* Account type toggle */}
               <div style={{ marginBottom: '1.25rem' }}>
                 <label style={labelStyle}>I am a *</label>
@@ -154,7 +154,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                   ))}
                 </div>
               </div>
-
+ 
               {/* Basic info */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: '1rem' }}>
                 {[['name', 'Your name *'], ['company', 'Business name *']].map(([field, label]) => (
@@ -172,7 +172,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                   </div>
                 ))}
               </div>
-
+ 
               {/* Store type */}
               <div style={{ marginBottom: '1rem' }}>
                 <label style={labelStyle}>Type of {reqForm.account_type} *</label>
@@ -181,14 +181,14 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                   {(STORE_TYPES[reqForm.account_type] || []).map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-
+ 
               {/* Address */}
               <div style={{ marginBottom: '1rem' }}>
                 <label style={labelStyle}>Primary Business Address</label>
                 <input value={reqForm.address} onChange={e => setReq('address', e.target.value)} placeholder="123 Main St, City, State, ZIP" style={inputStyle} />
                 <div style={{ fontSize: 11, color: '#CCC', marginTop: 4 }}>Just your main address — we don't need every location</div>
               </div>
-
+ 
               {/* Location count */}
               <div style={{ marginBottom: '1rem' }}>
                 <label style={labelStyle}>How many {reqForm.account_type === 'retailer' ? 'store' : 'warehouse'} locations?</label>
@@ -201,7 +201,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                   ))}
                 </div>
               </div>
-
+ 
               {/* Distributor retail stores question */}
               {reqForm.account_type === 'distributor' && (
                 <div style={{ background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 10, padding: '1rem', marginBottom: '1rem' }}>
@@ -229,7 +229,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                   )}
                 </div>
               )}
-
+ 
               {error && <ErrBox msg={error} />}
               {success && <OkBox msg={success} />}
               {!success && (
@@ -246,7 +246,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     </div>
   );
 }
-
+ 
 const ErrBox = ({ msg }) => <div style={{ background: '#FEF0F0', border: '0.5px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#C53030', marginBottom: '1rem' }}>{msg}</div>;
 const OkBox = ({ msg }) => <div style={{ background: '#F0FAF4', border: '0.5px solid #C6EDD7', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#2D7A50', marginBottom: '1rem' }}>{msg}</div>;
 const Divider = () => (

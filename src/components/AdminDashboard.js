@@ -6,12 +6,12 @@ import BrandManager from './BrandManager';
 import MarketingDashboard from './MarketingDashboard';
 import AdminAgent from './AdminAgent';
 import UserManager from './UserManager';
-
+ 
 export default function AdminDashboard({ onLogout, onViewPortal }) {
   const [tab, setTab] = useState('overview');
   const [brandOverrides, setBrandOverrides] = useState({});
   const [productOverrides, setProductOverrides] = useState({});
-
+ 
   const loadContentOverrides = async () => {
     const [{ data: brands }, { data: products }] = await Promise.all([
       supabase.from('brand_content').select('*'),
@@ -28,15 +28,15 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
   const [avgTimes, setAvgTimes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
-
+ 
   useEffect(() => { loadAll(); loadContentOverrides(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
+ 
   const loadAll = async () => {
     setLoading(true);
     await Promise.all([loadStats(), loadRequests(), loadInquiries(), loadTopPages(), loadTopClicks(), loadAvgTimes()]);
     setLoading(false);
   };
-
+ 
   const loadStats = async () => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
@@ -56,7 +56,7 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
     if (lastHour > 0 && thisHour > lastHour * 1.5) setAlert(`Traffic spike! ${thisHour} visits this hour vs ${lastHour} last hour.`);
     setStats({ today: t.count || 0, week: w.count || 0, month: m.count || 0, thisHour });
   };
-
+ 
   const loadTopPages = async () => {
     const { data } = await supabase.from('analytics_events').select('page').eq('event_type', 'page_view').limit(500);
     if (!data) return;
@@ -64,7 +64,7 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
     data.forEach(r => { counts[r.page] = (counts[r.page] || 0) + 1; });
     setTopPages(Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10));
   };
-
+ 
   const loadTopClicks = async () => {
     const { data } = await supabase.from('analytics_events').select('element').eq('event_type', 'click').limit(500);
     if (!data) return;
@@ -72,7 +72,7 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
     data.forEach(r => { if (r.element) counts[r.element] = (counts[r.element] || 0) + 1; });
     setTopClicks(Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 15));
   };
-
+ 
   const loadAvgTimes = async () => {
     const { data } = await supabase.from('analytics_events').select('page, value').eq('event_type', 'time_on_page').limit(500);
     if (!data) return;
@@ -80,17 +80,17 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
     data.forEach(r => { if (!r.value) return; times[r.page] = (times[r.page] || 0) + r.value; cnts[r.page] = (cnts[r.page] || 0) + 1; });
     setAvgTimes(Object.entries(times).map(([p, t]) => [p, Math.round(t / cnts[p])]).sort((a, b) => b[1] - a[1]));
   };
-
+ 
   const loadRequests = async () => {
     const { data } = await supabase.from('access_requests').select('*').order('created_at', { ascending: false }).limit(50);
     setRequests(data || []);
   };
-
+ 
   const loadInquiries = async () => {
     const { data } = await supabase.from('inquiries').select('*').order('created_at', { ascending: false }).limit(50);
     setInquiries(data || []);
   };
-
+ 
   const handleApprove = async (req) => {
     const tempPass = Math.random().toString(36).slice(2, 10);
     const msg = encodeURIComponent(`Hi ${req.name}! Your Global Access portal account is approved.\n\nURL: ${window.location.origin}\nEmail: ${req.email}\nTemp password: ${tempPass}\n\nPlease log in and change your password!`);
@@ -98,16 +98,16 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
     await supabase.from('access_requests').update({ status: 'approved' }).eq('id', req.id);
     loadRequests();
   };
-
+ 
   const handleDeny = async (req) => {
     await supabase.from('access_requests').update({ status: 'denied' }).eq('id', req.id);
     loadRequests();
   };
-
+ 
   const pending = requests.filter(r => r.status === 'pending');
   const card = { background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 12, padding: '1.25rem' };
   const tabBtn = (t) => ({ background: tab === t ? '#1A1A1A' : 'none', color: tab === t ? '#FFF' : '#888', border: `0.5px solid ${tab === t ? '#1A1A1A' : '#E0DDD8'}`, borderRadius: 8, padding: '8px 16px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: tab === t ? 600 : 400 });
-
+ 
   return (
     <div style={{ minHeight: '100vh', background: '#F5F2ED', fontFamily: "'DM Sans', sans-serif", color: '#1A1A1A' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
@@ -231,4 +231,3 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
     </div>
   );
 }
-

@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { BRANDS } from '../lib/data';
-
+ 
 const SYSTEM_PROMPT = `You are an AI admin assistant for Global Access, a B2B trade portal for alternative products. You help the admin manage the site.
-
+ 
 You have access to these actions. When the user asks you to do something, respond with a JSON object in this exact format:
 {
   "message": "Your conversational response explaining what you'll do",
@@ -11,7 +11,7 @@ You have access to these actions. When the user asks you to do something, respon
   "preview": "Human readable description of the change for confirmation",
   "data": { ...action specific data }
 }
-
+ 
 Available actions:
 - update_brand_content: Update brand tagline, description, color. data: {brand_id, tagline?, description?, color?}
 - update_product_content: Update product name, detail, flavors. data: {brand_id, sku, name?, detail?, flavors_retail?, flavors_distro?}
@@ -22,11 +22,11 @@ Available actions:
 - hide_brand: Hide a brand from the portal. data: {brand_id}
 - show_brand: Show a hidden brand. data: {brand_id}
 - null: Just answer the question, no action needed
-
+ 
 Brands available: ${BRANDS.map(b => `${b.id} (${b.name})`).join(', ')}
-
+ 
 Always be helpful, professional, and confirm before making changes. If the user's request is unclear, ask for clarification.`;
-
+ 
 export default function AdminAgent() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
@@ -36,22 +36,22 @@ export default function AdminAgent() {
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(null); // pending action waiting for confirmation
   const messagesEndRef = useRef(null);
-
+ 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
+ 
   const addMessage = (role, text, extra = {}) => {
     setMessages(prev => [...prev, { role, text, ...extra }]);
   };
-
+ 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
     const userMessage = input.trim();
     setInput('');
     addMessage('user', userMessage);
     setLoading(true);
-
+ 
     try {
       // Build conversation history for Claude
       const history = messages.map(m => ({
@@ -59,7 +59,7 @@ export default function AdminAgent() {
         content: m.text
       }));
       history.push({ role: 'user', content: userMessage });
-
+ 
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -74,35 +74,35 @@ export default function AdminAgent() {
           messages: history,
         }),
       });
-
+ 
       const data = await res.json();
       const rawText = data.content?.[0]?.text || '{}';
-
+ 
       let parsed;
       try {
         parsed = JSON.parse(rawText.replace(/```json|```/g, '').trim());
       } catch {
         parsed = { message: rawText, action: null };
       }
-
+ 
       addMessage('assistant', parsed.message);
-
+ 
       if (parsed.action && parsed.action !== 'null') {
         setPending(parsed);
         addMessage('assistant', `**Preview:** ${parsed.preview}\n\nShall I go ahead with this change?`, { isConfirm: true });
       }
-
+ 
     } catch (err) {
       addMessage('assistant', `Sorry, I ran into an error: ${err.message}`);
     }
     setLoading(false);
   };
-
+ 
   const handleConfirm = async () => {
     if (!pending) return;
     setLoading(true);
     setPending(null);
-
+ 
     try {
       await executeAction(pending.action, pending.data);
       addMessage('assistant', '✅ Done! The change has been saved and is live on the site.');
@@ -111,12 +111,12 @@ export default function AdminAgent() {
     }
     setLoading(false);
   };
-
+ 
   const handleCancel = () => {
     setPending(null);
     addMessage('assistant', 'No problem — change cancelled. What else can I help with?');
   };
-
+ 
   const executeAction = async (action, data) => {
     switch (action) {
       case 'update_brand_content':
@@ -128,7 +128,7 @@ export default function AdminAgent() {
           updated_at: new Date().toISOString(),
         }, { onConflict: 'brand_id' });
         break;
-
+ 
       case 'update_product_content': {
         const payload = { brand_id: data.brand_id, sku: data.sku, updated_at: new Date().toISOString() };
         if (data.name) payload.name = data.name;
@@ -138,7 +138,7 @@ export default function AdminAgent() {
         await supabase.from('product_content').upsert(payload, { onConflict: 'sku' });
         break;
       }
-
+ 
       case 'toggle_flavor_soldout':
       case 'add_flavor':
       case 'remove_flavor': {
@@ -149,7 +149,7 @@ export default function AdminAgent() {
         const brand = BRANDS.find(b => b.id === data.brand_id);
         const product = brand?.products.find(p => p.sku === data.sku);
         if (!flavors.length && product) flavors = [...(product[flavorKey] || [])];
-
+ 
         if (action === 'add_flavor') {
           flavors.push(data.flavor);
         } else if (action === 'remove_flavor') {
@@ -163,7 +163,7 @@ export default function AdminAgent() {
             return f;
           });
         }
-
+ 
         await supabase.from('product_content').upsert({
           brand_id: data.brand_id, sku: data.sku,
           [flavorKey]: JSON.stringify(flavors),
@@ -171,7 +171,7 @@ export default function AdminAgent() {
         }, { onConflict: 'sku' });
         break;
       }
-
+ 
       case 'generate_email': {
         const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
         const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
@@ -182,7 +182,7 @@ export default function AdminAgent() {
         });
         break;
       }
-
+ 
       case 'hide_brand':
       case 'show_brand': {
         const { data: settings } = await supabase.from('site_settings').select('value').eq('key', 'hidden_brands').single();
@@ -192,18 +192,18 @@ export default function AdminAgent() {
         await supabase.from('site_settings').upsert({ key: 'hidden_brands', value: JSON.stringify(hidden) }, { onConflict: 'key' });
         break;
       }
-
+ 
       default:
         throw new Error(`Unknown action: ${action}`);
     }
   };
-
+ 
   const msgStyle = (role) => ({
     display: 'flex',
     justifyContent: role === 'user' ? 'flex-end' : 'flex-start',
     marginBottom: 10,
   });
-
+ 
   const bubbleStyle = (role) => ({
     maxWidth: '80%',
     padding: '10px 14px',
@@ -215,7 +215,7 @@ export default function AdminAgent() {
     border: role === 'user' ? 'none' : '0.5px solid #E0DDD8',
     whiteSpace: 'pre-wrap',
   });
-
+ 
   return (
     <>
       {/* Chat bubble button */}
@@ -225,7 +225,7 @@ export default function AdminAgent() {
         onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
         {open ? '×' : '✦'}
       </button>
-
+ 
       {/* Chat window */}
       {open && (
         <div style={{ position: 'fixed', bottom: 88, right: 24, width: 380, height: 520, background: '#FFF', borderRadius: 20, boxShadow: '0 8px 40px rgba(0,0,0,0.15)', border: '0.5px solid #E0DDD8', display: 'flex', flexDirection: 'column', zIndex: 998, overflow: 'hidden' }}>
@@ -235,7 +235,7 @@ export default function AdminAgent() {
             <div style={{ fontSize: 13, fontWeight: 600, color: '#FFF', letterSpacing: '0.04em' }}>Admin Assistant</div>
             <div style={{ fontSize: 11, color: '#888', marginLeft: 'auto' }}>Powered by Claude</div>
           </div>
-
+ 
           {/* Messages */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', scrollbarWidth: 'none' }}>
             {messages.map((msg, i) => (
@@ -262,7 +262,7 @@ export default function AdminAgent() {
             )}
             <div ref={messagesEndRef} />
           </div>
-
+ 
           {/* Input */}
           <div style={{ padding: '0.75rem', borderTop: '0.5px solid #F0EDE8', display: 'flex', gap: 8 }}>
             <input
