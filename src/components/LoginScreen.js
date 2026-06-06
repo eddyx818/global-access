@@ -21,6 +21,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
   const labelStyle = { fontSize: 11, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 };
@@ -104,7 +105,13 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
               </div>
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={labelStyle}>Password</label>
-                <input value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} type="password" placeholder="••••••••" style={inputStyle} />
+                <div style={{ position: 'relative' }}>
+                  <input value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} type={showPassword ? 'text' : 'password'} placeholder="••••••••" style={{ ...inputStyle, paddingRight: 44 }} />
+                  <button onClick={() => setShowPassword(s => !s)} type="button"
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#AAA', padding: 0, fontFamily: 'inherit' }}>
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
               </div>
               {error && <ErrBox msg={error} />}
               <button onClick={handleLogin} disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.6 : 1 }}>{loading ? 'Signing in...' : 'Sign In →'}</button>

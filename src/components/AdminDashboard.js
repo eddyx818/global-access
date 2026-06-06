@@ -4,6 +4,7 @@ import ContentEditor from './ContentEditor';
 import ContactMap from './ContactMap';
 import BrandManager from './BrandManager';
 import MarketingDashboard from './MarketingDashboard';
+import AdminAgent from './AdminAgent';
 import UserManager from './UserManager';
 
 export default function AdminDashboard({ onLogout, onViewPortal }) {
@@ -225,6 +226,7 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
       {tab === 'marketing' && (
         <MarketingDashboard />
       )}
+      <AdminAgent />
       </div>
     </div>
   );
