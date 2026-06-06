@@ -1,0 +1,226 @@
+export const WHATSAPP_NUMBER = "18183199888";
+export const ACCESS_CODE = "globalaccess777";
+
+// orderUnit: what distributors order by — 'pallet' | 'master_case' | 'both'
+// For catering gas: pallet only
+// For everything else: master_case, with pallet option
+
+export const BRANDS = [
+  {
+    id: "churros-locos",
+    name: "Churros Locos",
+    category: "Functional Edibles",
+    tagline: "Gourmet Bites · 21+",
+    color: "#F5943A",
+    description: "Functional churro bites in 40-piece display jars. Three distinct formulas for energy, mood, and performance.",
+    gallery: ["/images/churros-locos/mad-honey-horchata.jpeg","/images/churros-locos/mushroom-horchata.jpeg","/images/churros-locos/sex-royal-strawberry.jpeg"],
+    products: [
+      { sku: "CL-MUSH-5000", name: "Mushroom 5,000mg", detail: "40 pieces/jar · 10 jars/case", orderUnit: "master_case", image: "/images/churros-locos/mushroom-horchata.jpeg",
+        flavors_retail: ["Chocolate","Strawberry Cheesecake","Horchata","Cookies & Cream"],
+        flavors_distro: ["Chocolate","Strawberry Cheesecake","Horchata","Cookies & Cream"] },
+      { sku: "CL-MAD-10000", name: "Mad Honey 10,000mg", detail: "40 pieces/jar · 10 jars/case", orderUnit: "master_case", image: "/images/churros-locos/mad-honey-horchata.jpeg",
+        flavors_retail: ["Hazelnut Milk Chocolate","Strawberry Cheesecake","Horchata","Cookies & Cream"],
+        flavors_distro: ["Hazelnut Milk Chocolate","Strawberry Cheesecake","Horchata","Cookies & Cream"] },
+      { sku: "CL-SEX", name: "Sex Royal Honey", detail: "40 pieces/jar · 10 jars/case", orderUnit: "master_case", image: "/images/churros-locos/sex-royal-strawberry.jpeg",
+        flavors_retail: ["Hazelnut Milk Chocolate","Strawberry Cheesecake","Strawberry","Cookies & Cream"],
+        flavors_distro: ["Hazelnut Milk Chocolate","Strawberry Cheesecake","Strawberry","Cookies & Cream"] },
+    ]
+  },
+  {
+    id: "goldwhip",
+    name: "GoldWhip",
+    category: "Catering Gas",
+    tagline: "Food Grade Cream Charger",
+    color: "#C9A84C",
+    description: "Premium food-grade N2O cream chargers. Gold Edition and a wide range of fruit, tropical, and dessert flavor varieties.",
+    gallery: ["/images/goldwhip/200g-original.png","/images/goldwhip/200g-fruit-mix.png","/images/goldwhip/200g-cocktail-mix.png","/images/goldwhip/200g-dessert-mix.png","/images/goldwhip/700g-gold.png","/images/goldwhip/2000g-gold.png","/images/goldwhip/3000g-gold.png","/images/goldwhip/4000g-gold.png"],
+    products: [
+      {
+        sku: "GW-200", name: "200g · Mini", orderUnit: "pallet",
+        detail: "20 units/case · 60 cases/pallet · Each case is pre-mixed",
+        image: "/images/goldwhip/200g-original.png",
+        // 200g: each case is pre-mixed — buyer selects which variety cases they want
+        // Retailers pick variety case type
+        // Distributors pick full pallets by variety OR custom split
+        flavors_retail: [
+          "Original Case (20× Original)",
+          "Fruit Mix Case (5× Apple, 5× Strawberry, 5× Watermelon, 5× Blueberry)",
+          "Tropical Cocktail Mix Case (5× Strawberry Daiquiri, 5× Piña Colada, 5× Tropical Coconut, 5× Mojito)",
+          "Dessert Range Mix Case (5× Vanilla Ice Cream, 5× Cherry Tart, 5× Funfetti Cake, 5× Key Lime Pie)",
+        ],
+        flavors_distro: [
+          "Original Pallet — 60 cases (all Original)",
+          "Fruit Mix Pallet — 60 cases (all Fruit Mix · 5× Apple, 5× Strawberry, 5× Watermelon, 5× Blueberry per case)",
+          "Tropical Cocktail Mix Pallet — 60 cases (all Tropical Cocktail Mix)",
+          "Dessert Range Mix Pallet — 60 cases (all Dessert Range Mix)",
+          "Mixed Pallet 15/15/15/15 — 15 Original + 15 Fruit Mix + 15 Tropical Cocktail + 15 Dessert Range",
+          "Mixed Pallet 20/20/20 — 20 Fruit Mix + 20 Tropical Cocktail + 20 Dessert Range",
+        ],
+      },
+      {
+        sku: "GW-700", name: "700g · Steel", orderUnit: "pallet",
+        detail: "6 units/case · 72 cases/pallet · Pallet orders only",
+        image: "/images/goldwhip/700g-gold.png",
+        flavors_retail: ["Gold Edition","Apple","Strawberry","Watermelon","Blueberry"],
+        flavors_distro: [
+          "Gold Edition Pallet — 72 cases (all Gold Edition)",
+          "Fruit Mix Pallet — 72 cases (18 Apple · 18 Strawberry · 18 Watermelon · 18 Blueberry) — SOLD OUT",
+        ],
+      },
+      {
+        sku: "GW-2000", name: "2000g · Maxi Gold", orderUnit: "pallet",
+        detail: "2 units/case · 72 cases/pallet · Pallet orders only",
+        image: "/images/goldwhip/2000g-gold.png",
+        flavors_retail: ["Gold Edition","Apple","Strawberry","Watermelon","Blueberry","Strawberry Daiquiri","Piña Colada","Tropical Coconut","Mojito","Vanilla Ice Cream","Cherry Tart"],
+        flavors_distro: [
+          "Gold Edition Pallet — 72 cases (all Gold Edition)",
+          "Fruit Mix Pallet — 72 cases (18 Apple · 18 Strawberry · 18 Watermelon · 18 Blueberry)",
+          "Tropical Cocktail Mix Pallet — 72 cases (18 Strawberry Daiquiri · 18 Piña Colada · 18 Tropical Coconut · 18 Mojito)",
+          "All-Star Mix Pallet — 72 cases (18 Piña Colada · 18 Tropical Coconut · 18 Vanilla Ice Cream · 18 Cherry Tart)",
+        ],
+      },
+      {
+        sku: "GW-3000", name: "3000g · Maxi XL", orderUnit: "pallet",
+        detail: "1 unit/case · 96 cases/pallet · Pallet orders only",
+        image: "/images/goldwhip/3000g-gold.png",
+        flavors_retail: ["Apple","Strawberry","Watermelon","Blueberry","Strawberry Daiquiri","Piña Colada","Tropical Coconut","Mojito"],
+        flavors_distro: [
+          "Gold Edition Pallet — SOLD OUT",
+          "Fruit Mix Pallet — 96 cases (24 Apple · 24 Strawberry · 24 Watermelon · 24 Blueberry)",
+          "Tropical Cocktail Mix Pallet — 96 cases (24 Strawberry Daiquiri · 24 Piña Colada · 24 Tropical Coconut · 24 Mojito)",
+        ],
+      },
+      {
+        sku: "GW-4000", name: "4000g · Super Max", orderUnit: "pallet",
+        detail: "1 unit/case · 60 cases/pallet · Luggage handle & wheels",
+        image: "/images/goldwhip/4000g-gold.png",
+        flavors_retail: ["Apple","Strawberry","Watermelon","Blueberry","Strawberry Daiquiri","Piña Colada","Tropical Coconut","Mojito","Vanilla Ice Cream","Cherry Tart"],
+        flavors_distro: [
+          "Gold Edition Pallet — SOLD OUT",
+          "Fruit Mix Pallet — 60 cases (15 Apple · 15 Strawberry · 15 Watermelon · 15 Blueberry)",
+          "Tropical Cocktail Mix Pallet — 60 cases (15 Strawberry Daiquiri · 15 Piña Colada · 15 Tropical Coconut · 15 Mojito)",
+          "All-Star Mix Pallet — 60 cases (15 Piña Colada · 15 Tropical Coconut · 15 Vanilla Ice Cream · 15 Cherry Tart)",
+        ],
+      },
+    ]
+  },
+  {
+    id: "luxgas",
+    name: "LuxGas",
+    category: "Catering Gas",
+    tagline: "Luxury Has Its Own Language",
+    color: "#2C2C2C",
+    description: "Sleek matte black nitrous oxide cream chargers. Natural and four bold flavors. Pallet orders only.",
+    gallery: ["/images/luxgas/700g-natural.jpeg","/images/luxgas/700g-watermelon.jpeg","/images/luxgas/700g-strawberry.jpeg","/images/luxgas/700g-blueberry-raspberry.jpeg","/images/luxgas/700g-peach-mango.jpeg","/images/luxgas/2100g-natural.jpeg"],
+    products: [
+      { sku: "LG-700", name: "700g", orderUnit: "pallet", detail: "6 units/box · 75 boxes/pallet · Pallet orders only", image: "/images/luxgas/700g-natural.jpeg",
+        flavors_retail: ["Natural","Watermelon","Strawberry","Blueberry Raspberry","Peach Mango"],
+        flavors_distro: ["Natural Pallet — 75 boxes (all Natural)","Flavored Pallet — 75 boxes (19 Watermelon · 19 Strawberry · 19 Blueberry Raspberry · 18 Peach Mango)"] },
+      { sku: "LG-2100", name: "2100g", orderUnit: "pallet", detail: "128-192 units/pallet · Pallet orders only", image: "/images/luxgas/2100g-natural.jpeg",
+        flavors_retail: ["Natural","Watermelon","Strawberry","Blueberry Raspberry","Peach Mango"],
+        flavors_distro: ["Natural Pallet — 128 units (all Natural)","Flavored Pallet — 192 units (48 Watermelon · 48 Strawberry · 48 Blueberry Raspberry · 48 Peach Mango)"] },
+    ]
+  },
+  {
+    id: "sokka",
+    name: "Sokka",
+    category: "Catering Gas",
+    tagline: "Food Grade Cream Charger",
+    color: "#9B59B6",
+    description: "Bold pop-art branded cream chargers. Three sizes, vivid flavors.",
+    gallery: ["/images/sokka/640g-single.jpeg","/images/sokka/2000g-pair.jpeg","/images/sokka/3000g-single.jpeg"],
+    products: [
+      { sku: "SK-640", name: "640g", orderUnit: "pallet", detail: "6 units/case · Pallet orders only", image: "/images/sokka/640g-single.jpeg",
+        flavors_retail: ["Original","Strawberry","Blueberry","Grape","Peach","Watermelon Bubble Gum","Tropical Punch","Rainbow Candy"],
+        flavors_distro: ["Original Pallet — 90 cases (all Original)","Mixed Flavor Pallet — 84 cases (evenly divided across 7 flavors)"] },
+      { sku: "SK-2000", name: "2000g", orderUnit: "pallet", detail: "96ct mix/pallet · Pallet orders only", image: "/images/sokka/2000g-pair.jpeg",
+        flavors_retail: ["Strawberry","Blueberry","Grape","Peach","Watermelon Bubble Gum","Tropical Punch","Rainbow Candy","Kiwi"],
+        flavors_distro: ["Mixed Flavor Pallet — 96 cases (evenly divided across 8 flavors)"] },
+      { sku: "SK-3000", name: "3000g", orderUnit: "pallet", detail: "128ct mix/pallet · Pallet orders only", image: "/images/sokka/3000g-single.jpeg",
+        flavors_retail: ["Watermelon Bubble Gum","Rainbow Candy"],
+        flavors_distro: ["Mixed Pallet — 128 cases (64 Watermelon Bubble Gum · 64 Rainbow Candy)"] },
+    ]
+  },
+  {
+    id: "numbz",
+    name: "numbz",
+    category: "Tablets",
+    tagline: "7-Hydroxymitragynine Chewables",
+    color: "#4CAF7D",
+    description: "Premium chewable tablets in 5 strength tiers. 10+ bold flavors. 20 boxes per master case.",
+    gallery: ["/images/numbz/100mg-display.jpeg","/images/numbz/300mg-cherry-limeade.jpeg","/images/numbz/500mg-strawberry-dragonfruit.jpeg","/images/numbz/1000mg-ultra-strawberry-banana.jpeg","/images/numbz/1000mg-pseudo-popsicle.jpeg"],
+    products: [
+      { sku: "NB-100", name: "100mg", orderUnit: "master_case", detail: "5mg/chew · 20 chewables · flat pack · 20 boxes/master case", image: "/images/numbz/100mg-display.jpeg",
+        flavors_retail: ["Watermelon Rush","Mint","Strawberry Dragonfruit","Mango Cream","Grape Soda","Cherry Limeade","Kiwi Apple","Berry Burst"],
+        flavors_distro: ["Watermelon Rush","Mint","Strawberry Dragonfruit","Mango Cream","Grape Soda","Cherry Limeade","Kiwi Apple","Berry Burst"] },
+      { sku: "NB-300", name: "300mg", orderUnit: "master_case", detail: "15mg/chew · 20 chewables · tube · 20 boxes/master case", image: "/images/numbz/300mg-cherry-limeade.jpeg",
+        flavors_retail: ["Mint","Strawberry Dragonfruit","Kiwi Apple","Grape Soda","Cherry Limeade","Berry Burst","Mango Cream","Watermelon Rush","Pineapple Guava","Passionfruit Peach"],
+        flavors_distro: ["Mint","Strawberry Dragonfruit","Kiwi Apple","Grape Soda","Cherry Limeade","Berry Burst","Mango Cream","Watermelon Rush","Pineapple Guava","Passionfruit Peach"] },
+      { sku: "NB-500", name: "500mg", orderUnit: "master_case", detail: "50mg/chew · 10 chewables · tube · 20 boxes/master case", image: "/images/numbz/500mg-strawberry-dragonfruit.jpeg",
+        flavors_retail: ["Strawberry Dragonfruit","Mango Cream","Grape Soda","Cherry Limeade","Berry Burst","Watermelon Rush","Kiwi Apple","Mint","Pineapple Guava","Passionfruit Peach"],
+        flavors_distro: ["Strawberry Dragonfruit","Mango Cream","Grape Soda","Cherry Limeade","Berry Burst","Watermelon Rush","Kiwi Apple","Mint","Pineapple Guava","Passionfruit Peach"] },
+      { sku: "NB-1000-OH", name: "1000mg · 7-OH Ultra", orderUnit: "master_case", detail: "100mg/chew · 10 chewables · tube · 20 boxes/master case", image: "/images/numbz/1000mg-ultra-strawberry-banana.jpeg",
+        flavors_retail: ["Strawberry Banana","Rainbow Road","Popsicle","White Grape","Melon Dew","Sour Apple"],
+        flavors_distro: ["Strawberry Banana","Rainbow Road","Popsicle","White Grape","Melon Dew","Sour Apple"] },
+      { sku: "NB-1000-PX", name: "1000mg · Pseudoindoxyl", orderUnit: "master_case", detail: "100mg/chew · 10 chewables · tube · 20 boxes/master case", image: "/images/numbz/1000mg-pseudo-popsicle.jpeg",
+        flavors_retail: ["Cool Cactus","Blueberry Blast","Cherry Limeade","Mint Chew","Kiwi Apple","Strawberry Rush","Popsicle"],
+        flavors_distro: ["Cool Cactus","Blueberry Blast","Cherry Limeade","Mint Chew","Kiwi Apple","Strawberry Rush","Popsicle"] },
+    ]
+  },
+  {
+    id: "rise",
+    name: "Rise",
+    category: "Tablets",
+    tagline: "7-Hydroxymitragynine Chewables",
+    color: "#E85D4A",
+    description: "Rise premium chewable tablets. Potent 7-OH formula in bold flavors. Coming soon to the Global Access lineup.",
+    gallery: ["/images/rise/rise-display.jpeg"],
+    products: [
+      { sku: "RS-CHEW", name: "Rise Chewables", orderUnit: "master_case", detail: "20 boxes/master case", image: "/images/rise/rise-display.jpeg",
+        flavors_retail: ["Coming Soon"],
+        flavors_distro: ["Coming Soon"] },
+    ]
+  },
+  {
+    id: "blizzy",
+    name: "Blizzy",
+    category: "Papers",
+    tagline: "Cone Woods & Flat Wraps",
+    color: "#7B6CF6",
+    description: "Premium smoking papers — Handmade king-size Cone Woods with all-natural Hot Skull Fronto leaf, and Premium Flat Wraps in six distinct varieties. No chemicals, no artificial anything.",
+    gallery: [
+      "/images/blizzy-cones/cone-woods-4-flavors.jpeg",
+      "/images/blizzy-cones/cone-woods-grape-detail.jpeg",
+      "/images/blizzy-wraps/wraps-all-6.jpeg",
+      "/images/blizzy-wraps/wraps-buck-oh-red.jpeg",
+    ],
+    products: [
+      { sku: "BC-CONES", name: "Cone Woods", orderUnit: "master_case", detail: "2 cones/pouch · 10 pouches/box · 24 boxes/master case", image: "/images/blizzy-cones/cone-woods-4-flavors.jpeg",
+        flavors_retail: ["Original Classic","Banana","Grape","Russian Cream","Aromatic","Emerald","Pink","Yellow Safari","Purple Haze","White"],
+        flavors_distro: ["Original Classic","Banana","Grape","Russian Cream","Aromatic","Emerald","Pink","Yellow Safari","Purple Haze","White"] },
+      { sku: "BW-WRAPS", name: "Flat Wraps", orderUnit: "master_case", detail: "2 wraps/pouch · 40 boxes/master case", image: "/images/blizzy-wraps/wraps-all-6.jpeg",
+        flavors_retail: ["Natural","Pink","Diamond","Emerald","White","Buck-Oh Red Ohio (Limited Edition)"],
+        flavors_distro: ["Natural","Pink","Diamond","Emerald","White","Buck-Oh Red Ohio (Limited Edition)"] },
+    ]
+  },
+  {
+    id: "good-spirits",
+    name: "Good Spirits",
+    category: "Beverages",
+    tagline: "Craft Non-Alcoholic · Austin, TX",
+    color: "#C0392B",
+    description: "Real fruit juice, real botanicals, no artificial anything. Three separate lines: Functional, THC 1.5mg, and THC 5mg.",
+    gallery: ["/images/good-spirits/austin-palmer-functional.jpeg","/images/good-spirits/la-paloma-functional.jpeg","/images/good-spirits/french-exhale-functional.jpeg","/images/good-spirits/austin-palmer-thc5.jpeg","/images/good-spirits/la-paloma-thc5.jpeg","/images/good-spirits/french-exhale-thc5.jpeg"],
+    products: [
+      { sku: "GS-FUNC", name: "Functional Beverages", orderUnit: "both", detail: "12oz · 24 cans/case · No THC · Nationwide legal", image: "/images/good-spirits/austin-palmer-functional.jpeg",
+        flavors_retail: ["Austin Palmer (Lemonade & Black Tea)","La Paloma (Grapefruit Lime)","French Exhale (Lemon Lavender)"],
+        flavors_distro: ["Austin Palmer (Lemonade & Black Tea)","La Paloma (Grapefruit Lime)","French Exhale (Lemon Lavender)"] },
+      { sku: "GS-THC-1-5", name: "THC 1.5mg", orderUnit: "both", detail: "12oz · 24 cans/case · Restricted markets only", image: "/images/good-spirits/french-exhale-thc5.jpeg",
+        flavors_retail: ["Austin Palmer (Lemonade & Black Tea)","La Paloma (Grapefruit Lime)","French Exhale (Lemon Lavender)"],
+        flavors_distro: ["Austin Palmer (Lemonade & Black Tea)","La Paloma (Grapefruit Lime)","French Exhale (Lemon Lavender)"] },
+      { sku: "GS-THC-5", name: "THC 5mg", orderUnit: "both", detail: "12oz · 24 cans/case · Standard THC markets", image: "/images/good-spirits/austin-palmer-thc5.jpeg",
+        flavors_retail: ["Austin Palmer (Lemonade & Black Tea)","La Paloma (Grapefruit Lime)","French Exhale (Lemon Lavender)"],
+        flavors_distro: ["Austin Palmer (Lemonade & Black Tea)","La Paloma (Grapefruit Lime)","French Exhale (Lemon Lavender)"] },
+    ]
+  },
+];
