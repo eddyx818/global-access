@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-
+ 
 const BRANDS = [
   { id: 'churros-locos', name: 'Churros Locos', color: '#F5943A' },
   { id: 'goldwhip', name: 'GoldWhip', color: '#C9A84C' },
@@ -11,7 +11,7 @@ const BRANDS = [
   { id: 'blizzy', name: 'Blizzy', color: '#7B6CF6' },
   { id: 'good-spirits', name: 'Good Spirits', color: '#C0392B' },
 ];
-
+ 
 export default function MarketingDashboard() {
   const [drafts, setDrafts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
@@ -23,9 +23,9 @@ export default function MarketingDashboard() {
   const [subjectChoice, setSubjectChoice] = useState('a');
   const [saved, setSaved] = useState('');
   const [error, setError] = useState('');
-
+ 
   useEffect(() => { loadData(); }, []);
-
+ 
   const loadData = async () => {
     setLoading(true);
     const [{ data: d }, { data: c }] = await Promise.all([
@@ -36,15 +36,23 @@ export default function MarketingDashboard() {
     setCampaigns(c || []);
     setLoading(false);
   };
-
+ 
   const handleGenerate = async () => {
     setGenerating(true); setError('');
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke('marketing-agent', {
-        body: { brand_id: genForm.brand_id || null, audience: genForm.audience },
+      const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+      const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+      const res = await fetch(`${supabaseUrl}/functions/v1/marketing-agent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({ brand_id: genForm.brand_id || null, audience: genForm.audience }),
       });
-      if (fnErr) throw fnErr;
-      setSaved(`Draft created for ${data.brand_name || 'brand'}! Check below to review.`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setSaved(`Draft created for ${data.brand || 'brand'}! Check below to review.`);
       setTimeout(() => setSaved(''), 4000);
       loadData();
     } catch (err) {
@@ -52,14 +60,22 @@ export default function MarketingDashboard() {
     }
     setGenerating(false);
   };
-
+ 
   const handleApprove = async (draft) => {
     setSending(draft.id); setError('');
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke('send-email', {
-        body: { draft_id: draft.id, subject_choice: subjectChoice, audience: draft.audience },
+      const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+      const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+      const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({ draft_id: draft.id, subject_choice: subjectChoice, audience: draft.audience }),
       });
-      if (fnErr) throw fnErr;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       setSaved(`Sent to ${data.sent} contacts! Subject: "${data.subject}"`);
       setTimeout(() => setSaved(''), 5000);
       setPreview(null);
@@ -69,25 +85,25 @@ export default function MarketingDashboard() {
     }
     setSending(null);
   };
-
+ 
   const handleDiscard = async (draftId) => {
     await supabase.from('email_drafts').update({ status: 'discarded' }).eq('id', draftId);
     setPreview(null);
     loadData();
   };
-
+ 
   const pendingDrafts = drafts.filter(d => d.status === 'pending');
   const sentDrafts = drafts.filter(d => d.status === 'sent');
-
+ 
   const card = { background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 12, padding: '1.25rem', marginBottom: 12 };
   const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '10px 12px', color: '#1A1A1A', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
   const labelStyle = { fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' };
-
+ 
   return (
     <div>
       {saved && <div style={{ background: '#F0FAF4', border: '0.5px solid #C6EDD7', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#2D7A50', marginBottom: 16 }}>{saved}</div>}
       {error && <div style={{ background: '#FEF0F0', border: '0.5px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#C53030', marginBottom: 16 }}>{error}<button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C53030', marginLeft: 8, fontFamily: 'inherit' }}>×</button></div>}
-
+ 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: '1.5rem' }}>
         {[
@@ -101,7 +117,7 @@ export default function MarketingDashboard() {
           </div>
         ))}
       </div>
-
+ 
       {/* Generate new draft */}
       <div style={card}>
         <div style={{ fontSize: 12, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14, fontWeight: 500 }}>Generate New Email Draft</div>
@@ -128,7 +144,7 @@ export default function MarketingDashboard() {
         </button>
         <div style={{ fontSize: 11, color: '#CCC', textAlign: 'center', marginTop: 8 }}>Claude will write professional copy — you review before anything is sent</div>
       </div>
-
+ 
       {/* Pending drafts */}
       {pendingDrafts.length > 0 && (
         <div>
@@ -151,7 +167,7 @@ export default function MarketingDashboard() {
                   </button>
                 </div>
               </div>
-
+ 
               {/* Subject lines */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 11, color: '#AAA', marginBottom: 8, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Choose Subject Line:</div>
@@ -166,13 +182,13 @@ export default function MarketingDashboard() {
                   </div>
                 ))}
               </div>
-
+ 
               {/* Approve button */}
               <button onClick={() => handleApprove(draft)} disabled={sending === draft.id}
                 style={{ width: '100%', background: sending === draft.id ? '#E0DDD8' : '#4CAF7D', color: sending === draft.id ? '#AAA' : '#FFF', border: 'none', borderRadius: 10, padding: '12px', fontSize: 13, fontWeight: 700, cursor: sending === draft.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                 {sending === draft.id ? 'Sending...' : '✓ Approve & Send →'}
               </button>
-
+ 
               {/* Preview */}
               {preview?.id === draft.id && (
                 <div style={{ marginTop: 16, border: '0.5px solid #E0DDD8', borderRadius: 10, overflow: 'hidden' }}>
@@ -184,7 +200,7 @@ export default function MarketingDashboard() {
           ))}
         </div>
       )}
-
+ 
       {/* Sent campaigns */}
       {sentDrafts.length > 0 && (
         <div>
@@ -206,7 +222,7 @@ export default function MarketingDashboard() {
           ))}
         </div>
       )}
-
+ 
       {!loading && drafts.length === 0 && (
         <div style={{ textAlign: 'center', padding: '3rem', fontSize: 13, color: '#CCC' }}>
           No drafts yet. Generate your first AI email above!
