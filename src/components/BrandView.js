@@ -1,17 +1,31 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ProductCommerceInfo from './ProductCommerceInfo';
 import { minQtyForProduct } from '../lib/pricing';
+import { subscribeStockNotify, fetchMyStockAlerts, stockAlertKey } from '../lib/stockNotify';
 import { useTheme } from '../context/ThemeContext';
 
-export default function BrandView({ brand, userType, onBack, toggleInterest, isInterested, interests, onSubmit, isMobile, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess }) {
+export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, isInterested, interests, onSubmit, isMobile, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess }) {
   const { t } = useTheme();
   const [lightbox, setLightbox] = useState(null);
   const [lightboxIdx, setLightboxIdx] = useState(0);
   const [orderMode, setOrderMode] = useState({}); // per sku: 'master_case' | 'pallet'
   const [quantities, setQuantities] = useState({}); // per flavor key: qty
   const [brokenImages, setBrokenImages] = useState({});
+  const [stockAlerts, setStockAlerts] = useState(() => new Set());
+  const [notifyBusy, setNotifyBusy] = useState(null);
+  const [notifyMsg, setNotifyMsg] = useState('');
   const galleryRef = useRef(null);
   const isDistributor = userType === 'distributor';
+
+  useEffect(() => {
+    if (!user?.id) {
+      setStockAlerts(new Set());
+      return;
+    }
+    fetchMyStockAlerts(user.id).then(rows => {
+      setStockAlerts(new Set(rows.map(r => stockAlertKey(r.sku, r.flavor))));
+    });
+  }, [user?.id]);
 
   const markImageBroken = (key) => {
     setBrokenImages(prev => (prev[key] ? prev : { ...prev, [key]: true }));
@@ -62,6 +76,34 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
     const mode = getOrderMode(product);
     const qty = quantities[`${product.sku}__${flavor}`] || minQtyForProduct(product);
     toggleInterest(product.sku, product.name, brand.name, flavor, qty, mode, brand.id);
+  };
+
+  const handleStockNotify = async (product, flavor) => {
+    if (!user?.id) {
+      if (onSignIn) onSignIn();
+      else if (onRequestAccess) onRequestAccess();
+      return;
+    }
+    const key = stockAlertKey(product.sku, flavor);
+    if (stockAlerts.has(key)) return;
+
+    setNotifyBusy(key);
+    setNotifyMsg('');
+    const result = await subscribeStockNotify({
+      brandId: brand.id,
+      sku: product.sku,
+      flavor,
+      brandName: brand.name,
+      productName: product.name,
+      email: userEmail,
+    });
+    setNotifyBusy(null);
+    if (!result.ok) {
+      setNotifyMsg(result.error || 'Could not save alert.');
+      return;
+    }
+    setStockAlerts(prev => new Set([...prev, key]));
+    setNotifyMsg('You will be notified when this flavor is back in stock.');
   };
 
   if (!brand) return null;
@@ -230,8 +272,13 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
       )}
 
       <div style={{ background: brand.color + '12', border: `0.5px solid ${brand.color}33`, borderRadius: 10, padding: '10px 14px', marginBottom: '1.25rem', fontSize: 13, color: '#666' }}>
-        👆 Tap any option you are interested in — we will reach out before your meeting with full details.
+        👆 Tap options to build your quote list — we will follow up in Support chat with pricing and availability.
       </div>
+      {notifyMsg && (
+        <div style={{ background: t.successBg, border: `0.5px solid ${t.successBorder}`, borderRadius: 10, padding: '10px 14px', marginBottom: '1rem', fontSize: 12, color: t.successText }}>
+          {notifyMsg}
+        </div>
+      )}
 
       {/* Products */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -319,6 +366,30 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
                           {isSoldOut && <div style={{ fontSize: 10, color: '#E05A5A', marginTop: 2, fontWeight: 500 }}>Sold out</div>}
                           {selected && <div style={{ position: 'absolute', top: 10, right: 10, width: 20, height: 20, background: brand.color, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#FFF', fontWeight: 700 }}>✓</div>}
                         </button>
+                        {isSoldOut && (
+                          <button
+                            type="button"
+                            onClick={() => handleStockNotify(product, flavor)}
+                            disabled={stockAlerts.has(stockAlertKey(product.sku, flavor)) || notifyBusy === stockAlertKey(product.sku, flavor)}
+                            style={{
+                              width: '100%',
+                              marginTop: 6,
+                              background: stockAlerts.has(stockAlertKey(product.sku, flavor)) ? t.bgMuted : t.goldBg,
+                              color: stockAlerts.has(stockAlertKey(product.sku, flavor)) ? t.textMuted : t.gold,
+                              border: `0.5px solid ${t.gold}`,
+                              borderRadius: 8,
+                              padding: '6px 10px',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: stockAlerts.has(stockAlertKey(product.sku, flavor)) ? 'default' : 'pointer',
+                              fontFamily: 'inherit',
+                            }}
+                          >
+                            {stockAlerts.has(stockAlertKey(product.sku, flavor))
+                              ? '✓ Notify when back in stock'
+                              : (notifyBusy === stockAlertKey(product.sku, flavor) ? 'Saving…' : 'Notify me when back in stock')}
+                          </button>
+                        )}
 
                         {/* Qty input when selected */}
                         {selected && (
@@ -345,7 +416,7 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
       {interests.length > 0 && (
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '1rem', background: 'rgba(245,242,237,0.95)', backdropFilter: 'blur(12px)', borderTop: '0.5px solid #E0DDD8', zIndex: 50 }}>
           <button onClick={onSubmit} style={{ width: '100%', maxWidth: 760, margin: '0 auto', display: 'block', background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em', fontFamily: 'inherit' }}>
-            Submit Interest List ({interests.length} item{interests.length !== 1 ? 's' : ''}) →
+            Request quote ({interests.length} item{interests.length !== 1 ? 's' : ''}) →
           </button>
         </div>
       )}

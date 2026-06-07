@@ -511,7 +511,7 @@ export async function submitInterestToSupport(userId, { form, interests, userTyp
     `• ${i.brandName} — ${i.productName}\n  ${i.flavor} · Qty ${i.qty || 1} ${i.orderMode === 'pallet' ? 'pallet(s)' : 'case(s)'}`
   ).join('\n');
   const text = [
-    'New interest list submitted',
+    'Quote request submitted',
     '',
     itemsList || '(No line items)',
     masterPricingInterest ? '\nAccount flagged for Master Distributor volume review (high-volume qualification).' : '',

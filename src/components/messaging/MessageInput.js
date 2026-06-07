@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { uploadChatAttachment, validateChatFile } from '../../lib/chatAttachments';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -8,9 +8,17 @@ export default function MessageInput({
   isMobile = false,
   conversationId,
   userId,
+  suggestedText = '',
+  onSuggestedTextApplied,
 }) {
   const { t } = useTheme();
   const [text, setText] = useState('');
+
+  useEffect(() => {
+    if (!suggestedText) return;
+    setText(suggestedText);
+    onSuggestedTextApplied?.();
+  }, [suggestedText]); // eslint-disable-line react-hooks/exhaustive-deps
   const [sending, setSending] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
   const [error, setError] = useState('');

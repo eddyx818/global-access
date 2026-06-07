@@ -414,11 +414,13 @@ export default function App() {
       interests,
       master_pricing_interest: masterPricingInterest,
       user_type: userType,
+      quote_status: 'new',
       created_at: new Date().toISOString(),
     });
     if (user?.id) {
       try {
         await submitInterestToSupport(user.id, { form, interests, userType, masterPricingInterest });
+        setOpenSupportOnLoad(n => n + 1);
       } catch (_) {}
     }
     setShowSignupPrompt(false);
@@ -572,7 +574,7 @@ export default function App() {
         <div style={{ position: 'fixed', inset: 0, background: t.overlay, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
           <div style={{ background: t.bgElevated, borderRadius: 20, padding: '2rem', maxWidth: 420, width: '100%', boxShadow: `0 24px 64px ${t.shadow}` }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: '0.04em', color: t.text, marginBottom: 6 }}>Ready to connect?</div>
-            <p style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.6, marginBottom: '1.5rem' }}>Submit your interest list here. We will follow up via Support chat or email — direct contact is shared after we confirm your inquiry.</p>
+            <p style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.6, marginBottom: '1.5rem' }}>Request a quote from your list here. We will follow up via Support chat or email — direct contact is shared after we confirm your inquiry.</p>
             {[['name','Your name *'],['company','Company / Store *'],['phone','Phone / WhatsApp'],['email','Email']].map(([field, label]) => (
               <div key={field} style={{ marginBottom: '0.875rem' }}>
                 <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
@@ -585,7 +587,7 @@ export default function App() {
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem' }}>
               <button onClick={() => setShowSignupPrompt(false)} style={{ flex: 1, background: 'none', border: t.borderHairline, borderRadius: 10, padding: '12px', fontSize: 13, color: t.textFaint, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
-              <button onClick={doSubmit} style={{ flex: 2, background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 10, padding: '12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Submit inquiry</button>
+              <button onClick={doSubmit} style={{ flex: 2, background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 10, padding: '12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Request quote</button>
             </div>
           </div>
         </div>
@@ -636,6 +638,8 @@ export default function App() {
         <BrandView
           brand={getMergedBrands().find(b => b.id === activeBrand)}
           userType={userType}
+          user={user}
+          userEmail={form.email}
           onBack={goHome}
           toggleInterest={toggleInterest}
           isInterested={isInterested}

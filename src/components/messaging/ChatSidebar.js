@@ -8,11 +8,21 @@ import {
 import { getNotificationPrefs, requestNotificationPermission } from '../../lib/notificationPrefs';
 import { subscribeToPushNotifications } from '../../lib/pushNotifications';
 import { supabase } from '../../lib/supabase';
+import {
+  fetchCustomerStaffNotes, saveCustomerStaffNotes,
+} from '../../lib/customerTransfer';
+import {
+  fetchLatestInquiryForUser, updateInquiryQuoteStatus, QUOTE_STATUSES,
+} from '../../lib/inquiries';
+import { messagesToAssistFormat } from '../../lib/chatAssist';
 import ConversationList from './ConversationList';
 import MessageThread from './MessageThread';
 import MessageInput from './MessageInput';
 import UserList from './UserList';
 import CustomerBadges from '../CustomerBadges';
+import StaffNotesCell from '../StaffNotesCell';
+import QuoteStatusBadge from '../QuoteStatusBadge';
+import ChatStaffTools from '../ChatStaffTools';
 import { useTheme } from '../../context/ThemeContext';
 
 async function loadProfileMap(userIds) {
@@ -53,6 +63,10 @@ export default function ChatSidebar({
   const [confirming, setConfirming] = useState(false);
   const [supportError, setSupportError] = useState('');
   const [loadError, setLoadError] = useState('');
+  const [staffNotes, setStaffNotes] = useState('');
+  const [customerInquiry, setCustomerInquiry] = useState(null);
+  const [suggestedReply, setSuggestedReply] = useState('');
+  const [statusUpdating, setStatusUpdating] = useState(false);
   const subRef = useRef(null);
 
   const mergeProfiles = async (convos, msgs = []) => {
@@ -129,6 +143,46 @@ export default function ChatSidebar({
     });
     return () => subRef.current?.unsubscribe();
   }, [activeConvo?.id, user.id, isStaff]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const customerUserId = activeConvo && isStaff && !isGroupConversation(activeConvo)
+    ? getCustomerParticipantId(activeConvo, profiles)
+    : (!isStaff ? user.id : null);
+
+  useEffect(() => {
+    if (!customerUserId) {
+      setStaffNotes('');
+      setCustomerInquiry(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const [notes, inquiry] = await Promise.all([
+        isStaff ? fetchCustomerStaffNotes(customerUserId) : Promise.resolve(''),
+        fetchLatestInquiryForUser(customerUserId),
+      ]);
+      if (cancelled) return;
+      setStaffNotes(notes);
+      setCustomerInquiry(inquiry);
+    })();
+    return () => { cancelled = true; };
+  }, [customerUserId, isStaff]);
+
+  const handleSaveStaffNotes = async (notes) => {
+    if (!customerUserId) return false;
+    const result = await saveCustomerStaffNotes(customerUserId, notes);
+    if (result.ok) setStaffNotes(notes || '');
+    return result.ok;
+  };
+
+  const handleQuoteStatusChange = async (status) => {
+    if (!customerInquiry?.id || status === customerInquiry.quote_status) return;
+    setStatusUpdating(true);
+    const result = await updateInquiryQuoteStatus(customerInquiry.id, status);
+    if (result.ok) {
+      setCustomerInquiry(prev => ({ ...prev, quote_status: status }));
+    }
+    setStatusUpdating(false);
+  };
 
   const openChatWith = async (otherUserId) => {
     const convo = await getOrCreateDirectConversation(user.id, otherUserId);
@@ -283,6 +337,11 @@ export default function ChatSidebar({
             </div>
           )}
           {headerSub && <div style={{ fontSize: 11, color: t.headerMuted, marginTop: 2 }}>{headerSub}</div>}
+          {!isStaff && customerInquiry && (
+            <div style={{ marginTop: 6 }}>
+              <QuoteStatusBadge status={customerInquiry.quote_status || 'new'} size="sm" />
+            </div>
+          )}
         </div>
         {!isPage && (
           <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', color: t.headerMuted, cursor: 'pointer', fontSize: 22, fontFamily: 'inherit', padding: 4 }}>×</button>
@@ -323,17 +382,59 @@ export default function ChatSidebar({
                   <div style={{ marginBottom: contactRevealed ? 10 : 0 }}>
                     <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Customer (visible to you only)</div>
                     <div style={{ fontWeight: 600, color: t.text, marginBottom: 4 }}>{adminCustomerProfile.name || 'Unnamed'}{adminCustomerProfile.company ? ` · ${adminCustomerProfile.company}` : ''}</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
                       {adminCustomerProfile.email && <span>📧 {adminCustomerProfile.email}</span>}
                       {adminCustomerProfile.phone && (
                         <a href={`https://wa.me/${adminCustomerProfile.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ color: t.accent, textDecoration: 'none', fontWeight: 600 }}>
                           WhatsApp {adminCustomerProfile.phone}
                         </a>
                       )}
+                      {customerInquiry && (
+                        <select
+                          value={customerInquiry.quote_status || 'new'}
+                          disabled={statusUpdating}
+                          onChange={(e) => handleQuoteStatusChange(e.target.value)}
+                          style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8, border: t.borderHairline, background: t.bgElevated, fontFamily: 'inherit', cursor: statusUpdating ? 'wait' : 'pointer' }}
+                        >
+                          {QUOTE_STATUSES.map(s => (
+                            <option key={s.id} value={s.id}>{s.label}</option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                     {adminCustomerProfile.referral_code_used && (
                       <div style={{ fontSize: 11, color: t.gold, marginTop: 6 }}>Signed up with code: {adminCustomerProfile.referral_code_used}</div>
                     )}
+                  </div>
+                )}
+                {isStaff && activeCustomerProfile && !isAdmin && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontWeight: 600, color: t.text, marginBottom: 4 }}>{activeCustomerProfile.name || 'Customer'}{activeCustomerProfile.company ? ` · ${activeCustomerProfile.company}` : ''}</div>
+                    {customerInquiry && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                        <QuoteStatusBadge status={customerInquiry.quote_status || 'new'} />
+                        <select
+                          value={customerInquiry.quote_status || 'new'}
+                          disabled={statusUpdating}
+                          onChange={(e) => handleQuoteStatusChange(e.target.value)}
+                          style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8, border: t.borderHairline, background: t.bgElevated, fontFamily: 'inherit', cursor: statusUpdating ? 'wait' : 'pointer' }}
+                        >
+                          {QUOTE_STATUSES.map(s => (
+                            <option key={s.id} value={s.id}>{s.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {isStaff && customerUserId && (
+                  <div style={{ marginBottom: 10, paddingBottom: 10, borderBottom: t.borderHairlineLight }}>
+                    <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Staff notes (internal)</div>
+                    <StaffNotesCell
+                      value={staffNotes}
+                      onSave={handleSaveStaffNotes}
+                      placeholder="Notes visible to admins and reps only…"
+                    />
                   </div>
                 )}
                 {!contactRevealed && (
@@ -367,12 +468,22 @@ export default function ChatSidebar({
               </div>
             )}
             <MessageThread messages={messages} currentUserId={user.id} profiles={profiles} loading={loading} isGroup={activeIsGroup} showStaffNames={isStaff} />
+            {isStaff && !activeIsGroup && (
+              <ChatStaffTools
+                customerName={activeCustomerProfile?.name}
+                assistMessages={messagesToAssistFormat(messages, customerUserId)}
+                inquiryNotes={customerInquiry?.notes}
+                onInsertText={(text) => setSuggestedReply(text)}
+              />
+            )}
             <MessageInput
               onSend={handleSend}
               placeholder={isStaff ? 'Reply to customer...' : 'Type a message...'}
               isMobile={isPage}
               conversationId={activeConvo.id}
               userId={user.id}
+              suggestedText={suggestedReply}
+              onSuggestedTextApplied={() => setSuggestedReply('')}
             />
           </>
         ) : tab === 'chats' || !isStaff ? (

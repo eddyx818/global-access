@@ -54,6 +54,16 @@ export async function saveUploadedContactNotes(contactId, notes) {
   return { ok: !!data };
 }
 
+export async function fetchCustomerStaffNotes(customerUserId) {
+  if (!customerUserId) return '';
+  const { data } = await supabase
+    .from('customer_staff_notes')
+    .select('notes')
+    .eq('customer_user_id', customerUserId)
+    .maybeSingle();
+  return data?.notes || '';
+}
+
 export async function fetchCustomerStaffNotesMap() {
   const { data, error } = await supabase
     .from('customer_staff_notes')

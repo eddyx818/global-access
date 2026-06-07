@@ -7,6 +7,7 @@ import BulkTransferBar from './BulkTransferBar';
 import StaffNotesCell from './StaffNotesCell';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
+import { whatsAppUrl } from '../lib/whatsapp';
 
 const STATUS_COLORS = { imported: '#C9A84C', contacted: '#4CAF7D', converted: '#7B6CF6', archived: '#AAA' };
 
@@ -264,7 +265,19 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, fontWeight: 500 }}>{c.name || '—'}</td>
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{c.company || '—'}</td>
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{c.email || '—'}</td>
-                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{c.phone || '—'}</td>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>
+                    {c.phone ? (
+                      <>
+                        {c.phone}
+                        {whatsAppUrl(c.phone) && (
+                          <>
+                            {' · '}
+                            <a href={whatsAppUrl(c.phone)} target="_blank" rel="noreferrer" style={{ color: t.accent, textDecoration: 'none', fontWeight: 600 }}>WhatsApp</a>
+                          </>
+                        )}
+                      </>
+                    ) : '—'}
+                  </td>
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, textTransform: 'capitalize', color: t.textSecondary }}>{c.account_type || '—'}</td>
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
                     <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: (STATUS_COLORS[c.status] || '#CCC') + '22', color: STATUS_COLORS[c.status] || t.textSecondary }}>{c.status}</span>

@@ -11,8 +11,12 @@ import CustomerDirectory from './CustomerDirectory';
 import ContactImportPanel from './ContactImportPanel';
 import ReferralTracker from './ReferralTracker';
 import ThemeToggle from './ThemeToggle';
+import QuoteStatusBadge from './QuoteStatusBadge';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
+import { approveAccessRequestAndCreateAccount } from '../lib/accessApproval';
+import { whatsAppUrl } from '../lib/whatsapp';
+import { updateInquiryQuoteStatus, QUOTE_STATUSES } from '../lib/inquiries';
 
 export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const { t } = useTheme();
@@ -37,6 +41,9 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const [avgTimes, setAvgTimes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
+  const [approvingId, setApprovingId] = useState(null);
+  const [approveMsg, setApproveMsg] = useState('');
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
 
   useEffect(() => { loadAll(); loadContentOverrides(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -101,11 +108,31 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   };
 
   const handleApprove = async (req) => {
-    const tempPass = Math.random().toString(36).slice(2, 10);
-    const msg = encodeURIComponent(`Hi ${req.name}! Your Global Access portal account is approved.\n\nURL: ${window.location.origin}\nEmail: ${req.email}\nTemp password: ${tempPass}\n\nPlease log in and change your password!`);
-    window.open(`https://wa.me/${req.phone ? req.phone.replace(/\D/g, '') : ''}?text=${msg}`, '_blank');
-    await supabase.from('access_requests').update({ status: 'approved' }).eq('id', req.id);
+    setApprovingId(req.id);
+    setApproveMsg('');
+    const result = await approveAccessRequestAndCreateAccount(req);
+    setApprovingId(null);
+    if (!result.ok) {
+      setApproveMsg(result.error || 'Could not create account.');
+      return;
+    }
+    const waUrl = req.phone ? whatsAppUrl(req.phone, result.whatsAppMessage) : null;
+    if (waUrl) window.open(waUrl, '_blank');
+    if (result.tempPassword) {
+      setApproveMsg(`Account created for ${result.email}. Temp password: ${result.tempPassword} (also opened WhatsApp if phone was on file).`);
+    } else {
+      setApproveMsg(`Linked existing account for ${result.email}.`);
+    }
     loadRequests();
+  };
+
+  const handleInquiryStatus = async (inquiryId, status) => {
+    setStatusUpdatingId(inquiryId);
+    const result = await updateInquiryQuoteStatus(inquiryId, status);
+    if (result.ok) {
+      setInquiries(prev => prev.map(i => i.id === inquiryId ? { ...i, quote_status: status } : i));
+    }
+    setStatusUpdatingId(null);
   };
 
   const handleDeny = async (req) => {
@@ -143,6 +170,12 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           <button onClick={() => setAlert(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: t.warningText }}>×</button>
         </div>
       )}
+      {approveMsg && (
+        <div style={{ background: t.successBg, borderBottom: `0.5px solid ${t.successBorder}`, padding: '12px 1.5rem', fontSize: 13, color: t.successText, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+          {approveMsg}
+          <button onClick={() => setApproveMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: t.successText }}>×</button>
+        </div>
+      )}
       <div style={{ padding: '1.5rem', maxWidth: 960, margin: '0 auto' }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           {['overview','community','contacts','pages','clicks','requests','inquiries','content','users','map','brands','marketing'].map(tabId => (
@@ -168,8 +201,14 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
               <div style={ui.sectionLabel}>Recent inquiries</div>
               {inquiries.slice(0, 5).map(inq => (
                 <div key={inq.id} style={ui.row}>
-                  <div><div style={{ fontWeight: 500 }}>{inq.name} — {inq.company}</div><div style={{ color: t.textFaint, fontSize: 12, marginTop: 2 }}>{(inq.interests || []).length} items</div></div>
-                  <div style={{ fontSize: 11, color: t.textDisabled }}>{new Date(inq.created_at).toLocaleDateString()}</div>
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{inq.name} — {inq.company}</div>
+                    <div style={{ color: t.textFaint, fontSize: 12, marginTop: 2 }}>{(inq.interests || []).length} items</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                    <QuoteStatusBadge status={inq.quote_status || 'new'} />
+                    <div style={{ fontSize: 11, color: t.textDisabled }}>{new Date(inq.created_at).toLocaleDateString()}</div>
+                  </div>
                 </div>
               ))}
               {inquiries.length === 0 && <div style={{ fontSize: 13, color: t.textDisabled }}>No inquiries yet.</div>}
@@ -239,7 +278,9 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={statusStyle(req.status)}>{req.status}</span>
                     {req.status === 'pending' && <>
-                      <button onClick={() => handleApprove(req)} style={{ background: t.accent, color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>Approve</button>
+                      <button onClick={() => handleApprove(req)} disabled={approvingId === req.id} style={{ background: t.accent, color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: approvingId === req.id ? 'wait' : 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>
+                        {approvingId === req.id ? 'Creating…' : 'Approve & create account'}
+                      </button>
                       <button onClick={() => handleDeny(req)} style={{ background: t.errorText, color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>Deny</button>
                     </>}
                   </div>
@@ -253,9 +294,21 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
             {inquiries.length === 0 && <div style={{ fontSize: 13, color: t.textFaint }}>No inquiries yet.</div>}
             {inquiries.map(inq => (
               <div key={inq.id} style={ui.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
                   <div><div style={{ fontWeight: 500, fontSize: 15 }}>{inq.name} — {inq.company}</div><div style={{ fontSize: 12, color: t.textFaint, marginTop: 2 }}>{inq.phone || '—'} · {inq.email || '—'}</div></div>
-                  <div style={{ fontSize: 11, color: t.textDisabled }}>{new Date(inq.created_at).toLocaleString()}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    <select
+                      value={inq.quote_status || 'new'}
+                      disabled={statusUpdatingId === inq.id}
+                      onChange={(e) => handleInquiryStatus(inq.id, e.target.value)}
+                      style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8, border: t.borderHairline, background: t.bgElevated, fontFamily: 'inherit' }}
+                    >
+                      {QUOTE_STATUSES.map(s => (
+                        <option key={s.id} value={s.id}>{s.label}</option>
+                      ))}
+                    </select>
+                    <div style={{ fontSize: 11, color: t.textDisabled }}>{new Date(inq.created_at).toLocaleString()}</div>
+                  </div>
                 </div>
                 {(inq.interests || []).map(i => (
                   <div key={i.key} style={{ fontSize: 12, color: t.textSecondary, padding: '4px 0', borderBottom: `0.5px solid ${t.borderSubtle}` }}>

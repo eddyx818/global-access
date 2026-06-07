@@ -17,6 +17,7 @@ import BulkTransferBar from './BulkTransferBar';
 import StaffNotesCell from './StaffNotesCell';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
+import { whatsAppUrl } from '../lib/whatsapp';
 
 const STATUS_COLOR = { online: '#4CAF7D', away: '#C9A84C', offline: '#CCC' };
 
@@ -250,6 +251,11 @@ export default function CustomerDirectory({ repUserId = null, canTransfer = true
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
                     <div style={{ fontWeight: 500 }}>{u.username || u.name || '—'}</div>
                     <div style={{ fontSize: 11, color: '#AAA' }}>{u.email}</div>
+                    {u.phone && whatsAppUrl(u.phone) && (
+                      <a href={whatsAppUrl(u.phone)} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: t.accent, textDecoration: 'none', fontWeight: 600 }}>
+                        WhatsApp
+                      </a>
+                    )}
                   </td>
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{u.company || '—'}</td>
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{formatRoleLabel(u.role || u.user_type)}</td>

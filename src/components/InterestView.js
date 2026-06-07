@@ -9,11 +9,11 @@ export function InterestView({ interests, toggleInterest, form, setForm, onSubmi
   return (
     <div style={{ maxWidth: 620, margin: '0 auto', padding: isMobile ? '1rem' : '1.5rem 1.5rem 3rem' }}>
       <button onClick={onBack} style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', fontSize: 13, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6, padding: 0, fontFamily: 'inherit' }}>← Back</button>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, letterSpacing: '0.04em', color: t.text, marginBottom: 4 }}>Your Interest List</div>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, letterSpacing: '0.04em', color: t.text, marginBottom: 4 }}>Request a Quote</div>
       <div style={{ fontSize: 13, color: t.textMuted, marginBottom: '1.75rem', lineHeight: 1.6 }}>
         {profileSaved
-          ? 'Your saved details are below. Add notes for this inquiry — we will reach out with pricing and availability.'
-          : 'Tell us who you are and we will reach out with pricing and availability.'}
+          ? 'Your saved details are below. Add notes for this quote — we will follow up in Support chat with pricing and availability.'
+          : 'Tell us who you are and we will follow up with pricing and availability.'}
       </div>
       <div style={{ background: t.bgElevated, border: t.borderHairlineLight, borderRadius: 12, padding: '1.25rem', marginBottom: '1rem' }}>
         <div style={{ fontSize: 11, color: t.textFaint, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Selected items</div>
@@ -56,9 +56,9 @@ export function InterestView({ interests, toggleInterest, form, setForm, onSubmi
         )}
       </div>
       <button onClick={onSubmit} disabled={interests.length === 0} style={{ width: '100%', background: interests.length > 0 ? t.btnPrimaryBg : t.border, color: interests.length > 0 ? t.btnPrimaryText : t.textDisabled, border: 'none', borderRadius: 10, padding: '15px', fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', cursor: interests.length > 0 ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontFamily: 'inherit' }}>
-        Submit inquiry →
+        Request quote ({interests.length} item{interests.length !== 1 ? 's' : ''}) →
       </button>
-      <div style={{ textAlign: 'center', fontSize: 12, color: t.textDisabled, marginTop: 10 }}>Saved to our team. Use Support chat for follow-up — WhatsApp is shared after we confirm.</div>
+      <div style={{ textAlign: 'center', fontSize: 12, color: t.textDisabled, marginTop: 10 }}>Saved to our team. Track status in Support chat — WhatsApp is shared after we confirm.</div>
     </div>
   );
 }
@@ -69,9 +69,9 @@ export function ThanksView({ onBack, onOpenSupport }) {
   return (
     <div style={{ minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center' }}>
       <div style={{ width: 72, height: 72, background: t.successBg, border: `0.5px solid ${t.successBorder}`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, marginBottom: '1.5rem' }}>✓</div>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 44, letterSpacing: '0.04em', color: t.text, marginBottom: 8 }}>We Got It!</div>
+      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 44, letterSpacing: '0.04em', color: t.text, marginBottom: 8 }}>Quote Requested!</div>
       <div style={{ fontSize: 15, color: t.textMuted, lineHeight: 1.7, maxWidth: 400, marginBottom: '2rem' }}>
-        Your interest list was submitted. Our team will reply in Support chat or by email. Direct WhatsApp contact is shared once we confirm your inquiry in chat.
+        Your quote request was submitted. Track status in Support chat — our team will reply there or by email. Direct WhatsApp contact is shared once we confirm your inquiry in chat.
       </div>
       {onOpenSupport && (
         <button onClick={onOpenSupport} style={{ background: t.accent, color: '#FFF', border: 'none', borderRadius: 10, padding: '12px 32px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12 }}>
