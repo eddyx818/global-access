@@ -27,4 +27,4 @@
 --      URL:      https://YOUR_PROJECT_REF.supabase.co/functions/v1/notify-discord
 --      Method:   POST
 --      Headers:  Authorization: Bearer YOUR_DISCORD_NOTIFY_SECRET
---      Body:     { "record": { "id": "{{ record.id }}", "conversation_id": "{{ record.conversation_id }}", "from_user_id": "{{ record.from_user_id }}", "content": "{{ record.content }}", "created_at": "{{ record.created_at }}" } }
+--      Body:     { "record": { "id": "{{ record.id }}", "conversation_id": "{{ record.conversation_id }}", "from_user_id": "{{ record.from_user_id }}", "content": "{{ record.content }}", "created_at": "{{ record.created_at }}", "is_system": {{ record.is_system }} } }

@@ -217,6 +217,7 @@ export default function ChatSidebar({
   const activeCustomerProfile = activeConvo && isStaff && !activeIsGroup
     ? profiles[getCustomerParticipantId(activeConvo, profiles)]
     : null;
+  const adminCustomerProfile = isAdmin && activeCustomerProfile ? activeCustomerProfile : null;
 
   const headerTitle = activeConvo
     ? getConversationTitle(activeConvo, profiles, user.id, { isAdmin, isSalesRep })
@@ -305,14 +306,31 @@ export default function ChatSidebar({
           <>
             {!activeIsGroup && (
               <div style={{ padding: '12px 14px', borderBottom: t.borderHairlineLight, background: t.bgHover, fontSize: 12, color: t.textSecondary, lineHeight: 1.5, flexShrink: 0 }}>
+                {isAdmin && adminCustomerProfile && (
+                  <div style={{ marginBottom: contactRevealed ? 10 : 0 }}>
+                    <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Customer (visible to you only)</div>
+                    <div style={{ fontWeight: 600, color: t.text, marginBottom: 4 }}>{adminCustomerProfile.name || 'Unnamed'}{adminCustomerProfile.company ? ` · ${adminCustomerProfile.company}` : ''}</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                      {adminCustomerProfile.email && <span>📧 {adminCustomerProfile.email}</span>}
+                      {adminCustomerProfile.phone && (
+                        <a href={`https://wa.me/${adminCustomerProfile.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ color: t.accent, textDecoration: 'none', fontWeight: 600 }}>
+                          WhatsApp {adminCustomerProfile.phone}
+                        </a>
+                      )}
+                    </div>
+                    {adminCustomerProfile.referral_code_used && (
+                      <div style={{ fontSize: 11, color: t.gold, marginTop: 6 }}>Signed up with code: {adminCustomerProfile.referral_code_used}</div>
+                    )}
+                  </div>
+                )}
                 {!contactRevealed && (
                   <>
                     {isAdmin ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <span>Contact info is hidden until you confirm this lead.</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: adminCustomerProfile ? 10 : 0, paddingTop: adminCustomerProfile ? 10 : 0, borderTop: adminCustomerProfile ? t.borderHairline : 'none' }}>
+                        <span>Your direct contact info is hidden from the customer until you confirm below. Multiple admins can reply in this thread.</span>
                         <button type="button" onClick={handleConfirmContact} disabled={confirming}
                           style={{ alignSelf: 'flex-start', background: t.accent, color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: confirming ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                          {confirming ? 'Confirming…' : 'Confirm & share contact info'}
+                          {confirming ? 'Confirming…' : 'Share my contact info with customer'}
                         </button>
                       </div>
                     ) : (
@@ -320,7 +338,7 @@ export default function ChatSidebar({
                     )}
                   </>
                 )}
-                {contactRevealed && safeOtherProfile && (safeOtherProfile.phone || safeOtherProfile.email) && (
+                {contactRevealed && !isAdmin && safeOtherProfile && (safeOtherProfile.phone || safeOtherProfile.email) && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                     {safeOtherProfile.email && <span>📧 {safeOtherProfile.email}</span>}
                     {safeOtherProfile.phone && (
@@ -329,6 +347,9 @@ export default function ChatSidebar({
                       </a>
                     )}
                   </div>
+                )}
+                {contactRevealed && isAdmin && (
+                  <div style={{ fontSize: 11, color: t.successText, marginTop: 8 }}>Your contact info is visible to this customer.</div>
                 )}
               </div>
             )}

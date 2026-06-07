@@ -44,9 +44,14 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const record = body.record || body;
-    const { conversation_id, from_user_id, content } = record || {};
-    if (!from_user_id || !conversation_id) {
-      return new Response(JSON.stringify({ ok: true, skipped: 'missing fields' }), {
+    const { conversation_id, from_user_id, content, is_system } = record || {};
+    if (!from_user_id || !conversation_id || is_system) {
+      return new Response(JSON.stringify({ ok: true, skipped: 'missing fields or system message' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (!content) {
+      return new Response(JSON.stringify({ ok: true, skipped: 'empty content' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

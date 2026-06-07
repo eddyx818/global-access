@@ -63,6 +63,12 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (record?.is_system) {
+      return new Response(JSON.stringify({ ok: true, skipped: 'system message' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const displayName = sender?.name || sender?.username || sender?.email || 'Customer';
     const company = sender?.company ? ` · ${sender.company}` : '';
     const siteUrl = Deno.env.get('PORTAL_URL') || '';

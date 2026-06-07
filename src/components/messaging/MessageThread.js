@@ -69,6 +69,20 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
   return (
     <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, background: t.bgHover, minHeight: 0 }}>
       {messages.map(msg => {
+        if (msg.is_system) {
+          return (
+            <div key={msg.id} style={{ display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
+              <div style={{
+                maxWidth: '92%', padding: '10px 14px', borderRadius: 12,
+                background: t.bgMuted, border: t.borderHairlineLight,
+                fontSize: 13, lineHeight: 1.5, color: t.textSecondary, textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 10, color: t.gold, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Global Access Support</div>
+                {msg.content}
+              </div>
+            </div>
+          );
+        }
         const mine = msg.from_user_id === currentUserId;
         const fromProfile = profiles[msg.from_user_id] || {};
         const showName = (isGroup || showStaffNames) && !mine;

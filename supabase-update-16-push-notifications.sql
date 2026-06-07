@@ -51,7 +51,7 @@ CREATE POLICY "users_manage_own_push_subscriptions" ON push_subscriptions
 --      URL:      https://YOUR_PROJECT_REF.supabase.co/functions/v1/notify-push
 --      Method:   POST
 --      Headers:  Authorization: Bearer YOUR_PUSH_NOTIFY_SECRET
---      Body:     { "record": { "id": "{{ record.id }}", "conversation_id": "{{ record.conversation_id }}", "from_user_id": "{{ record.from_user_id }}", "content": "{{ record.content }}", "created_at": "{{ record.created_at }}" } }
+--      Body:     { "record": { "id": "{{ record.id }}", "conversation_id": "{{ record.conversation_id }}", "from_user_id": "{{ record.from_user_id }}", "content": "{{ record.content }}", "created_at": "{{ record.created_at }}", "is_system": {{ record.is_system }} } }
 --
 -- 6. On your phone: open https://global-access.vercel.app
 --    → Profile → enable notifications → allow when prompted.

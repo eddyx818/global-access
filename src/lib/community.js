@@ -186,9 +186,21 @@ export async function getOrCreateSupportConversation(customerId) {
     c.participant_user_ids.includes(customerId) &&
     adminIds.has(c.participant_user_ids.find(id => id !== customerId))
   );
-  if (support) return support;
+  if (support) {
+    await ensureSupportWelcome(support.id);
+    return support;
+  }
 
-  return getOrCreateDirectConversation(customerId, admins[0].user_id);
+  const created = await getOrCreateDirectConversation(customerId, admins[0].user_id);
+  await ensureSupportWelcome(created.id);
+  return created;
+}
+
+export async function ensureSupportWelcome(conversationId) {
+  if (!conversationId) return;
+  try {
+    await supabase.rpc('ensure_support_welcome_message', { p_conversation_id: conversationId });
+  } catch (_) {}
 }
 
 export async function getOrCreateDirectConversation(userId, otherUserId) {
