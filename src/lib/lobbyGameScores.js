@@ -22,3 +22,10 @@ export async function submitLobbyScore({ playerName, score, productsCollected })
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+/** Portal admins only — requires reset_lobby_game_scores() RPC in Supabase. */
+export async function resetLobbyLeaderboard() {
+  const { data, error } = await supabase.rpc('reset_lobby_game_scores');
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, deleted: data ?? 0 };
+}
