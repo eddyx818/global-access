@@ -56,20 +56,32 @@ export default function ProfileModal({
 
   useEffect(() => {
     if (!user?.id) return;
+    const applyProfileExtras = (data) => {
+      if (!data) return;
+      setUsername(data.username || '');
+      setBio(data.bio || '');
+      setAvatarUrl(data.profile_avatar_url || '');
+      setAppointmentNotes(data.appointment_notes || '');
+      const { date, time } = splitAppointment(data.preferred_appointment_at);
+      setAppointmentDate(date);
+      setAppointmentTime(time);
+    };
+
     supabase.from('user_profiles')
       .select('username, bio, profile_avatar_url, preferred_appointment_at, appointment_notes')
       .eq('user_id', user.id)
       .single()
-      .then(({ data }) => {
+      .then(async ({ data, error }) => {
         if (data) {
-          setUsername(data.username || '');
-          setBio(data.bio || '');
-          setAvatarUrl(data.profile_avatar_url || '');
-          setAppointmentNotes(data.appointment_notes || '');
-          const { date, time } = splitAppointment(data.preferred_appointment_at);
-          setAppointmentDate(date);
-          setAppointmentTime(time);
+          applyProfileExtras(data);
+          return;
         }
+        if (!error) return;
+        const { data: basic } = await supabase.from('user_profiles')
+          .select('username, bio, profile_avatar_url')
+          .eq('user_id', user.id)
+          .single();
+        applyProfileExtras(basic);
       });
   }, [user?.id]);
 
@@ -144,7 +156,7 @@ export default function ProfileModal({
       });
       if (!result.ok) {
         const hint = result.error?.includes('phone')
-          ? ' Run supabase-update-22-profile-phone.sql in Supabase, then try again.'
+          ? ' Run supabase-update-26-profile-columns.sql in Supabase, then try again.'
           : '';
         setError(`Could not save profile.${hint ? ` ${hint}` : result.error ? ` (${result.error})` : ''}`);
         setSaving(false);

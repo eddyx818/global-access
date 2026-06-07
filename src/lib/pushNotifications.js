@@ -16,7 +16,7 @@ export function isPushSupported() {
 
 export async function subscribeToPushNotifications(userId) {
   if (!userId || !isPushSupported()) return null;
-  if (Notification.permission !== 'granted') return null;
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return null;
 
   try {
     const reg = await navigator.serviceWorker.ready;

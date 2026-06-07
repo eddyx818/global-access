@@ -14,6 +14,7 @@ import AdminDashboard from './components/AdminDashboard';
 import StaffDashboard from './components/StaffDashboard';
 import ProfileModal from './components/ProfileModal';
 import ChatSidebar from './components/messaging/ChatSidebar';
+import ChatErrorBoundary from './components/ChatErrorBoundary';
 import MobileBottomNav from './components/MobileBottomNav';
 import InstallAppBanner from './components/InstallAppBanner';
 import { useUnreadCount } from './hooks/useUnreadCount';
@@ -64,6 +65,7 @@ export default function App() {
   const openChat = () => {
     if (user && !isPortalAdmin && !isProfileComplete(form)) {
       setProfileGate('chat');
+      setShowProfile(false);
       if (mobileShell) setView('profile');
       else setShowProfile(true);
       return;
@@ -542,16 +544,19 @@ export default function App() {
         unread={chatUnread}
       />
       {user && !mobileShell && (
-        <ChatSidebar
-          user={user}
-          open={chatOpen}
-          onClose={() => setChatOpen(false)}
-          isAdmin={isPortalAdmin}
-          onUnreadChange={refreshUnread}
-          profileComplete={isProfileComplete(form)}
-          onRequireProfile={requireProfileForChat}
-          openSupportOnLoad={openSupportOnLoad}
-        />
+        <ChatErrorBoundary onFallback={navigateHome}>
+          <ChatSidebar
+            user={user}
+            open={chatOpen}
+            onClose={() => setChatOpen(false)}
+            isAdmin={isPortalAdmin}
+            isSalesRep={isSalesRep}
+            onUnreadChange={refreshUnread}
+            profileComplete={isProfileComplete(form)}
+            onRequireProfile={requireProfileForChat}
+            openSupportOnLoad={openSupportOnLoad}
+          />
+        </ChatErrorBoundary>
       )}
       {showProfile && !mobileShell && (
         <ProfileModal
@@ -605,17 +610,28 @@ export default function App() {
       )}
       {view === 'chat' && mobileShell && user && (
         <div style={mobilePageShellStyle}>
-          <ChatSidebar
-            user={user}
-            open
-            variant="page"
-            onClose={closeChat}
-            isAdmin={isPortalAdmin}
-            onUnreadChange={refreshUnread}
-            profileComplete={isProfileComplete(form)}
-            onRequireProfile={requireProfileForChat}
-            openSupportOnLoad={openSupportOnLoad}
-          />
+          <ChatErrorBoundary onFallback={navigateHome}>
+            <ChatSidebar
+              user={user}
+              open
+              variant="page"
+              onClose={closeChat}
+              isAdmin={isPortalAdmin}
+              isSalesRep={isSalesRep}
+              onUnreadChange={refreshUnread}
+              profileComplete={isProfileComplete(form)}
+              onRequireProfile={requireProfileForChat}
+              openSupportOnLoad={openSupportOnLoad}
+            />
+          </ChatErrorBoundary>
+        </div>
+      )}
+      {view === 'chat' && mobileShell && !user && (
+        <div style={{ ...mobilePageShellStyle, alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center' }}>
+          <div style={{ fontSize: 14, color: t.textMuted, marginBottom: 12 }}>Sign in to use Support chat.</div>
+          <button type="button" onClick={() => setAuthState('login')} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Sign in
+          </button>
         </div>
       )}
       {view === 'profile' && mobileShell && user && (

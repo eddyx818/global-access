@@ -187,3 +187,60 @@ export async function uploadGalleryImage(brandId, file) {
 export async function deleteGalleryImage(id) {
   await supabase.from('brand_gallery').delete().eq('id', id);
 }
+
+/** Same merge order as customer-facing BrandView gallery strip. */
+export function buildVisibleBrandPhotos(brand, { galleryRecords = [], productImageBySku = {}, pendingBySku = {}, productForms = {} } = {}) {
+  if (!brand) return { strip: [], skuCards: [] };
+
+  const galleryUrls = (galleryRecords || [])
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    .map(g => g.image_url)
+    .filter(url => url && /^https?:\/\//.test(url));
+
+  const uploadedProductImages = (brand.products || [])
+    .map(p => productImageBySku[p.sku])
+    .filter(url => url && /^https?:\/\//.test(url));
+
+  const builtInGallery = (brand.gallery || []).filter(Boolean);
+
+  const stripUrls = [...new Set([...galleryUrls, ...uploadedProductImages, ...builtInGallery])].filter(Boolean);
+
+  const sourceByUrl = {};
+  galleryUrls.forEach(url => { sourceByUrl[url] = { source: 'placard', label: 'Placard upload' }; });
+  (brand.products || []).forEach(p => {
+    const url = productImageBySku[p.sku];
+    if (url) sourceByUrl[url] = { source: 'sku', label: p.sku, sku: p.sku };
+  });
+  builtInGallery.forEach(url => {
+    if (!sourceByUrl[url]) sourceByUrl[url] = { source: 'default', label: 'Built-in' };
+  });
+
+  const galleryIdByUrl = {};
+  (galleryRecords || []).forEach(g => {
+    if (g?.image_url) galleryIdByUrl[g.image_url] = g.id;
+  });
+
+  const strip = stripUrls.map((url, index) => ({
+    id: `strip-${index}-${url}`,
+    url,
+    galleryId: galleryIdByUrl[url] || null,
+    ...(sourceByUrl[url] || { source: 'unknown', label: 'Photo' }),
+  }));
+
+  const skuCards = (brand.products || []).map(p => {
+    const url = pendingBySku[p.sku] || productImageBySku[p.sku] || p.image || null;
+    const hasUploaded = !!productImageBySku[p.sku];
+    const isPending = !!pendingBySku[p.sku];
+    return {
+      sku: p.sku,
+      name: productForms[p.sku]?.name || p.name,
+      url,
+      isUploaded: hasUploaded,
+      isDefault: !hasUploaded && !isPending && !!p.image,
+      isEmpty: !url,
+      pending: isPending,
+    };
+  });
+
+  return { strip, skuCards };
+}

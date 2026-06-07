@@ -343,7 +343,7 @@ export function getConversationTitle(convo, profiles, currentUserId, { isAdmin =
     const p = profiles[customerId] || {};
     return p.name || p.company || p.username || 'Customer';
   }
-  const otherId = convo.participant_user_ids.find(id => id !== currentUserId);
+  const otherId = (convo.participant_user_ids || []).find(id => id !== currentUserId);
   const p = profiles[otherId] || {};
   if (p.is_portal_admin) return 'Global Access';
   return p.username || p.name || p.company || 'User';
@@ -455,19 +455,23 @@ export async function saveProfile(userId, email, fields) {
     return error;
   };
 
-  let error = await tryUpsert(payload);
-  if (error && isMissingColumnError(error)) {
-    const fallback = { ...payload };
-    delete fallback.preferred_appointment_at;
-    delete fallback.appointment_notes;
-    error = await tryUpsert(fallback);
-  }
-  if (error && isMissingColumnError(error, 'phone')) {
-    const fallback = { ...payload };
-    delete fallback.phone;
-    delete fallback.preferred_appointment_at;
-    delete fallback.appointment_notes;
-    error = await tryUpsert(fallback);
+  let body = { ...payload };
+  let error = await tryUpsert(body);
+  let attempts = 0;
+  while (error && isMissingColumnError(error) && attempts < 10) {
+    const missing = missingColumnFromError(error);
+    if (missing && Object.prototype.hasOwnProperty.call(body, missing)) {
+      delete body[missing];
+    } else {
+      delete body.preferred_appointment_at;
+      delete body.appointment_notes;
+      delete body.phone;
+      delete body.bio;
+      delete body.profile_avatar_url;
+      delete body.username;
+    }
+    error = await tryUpsert(body);
+    attempts += 1;
   }
 
   return { ok: !error, error: error?.message || null };
@@ -475,9 +479,22 @@ export async function saveProfile(userId, email, fields) {
 
 function isMissingColumnError(error, column) {
   const msg = (error?.message || '').toLowerCase();
-  if (!msg.includes('column') || !msg.includes('does not exist')) return false;
+  const looksMissing =
+    (msg.includes('column') && msg.includes('does not exist'))
+    || msg.includes('schema cache')
+    || msg.includes('could not find');
+  if (!looksMissing) return false;
   if (!column) return true;
   return msg.includes(column.toLowerCase());
+}
+
+function missingColumnFromError(error) {
+  const msg = error?.message || '';
+  const quoted = msg.match(/could not find the '([^']+)' column/i);
+  if (quoted) return quoted[1];
+  const pg = msg.match(/column "([^"]+)" of relation/i);
+  if (pg) return pg[1];
+  return null;
 }
 
 export async function checkUsernameAvailable(username, currentUserId) {

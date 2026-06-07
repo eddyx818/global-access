@@ -100,12 +100,14 @@ export default function ChatSidebar({
     if (!(open || isPage) || !user?.id) return;
     refresh();
     const prefs = getNotificationPrefs();
-    if (prefs.notifications && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      requestNotificationPermission().then((perm) => {
-        if (perm === 'granted') subscribeToPushNotifications(user.id);
-      });
-    } else if (Notification.permission === 'granted') {
-      subscribeToPushNotifications(user.id);
+    if (typeof Notification !== 'undefined') {
+      if (prefs.notifications && Notification.permission === 'default') {
+        requestNotificationPermission().then((perm) => {
+          if (perm === 'granted') subscribeToPushNotifications(user.id);
+        });
+      } else if (Notification.permission === 'granted') {
+        subscribeToPushNotifications(user.id);
+      }
     }
   }, [open, isPage, user?.id, refresh]);
 
@@ -283,7 +285,7 @@ export default function ChatSidebar({
     ? getConversationTitle(activeConvo, profiles, user.id, { isAdmin, isSalesRep })
     : (isStaff ? `Messages${unread ? ` (${unread})` : ''}` : 'Support');
   const headerSub = activeIsGroup
-    ? `${activeConvo.participant_user_ids.length} members`
+    ? `${(activeConvo.participant_user_ids || []).length} members`
     : (isStaff && activeConvo ? 'Customer conversation' : (isPage && !activeConvo ? 'Chat with our team' : null));
 
   if (!open && !isPage) return null;

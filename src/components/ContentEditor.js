@@ -2,8 +2,12 @@
 import { supabase } from '../lib/supabase';
 import React, { useState } from 'react';
 import { BRANDS } from '../lib/data';
-import { saveBrandContent, saveProductContent, uploadBrandImage } from '../lib/content';
+import {
+  saveBrandContent, saveProductContent, uploadBrandImage,
+  uploadGalleryImage, deleteGalleryImage, buildVisibleBrandPhotos,
+} from '../lib/content';
 import { parseCommerceFields, parsePackFields } from '../lib/pricing';
+import BrandPhotoPreviewGrid from './BrandPhotoPreviewGrid';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
 
@@ -28,11 +32,18 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState('');
   const [uploading, setUploading] = useState({});
+  const [galleryItems, setGalleryItems] = useState([]);
+  const [pendingStrip, setPendingStrip] = useState([]);
+  const [pendingSkuPreview, setPendingSkuPreview] = useState({});
+  const [uploadingGallery, setUploadingGallery] = useState(false);
   const [activeProductTab, setActiveProductTab] = useState('details'); // 'details' | 'flavors' | 'pricing'
   const fileRefs = React.useRef({});
+  const galleryFileRef = React.useRef(null);
 
-  const loadBrand = (brand) => {
+  const loadBrand = async (brand) => {
     setSelectedBrand(brand);
+    setPendingStrip([]);
+    setPendingSkuPreview({});
     const override = brandOverrides[brand.id] || {};
     setBrandForm({
       tagline: override.tagline || brand.tagline,
@@ -55,14 +66,40 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
       };
     });
     setProductForms(pf);
+
+    const { data: gallery } = await supabase
+      .from('brand_gallery')
+      .select('*')
+      .eq('brand_id', brand.id)
+      .order('sort_order', { ascending: true });
+    setGalleryItems(gallery || []);
   };
 
   React.useEffect(() => { loadBrand(BRANDS[0]); }, []); // eslint-disable-line
 
+  const productImageBySku = Object.fromEntries(
+    Object.entries(productForms).map(([sku, form]) => [sku, form?.image_url || '']).filter(([, url]) => url)
+  );
+
+  const { strip, skuCards } = buildVisibleBrandPhotos(selectedBrand, {
+    galleryRecords: galleryItems,
+    productImageBySku,
+    pendingBySku: pendingSkuPreview,
+    productForms,
+  });
+
   const handleImageUpload = async (brandId, sku, file) => {
     if (!file) return;
+    const previewUrl = URL.createObjectURL(file);
+    setPendingSkuPreview(prev => ({ ...prev, [sku]: previewUrl }));
     setUploading(u => ({ ...u, [sku]: true }));
     const url = await uploadBrandImage(brandId, sku, file);
+    URL.revokeObjectURL(previewUrl);
+    setPendingSkuPreview(prev => {
+      const next = { ...prev };
+      delete next[sku];
+      return next;
+    });
     if (url) {
       setProductForms(pf => ({ ...pf, [sku]: { ...pf[sku], image_url: url } }));
       await saveProductContent(brandId, sku, { ...productForms[sku], image_url: url });
@@ -71,6 +108,52 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
       onSaved && onSaved();
     }
     setUploading(u => ({ ...u, [sku]: false }));
+  };
+
+  const handleGalleryUpload = async (fileList) => {
+    const files = [...(fileList || [])];
+    if (!files.length) return;
+    setUploadingGallery(true);
+    for (const file of files) {
+      const tempId = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const previewUrl = URL.createObjectURL(file);
+      setPendingStrip(prev => [...prev, {
+        id: tempId,
+        url: previewUrl,
+        source: 'placard',
+        label: file.name,
+        uploading: true,
+      }]);
+      const url = await uploadGalleryImage(selectedBrand.id, file);
+      URL.revokeObjectURL(previewUrl);
+      setPendingStrip(prev => prev.filter(p => p.id !== tempId));
+      if (url) {
+        setGalleryItems(prev => [...prev, {
+          id: tempId,
+          brand_id: selectedBrand.id,
+          image_url: url,
+          sort_order: Date.now(),
+        }]);
+      }
+    }
+    setUploadingGallery(false);
+    setSaved('Placard photo(s) uploaded!'); setTimeout(() => setSaved(''), 2000);
+    window.dispatchEvent(new CustomEvent('ga-content-updated'));
+    onSaved && onSaved();
+    const { data: gallery } = await supabase
+      .from('brand_gallery')
+      .select('*')
+      .eq('brand_id', selectedBrand.id)
+      .order('sort_order', { ascending: true });
+    setGalleryItems(gallery || []);
+  };
+
+  const handleDeletePlacard = async (galleryId) => {
+    if (!window.confirm('Remove this placard photo from the customer gallery?')) return;
+    await deleteGalleryImage(galleryId);
+    setGalleryItems(prev => prev.filter(g => g.id !== galleryId));
+    window.dispatchEvent(new CustomEvent('ga-content-updated'));
+    onSaved && onSaved();
   };
 
   const toggleFlavorSoldOut = (sku, flavorType, idx) => {
@@ -129,6 +212,54 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
             {brand.name}
           </button>
         ))}
+      </div>
+
+      <BrandPhotoPreviewGrid
+        brand={selectedBrand}
+        strip={strip}
+        skuCards={skuCards}
+        pendingStrip={pendingStrip}
+        onDeletePlacard={handleDeletePlacard}
+        brandColor={brandForm.color || selectedBrand.color}
+      />
+
+      {/* Placard / gallery uploads */}
+      <div style={card}>
+        <div style={{ fontSize: 12, color: t.textFaint, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8, fontWeight: 500 }}>
+          Placard photos — {selectedBrand.name}
+        </div>
+        <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5, marginBottom: 12 }}>
+          Upload brand placard or hero photos. They appear first in the customer gallery strip above. You can select multiple images at once.
+        </div>
+        <button
+          type="button"
+          onClick={() => galleryFileRef.current?.click()}
+          disabled={uploadingGallery}
+          style={{
+            background: uploadingGallery ? t.border : (brandForm.color || selectedBrand.color),
+            color: uploadingGallery ? t.textFaint : '#FFF',
+            border: 'none',
+            borderRadius: 10,
+            padding: '12px 18px',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: uploadingGallery ? 'wait' : 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          {uploadingGallery ? 'Uploading…' : '+ Upload placard photos'}
+        </button>
+        <input
+          ref={galleryFileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            handleGalleryUpload(e.target.files);
+            e.target.value = '';
+          }}
+        />
       </div>
 
       {/* Brand info */}
@@ -192,18 +323,33 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
               {/* Image upload */}
               <div style={{ flexShrink: 0 }}>
                 <label style={labelStyle}>Product Image</label>
-                <div onClick={() => fileRefs.current[product.sku]?.click()}
-                  style={{ width: 120, height: 120, border: `1.5px dashed ${selectedBrand.color}66`, borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', background: t.bgMuted, position: 'relative' }}>
-                  {productForms[product.sku]?.image_url ? (
-                    <img src={productForms[product.sku].image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }} />
+                <div onClick={() => !uploading[product.sku] && fileRefs.current[product.sku]?.click()}
+                  style={{ width: 160, height: 120, border: `1.5px dashed ${selectedBrand.color}66`, borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: uploading[product.sku] ? 'wait' : 'pointer', overflow: 'hidden', background: t.bgMuted, position: 'relative' }}>
+                  {(pendingSkuPreview[product.sku] || productForms[product.sku]?.image_url) ? (
+                    <>
+                      <img
+                        src={pendingSkuPreview[product.sku] || productForms[product.sku].image_url}
+                        alt={product.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={e => { e.target.style.display = 'none'; }}
+                      />
+                      {uploading[product.sku] && (
+                        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: 11, fontWeight: 600 }}>
+                          Uploading…
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <>
                       <div style={{ fontSize: 24, marginBottom: 4 }}>📷</div>
-                      <div style={{ fontSize: 11, color: t.textFaint, textAlign: 'center', padding: '0 8px' }}>{uploading[product.sku] ? 'Uploading...' : 'Tap to upload'}</div>
+                      <div style={{ fontSize: 11, color: t.textFaint, textAlign: 'center', padding: '0 8px' }}>Tap to upload</div>
                     </>
                   )}
                 </div>
-                <input ref={el => fileRefs.current[product.sku] = el} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleImageUpload(selectedBrand.id, product.sku, e.target.files[0])} />
+                <div style={{ fontSize: 10, color: t.textFaint, marginTop: 6, maxWidth: 160, lineHeight: 1.4 }}>
+                  Preview updates above in the SKU grid when uploaded.
+                </div>
+                <input ref={el => { fileRefs.current[product.sku] = el; }} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleImageUpload(selectedBrand.id, product.sku, e.target.files[0])} />
               </div>
               {/* Details */}
               <div style={{ flex: 1, minWidth: 200 }}>
