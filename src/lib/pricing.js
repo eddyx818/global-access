@@ -11,9 +11,110 @@ export function parsePackFields(src = {}) {
     inner_unit_label: src.inner_unit_label || '',
     inners_per_case: src.inners_per_case ?? null,
     inner_pack_label: src.inner_pack_label || '',
+    retail_order_unit: src.retail_order_unit || '',
+    retail_order_units: src.retail_order_units || '',
+    distributor_order_units: src.distributor_order_units || '',
     cases_per_pallet: src.cases_per_pallet ?? null,
     pack_config_note: src.pack_config_note || '',
   };
+}
+
+export function slugOrderUnit(label) {
+  return String(label || '').trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+/** Parse "box, case, master case, pallet" into selectable options. */
+export function parseOrderUnitsList(str) {
+  if (!str || typeof str !== 'string') return [];
+  return str.split(/[,;|]/).map(s => s.trim()).filter(Boolean)
+    .map(label => ({ id: slugOrderUnit(label), label }));
+}
+
+function legacyDistroOrderOptions(product) {
+  if (product.orderUnit === 'pallet') return [{ id: 'pallet', label: 'pallet' }];
+  if (product.orderUnit === 'both') {
+    return [
+      { id: 'master_case', label: 'case' },
+      { id: 'pallet', label: 'pallet' },
+    ];
+  }
+  return [{ id: 'master_case', label: 'case' }];
+}
+
+/** Order-by choices for the current buyer type (typed in admin, comma-separated). */
+export function getProductOrderOptions(product, userType) {
+  const listField = userType === 'distributor' ? 'distributor_order_units' : 'retail_order_units';
+  const parsed = parseOrderUnitsList(product[listField]);
+  if (parsed.length) return parsed;
+
+  if (userType !== 'distributor') {
+    const single = product.retail_order_unit || product.inner_pack_label;
+    if (single) return [{ id: slugOrderUnit(single), label: single }];
+    if (product.orderUnit === 'pallet') return [{ id: 'case', label: 'case' }];
+    return [{ id: 'box', label: 'box' }];
+  }
+
+  return legacyDistroOrderOptions(product);
+}
+
+export function defaultOrderMode(product, userType) {
+  return getProductOrderOptions(product, userType)[0]?.id || 'case';
+}
+
+export function getOrderOptionLabel(product, userType, orderMode) {
+  const options = getProductOrderOptions(product, userType);
+  const id = slugOrderUnit(orderMode);
+  const match = options.find(o => o.id === id);
+  if (match) return match.label;
+  return options[0]?.label || 'case';
+}
+
+/** Map a selected unit to a pricing tier (unit / case / pallet). */
+export function normalizeOrderModeKey(orderMode) {
+  const m = slugOrderUnit(orderMode);
+  if (m.includes('pallet')) return 'pallet';
+  if (m.includes('master')) return 'master_case';
+  if (m === 'case' || m.endsWith('_case')) return 'master_case';
+  return 'unit';
+}
+
+/** Pluralize a pack unit label (jar → jars, case → cases). */
+export function pluralizeUnit(label, count = 1) {
+  if (!label) return '';
+  if (count === 1) return label;
+  const lower = label.toLowerCase();
+  if (lower.endsWith('s')) return label;
+  const irregular = { box: 'boxes', case: 'cases', jar: 'jars', pouch: 'pouches', pallet: 'pallets', can: 'cans', unit: 'units', 'master case': 'master cases' };
+  if (irregular[lower]) return irregular[lower];
+  return `${label}s`;
+}
+
+/** What retailers typically order by when no custom list is set. */
+export function getRetailOrderUnit(product) {
+  const options = getProductOrderOptions(product, 'retailer');
+  if (options.length) return options[0].label;
+  if (product.retail_order_unit) return product.retail_order_unit;
+  if (product.inner_pack_label) return product.inner_pack_label;
+  if (product.orderUnit === 'pallet') return 'case';
+  return 'box';
+}
+
+/** What distributors order by for the current mode when no custom list is set. */
+export function getDistroOrderUnit(product, orderMode = 'master_case') {
+  return getOrderOptionLabel(product, 'distributor', orderMode);
+}
+
+export function getOrderUnitLabel(product, userType, orderMode) {
+  return getOrderOptionLabel(product, userType, orderMode);
+}
+
+export function formatOrderUnitLabel(product, userType, orderMode, qty = 1) {
+  return pluralizeUnit(getOrderOptionLabel(product, userType, orderMode), qty);
+}
+
+export function getOrderUnitHeading(product, userType, orderMode) {
+  const label = getOrderOptionLabel(product, userType, orderMode);
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 export function parseCommerceFields(po = {}) {
@@ -70,17 +171,23 @@ export function getPackConfigLines(product) {
 }
 
 export function getOrderPrice(product, orderMode) {
-  if (orderMode === 'pallet' && product.price_per_pallet != null) return product.price_per_pallet;
-  if (orderMode === 'master_case' && product.price_per_case != null) return product.price_per_case;
+  const key = normalizeOrderModeKey(orderMode);
+  if (key === 'pallet' && product.price_per_pallet != null) return product.price_per_pallet;
+  if (key === 'master_case' && product.price_per_case != null) return product.price_per_case;
   if (product.price_per_unit != null) return product.price_per_unit;
   return product.price_wholesale;
 }
 
 export function getMasterOrderPrice(product, orderMode) {
-  if (orderMode === 'pallet' && product.price_master_per_pallet != null) return product.price_master_per_pallet;
-  if (orderMode === 'master_case' && product.price_master_per_case != null) return product.price_master_per_case;
+  const key = normalizeOrderModeKey(orderMode);
+  if (key === 'pallet' && product.price_master_per_pallet != null) return product.price_master_per_pallet;
+  if (key === 'master_case' && product.price_master_per_case != null) return product.price_master_per_case;
   if (product.price_master_per_unit != null) return product.price_master_per_unit;
   return null;
+}
+
+function priceDisplayLabel(product, userType, orderMode) {
+  return `Per ${getOrderOptionLabel(product, userType, orderMode)}`;
 }
 
 export function getVisiblePrices(product, userType, orderMode = 'master_case', { masterPricingQualified = false, pricingVisible = true } = {}) {
@@ -88,12 +195,12 @@ export function getVisiblePrices(product, userType, orderMode = 'master_case', {
 
   const isDistributor = userType === 'distributor';
   const lines = [];
+  const modeKey = normalizeOrderModeKey(orderMode);
 
   if (isDistributor && masterPricingQualified) {
     const masterPrice = getMasterOrderPrice(product, orderMode);
-    const masterLabel = orderMode === 'pallet' ? 'Per pallet' : orderMode === 'master_case' ? 'Per case' : 'Per unit';
-    if (masterPrice != null) lines.push({ label: masterLabel, value: masterPrice, tier: 'master' });
-    if (product.price_master_per_unit != null && orderMode === 'master_case') {
+    if (masterPrice != null) lines.push({ label: priceDisplayLabel(product, userType, orderMode), value: masterPrice, tier: 'master' });
+    if (product.price_master_per_unit != null && modeKey === 'master_case') {
       lines.push({ label: 'Per unit', value: product.price_master_per_unit, tier: 'master' });
     }
     if (product.price_msrp != null) lines.push({ label: 'MSRP', value: product.price_msrp });
@@ -102,9 +209,8 @@ export function getVisiblePrices(product, userType, orderMode = 'master_case', {
 
   if (isDistributor) {
     const orderPrice = getOrderPrice(product, orderMode);
-    const orderLabel = orderMode === 'pallet' ? 'Per pallet' : orderMode === 'master_case' ? 'Per case' : 'Per unit';
-    if (orderPrice != null) lines.push({ label: orderLabel, value: orderPrice });
-    if (product.price_per_unit != null && orderMode === 'master_case') {
+    if (orderPrice != null) lines.push({ label: priceDisplayLabel(product, userType, orderMode), value: orderPrice });
+    if (product.price_per_unit != null && modeKey === 'master_case') {
       lines.push({ label: 'Per unit', value: product.price_per_unit });
     }
     if (product.price_wholesale != null) lines.push({ label: 'Wholesale', value: product.price_wholesale });
@@ -155,6 +261,9 @@ export function packPayloadFromForm(data) {
     inner_unit_label: data.inner_unit_label || null,
     inners_per_case: int(data.inners_per_case),
     inner_pack_label: data.inner_pack_label || null,
+    retail_order_unit: data.retail_order_unit || null,
+    retail_order_units: data.retail_order_units || null,
+    distributor_order_units: data.distributor_order_units || null,
     cases_per_pallet: int(data.cases_per_pallet),
     pack_config_note: data.pack_config_note || null,
   };

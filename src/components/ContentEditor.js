@@ -362,13 +362,37 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
                   <input value={productForms[product.sku]?.detail || ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], detail: e.target.value } }))} style={inputStyle} placeholder={product.detail} />
                 </div>
                 <div style={{ marginBottom: 10 }}>
-                  <label style={labelStyle}>Order Unit (Distributors)</label>
+                  <label style={labelStyle}>Order Unit (legacy fallback)</label>
                   <select value={productForms[product.sku]?.orderUnit || product.orderUnit} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], orderUnit: e.target.value } }))}
                     style={{ ...inputStyle, cursor: 'pointer' }}>
                     <option value="master_case">Master Case Only</option>
                     <option value="pallet">Pallet Only</option>
                     <option value="both">Both (buyer chooses)</option>
                   </select>
+                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6, lineHeight: 1.45 }}>
+                    Used only when custom order unit lists below are empty.
+                  </div>
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={labelStyle}>Retailer order units</label>
+                  <input
+                    value={productForms[product.sku]?.retail_order_units || ''}
+                    onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], retail_order_units: e.target.value } }))}
+                    style={inputStyle}
+                    placeholder="e.g. jar  or  box, case"
+                  />
+                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6, lineHeight: 1.45 }}>
+                    Comma-separated. Multiple values show an order-by toggle on the brand page.
+                  </div>
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={labelStyle}>Distributor order units</label>
+                  <input
+                    value={productForms[product.sku]?.distributor_order_units || ''}
+                    onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], distributor_order_units: e.target.value } }))}
+                    style={inputStyle}
+                    placeholder="e.g. box, case, master case, pallet"
+                  />
                 </div>
                 <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #F0EDE8' }}>
                   <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 10, lineHeight: 1.5 }}>
@@ -391,6 +415,10 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
                       <label style={labelStyle}>Inner pack name</label>
                       <input value={productForms[product.sku]?.inner_pack_label || ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], inner_pack_label: e.target.value } }))} style={inputStyle} placeholder="e.g. jar, box, pouch" />
                     </div>
+                  </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <label style={labelStyle}>Retailer default unit (single)</label>
+                    <input value={productForms[product.sku]?.retail_order_unit || ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], retail_order_unit: e.target.value } }))} style={inputStyle} placeholder="Fallback if retailer list above is empty — e.g. jar, box" />
                   </div>
                   <div>
                     <label style={labelStyle}>Extra pack note (optional)</label>

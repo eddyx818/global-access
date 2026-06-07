@@ -12,6 +12,60 @@ export function isEmailVerified(user) {
   return false;
 }
 
+export function isAdminAuthorized(profile) {
+  return profile?.admin_authorized === true;
+}
+
+/** Portal access when email is verified or an admin has authorized the account. */
+export function canAccessPortal(user, profile) {
+  if (!emailVerificationRequired()) return true;
+  if (isEmailVerified(user)) return true;
+  if (isAdminAuthorized(profile)) return true;
+  return false;
+}
+
+export async function fetchProfileAccess(userId) {
+  const { supabase } = await import('./supabase');
+  const { data } = await supabase
+    .from('user_profiles')
+    .select('admin_authorized, admin_authorized_at')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return data;
+}
+
+export async function authorizePortalAccess(userId, { confirmEmail = true } = {}) {
+  const { supabaseAdmin } = await import('./supabase');
+  if (!supabaseAdmin) {
+    return { ok: false, error: 'Admin service key not configured (REACT_APP_SUPABASE_SERVICE_KEY).' };
+  }
+  if (confirmEmail) {
+    const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(userId, { email_confirm: true });
+    if (authErr) return { ok: false, error: authErr.message };
+  }
+  const now = new Date().toISOString();
+  const { error: profileErr } = await supabaseAdmin
+    .from('user_profiles')
+    .update({ admin_authorized: true, admin_authorized_at: now, updated_at: now })
+    .eq('user_id', userId);
+  if (profileErr) return { ok: false, error: profileErr.message };
+  return { ok: true };
+}
+
+export async function revokePortalAuthorization(userId) {
+  const { supabaseAdmin } = await import('./supabase');
+  if (!supabaseAdmin) {
+    return { ok: false, error: 'Admin service key not configured (REACT_APP_SUPABASE_SERVICE_KEY).' };
+  }
+  const now = new Date().toISOString();
+  const { error } = await supabaseAdmin
+    .from('user_profiles')
+    .update({ admin_authorized: false, admin_authorized_at: null, updated_at: now })
+    .eq('user_id', userId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 export async function resendSignupConfirmation(email) {
   const { supabase } = await import('./supabase');
   return supabase.auth.resend({

@@ -5,8 +5,7 @@ import { formatRoleLabel } from '../lib/roles';
 import { BRANDS } from '../lib/data';
 import { CRM_TIER, normalizeMasterBrandIds } from '../lib/accountBadges';
 import CustomerBadges from './CustomerBadges';
-import { useTheme } from '../context/ThemeContext';
-import { getAdminUi } from '../lib/theme';
+import { authorizePortalAccess, revokePortalAuthorization } from '../lib/authGate';
 
 const ROLES = ['retailer', 'distributor', 'sales_rep', 'admin'];
 const ROLE_COLORS = { retailer: '#4CAF7D', distributor: '#C9A84C', sales_rep: '#E07A5F', admin: '#7B6CF6' };
@@ -22,7 +21,7 @@ export default function UserManager() {
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saved, setSaved] = useState('');
-  const [error, setError] = useState('');
+  const [authorizingId, setAuthorizingId] = useState(null);
 
   useEffect(() => { loadUsers(); }, []);
 
@@ -60,6 +59,8 @@ export default function UserManager() {
           ? normalizeRepCode(generateRepCodeFromName(createForm.name || createForm.email, data.user.id))
           : null,
         temp_password: createForm.password,
+        admin_authorized: true,
+        admin_authorized_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
       });
       setSaved(`Account created for ${createForm.email}`);
@@ -165,6 +166,35 @@ export default function UserManager() {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const handleAuthorize = async (user) => {
+    setAuthorizingId(user.id);
+    setError('');
+    const result = await authorizePortalAccess(user.user_id);
+    setAuthorizingId(null);
+    if (!result.ok) {
+      setError(result.error || 'Could not authorize account.');
+      return;
+    }
+    setSaved(`${user.email} can sign in without email verification.`);
+    setTimeout(() => setSaved(''), 3000);
+    loadUsers();
+  };
+
+  const handleRevokeAuthorization = async (user) => {
+    if (!window.confirm(`Revoke admin authorization for ${user.email}? They will need to verify email to sign in again.`)) return;
+    setAuthorizingId(user.id);
+    setError('');
+    const result = await revokePortalAuthorization(user.user_id);
+    setAuthorizingId(null);
+    if (!result.ok) {
+      setError(result.error || 'Could not revoke authorization.');
+      return;
+    }
+    setSaved(`Authorization revoked for ${user.email}.`);
+    setTimeout(() => setSaved(''), 3000);
+    loadUsers();
   };
 
   const generatePassword = () => {
@@ -385,6 +415,9 @@ export default function UserManager() {
                   <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: (ROLE_COLORS[user.role] || '#888') + '18', color: ROLE_COLORS[user.role] || '#888', fontWeight: 600, letterSpacing: '0.06em' }}>{formatRoleLabel(user.role) || 'Unknown'}</span>
                   <CustomerBadges profile={user} />
                   {user.disabled && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: t.errorBg, color: t.errorText, fontWeight: 600 }}>Disabled</span>}
+                  {user.admin_authorized && (
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: t.successBg, color: t.successText, fontWeight: 600 }}>Admin authorized</span>
+                  )}
                   {user.role === 'distributor' && user.master_pricing_interest && !user.master_pricing_qualified && (
                     <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: t.bgHover, color: t.textMuted, fontWeight: 600 }}>Volume interest</span>
                   )}
@@ -399,8 +432,26 @@ export default function UserManager() {
                 )}
                 <div style={{ fontSize: 11, color: t.textDisabled, marginTop: 2 }}>{new Date(user.created_at).toLocaleDateString()}</div>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <button onClick={() => handleEdit(user)} style={secBtn}>Edit</button>
+                {!user.admin_authorized && !user.disabled && (
+                  <button
+                    onClick={() => handleAuthorize(user)}
+                    disabled={authorizingId === user.id}
+                    style={{ ...secBtn, background: t.successBg, border: `0.5px solid ${t.successBorder}`, color: t.successText }}
+                  >
+                    {authorizingId === user.id ? 'Authorizing…' : 'Authorize access'}
+                  </button>
+                )}
+                {user.admin_authorized && !user.is_portal_admin && !user.is_sales_rep && (
+                  <button
+                    onClick={() => handleRevokeAuthorization(user)}
+                    disabled={authorizingId === user.id}
+                    style={secBtn}
+                  >
+                    Revoke auth
+                  </button>
+                )}
                 {user.disabled ? (
                   <button onClick={() => handleEnable(user)} style={{ ...secBtn, background: t.successBg, border: `0.5px solid ${t.successBorder}`, color: t.successText }}>Enable</button>
                 ) : (

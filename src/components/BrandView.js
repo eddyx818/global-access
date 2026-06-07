@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ProductCommerceInfo from './ProductCommerceInfo';
 import BrandNamePattern from './BrandNamePattern';
-import { minQtyForProduct } from '../lib/pricing';
+import { minQtyForProduct, formatOrderUnitLabel, getOrderUnitHeading, getProductOrderOptions, defaultOrderMode } from '../lib/pricing';
 import { subscribeStockNotify, fetchMyStockAlerts, stockAlertKey } from '../lib/stockNotify';
 import { useTheme } from '../context/ThemeContext';
 import { useBrandContent } from '../lib/content';
@@ -62,9 +62,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
 
   const getOrderMode = (product) => {
     if (orderMode[product.sku]) return orderMode[product.sku];
-    if (product.orderUnit === 'pallet') return 'pallet';
-    if (product.orderUnit === 'master_case') return 'master_case';
-    return 'master_case'; // default for 'both'
+    return defaultOrderMode(product, userType);
   };
 
   const setQty = (key, val, product) => {
@@ -78,7 +76,8 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
     if (isSoldOut) return;
     const mode = getOrderMode(product);
     const qty = quantities[`${product.sku}__${flavor}`] || minQtyForProduct(product);
-    toggleInterest(product.sku, product.name, brand.name, flavor, qty, mode, brand.id);
+    const orderUnitLabel = formatOrderUnitLabel(product, userType, mode, qty);
+    toggleInterest(product.sku, product.name, brand.name, flavor, qty, mode, brand.id, orderUnitLabel);
   };
 
   const handleStockNotify = async (product, flavor) => {
@@ -176,10 +175,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
     </div>
   );
 
-  const unitLabel = (product) => {
-    const mode = getOrderMode(product);
-    return mode === 'pallet' ? 'Pallet' : 'Master Case';
-  };
+  const unitLabel = (product, qty = 1) => formatOrderUnitLabel(product, userType, getOrderMode(product), qty);
 
   return (
     <>
@@ -364,7 +360,8 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
         {brand.products.map(product => {
           const productFlavors = isDistributor ? (product.flavors_distro || []) : (product.flavors_retail || []);
           const currentMode = getOrderMode(product);
-          const showToggle = isDistributor && product.orderUnit === 'both';
+          const orderOptions = getProductOrderOptions(product, userType);
+          const showToggle = orderOptions.length > 1;
           const imageKey = `product:${product.sku}`;
           const showProductImage = product.image && !brokenImages[imageKey];
 
@@ -402,32 +399,34 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
                   onRequestAccess={onRequestAccess}
                 />
 
-                {/* Order unit toggle for distributors with 'both' option */}
+                {/* Order unit toggle when multiple options are configured */}
                 {showToggle && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 11, color: t.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Order by:</span>
-                    <div style={{ display: 'flex', background: t.bgMuted, border: t.borderHairline, borderRadius: 8, overflow: 'hidden' }}>
-                      {['master_case','pallet'].map(mode => (
-                        <button key={mode} onClick={() => setOrderMode(prev => ({ ...prev, [product.sku]: mode }))}
-                          style={{ padding: '6px 14px', fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: currentMode === mode ? 600 : 400, background: currentMode === mode ? t.btnPrimaryBg : 'transparent', color: currentMode === mode ? t.btnPrimaryText : t.textMuted, transition: 'all 0.15s' }}>
-                          {mode === 'master_case' ? 'Master Case' : 'Pallet'}
+                    <div style={{ display: 'flex', background: t.bgMuted, border: t.borderHairline, borderRadius: 8, overflow: 'hidden', flexWrap: 'wrap' }}>
+                      {orderOptions.map(opt => (
+                        <button key={opt.id} onClick={() => setOrderMode(prev => ({ ...prev, [product.sku]: opt.id }))}
+                          style={{ padding: '6px 14px', fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: currentMode === opt.id ? 600 : 400, background: currentMode === opt.id ? t.btnPrimaryBg : 'transparent', color: currentMode === opt.id ? t.btnPrimaryText : t.textMuted, transition: 'all 0.15s', textTransform: 'capitalize' }}>
+                          {opt.label}
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Order unit label for non-toggle products */}
-                {!showToggle && isDistributor && (
+                {/* Order unit label for single-option products */}
+                {!showToggle && orderOptions.length === 1 && (
                   <div style={{ marginBottom: 12 }}>
                     <span style={{ fontSize: 11, background: brand.color + '15', color: brand.color, border: `0.5px solid ${brand.color}44`, borderRadius: 20, padding: '4px 12px', fontWeight: 600, letterSpacing: '0.06em' }}>
-                      {currentMode === 'pallet' ? 'Pallet Ordering' : 'Master Case Ordering'}
+                      {getOrderUnitHeading(product, userType, currentMode)} ordering
                     </span>
                   </div>
                 )}
 
                 <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>
-                  {isDistributor ? `Select ${unitLabel(product)}(s)` : 'Select Flavors'}
+                  {showToggle || isDistributor
+                    ? `Select ${getOrderUnitHeading(product, userType, getOrderMode(product))}(s)`
+                    : 'Select Flavors'}
                 </div>
 
                 {/* Flavors/options grid */}
@@ -478,7 +477,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
                             <input type="number" min={minQtyForProduct(product)} value={quantities[key] || minQtyForProduct(product)} onChange={e => setQty(key, e.target.value, product)}
                               style={{ width: 44, textAlign: 'center', background: t.inputBg, border: t.borderHairline, borderRadius: 6, padding: '4px', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: t.text }} />
                             <button onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product)) + 1, product)} style={{ width: 24, height: 24, background: brand.color, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' }}>+</button>
-                            <span style={{ fontSize: 11, color: t.textFaint }}>{unitLabel(product)}{(quantities[key] || minQtyForProduct(product)) !== 1 ? 's' : ''}</span>
+                            <span style={{ fontSize: 11, color: t.textFaint }}>{unitLabel(product, quantities[key] || minQtyForProduct(product))}</span>
                           </div>
                         )}
                       </div>

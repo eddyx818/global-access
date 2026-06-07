@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { validateAccessCode } from '../lib/repCodes';
 import { setPortalReferral, getPortalReferral } from '../lib/session';
 import { getRememberLogin, getSavedLogin, saveLogin, clearSavedLogin } from '../lib/loginPrefs';
-import { emailVerificationRequired, isEmailVerified, resendSignupConfirmation } from '../lib/authGate';
+import { emailVerificationRequired, isEmailVerified, resendSignupConfirmation, canAccessPortal, fetchProfileAccess } from '../lib/authGate';
 import { isValidRequestEmail, isHoneypotClean, canSubmitAccessRequest } from '../lib/accessRequestGate';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggle from './ThemeToggle';
@@ -98,11 +98,12 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
       setError('Invalid email or password.');
       return;
     }
-    if (emailVerificationRequired() && !isEmailVerified(data.user)) {
+    const accessProfile = await fetchProfileAccess(data.user.id);
+    if (!canAccessPortal(data.user, accessProfile)) {
       await supabase.auth.signOut();
       setPendingVerifyEmail(trimmedEmail);
       setLoading(false);
-      setError('Please verify your email before signing in. Check your inbox for the confirmation link.');
+      setError('Please verify your email before signing in, or wait until an admin authorizes your account.');
       return;
     }
     setLoading(false);
@@ -200,7 +201,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
       }, { onConflict: 'user_id' });
       if (emailVerificationRequired() && !data.session) {
         setPendingVerifyEmail(regForm.email.trim().toLowerCase());
-        setSuccess('Account created! Check your email to verify, then sign in.');
+        setSuccess('Account created! Verify your email or wait for admin approval, then sign in.');
       } else {
         setSuccess('Account created! You can sign in now.');
       }

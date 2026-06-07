@@ -22,7 +22,10 @@ export function InterestView({ interests, toggleInterest, form, setForm, onSubmi
           <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
             <div>
               <div style={{ fontSize: 13, color: t.textSecondary, fontWeight: 500 }}>{item.brandName} - {item.productName}</div>
-              <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{item.flavor} · SKU: {item.sku}</div>
+              <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>
+                {item.flavor} · SKU: {item.sku}
+                {item.qty ? ` · Qty ${item.qty}${item.orderUnitLabel ? ` ${item.orderUnitLabel}` : ''}` : ''}
+              </div>
             </div>
             <button onClick={() => toggleInterest(item.sku, item.productName, item.brandName, item.flavor)} style={{ background: 'none', border: 'none', color: t.textDisabled, cursor: 'pointer', fontSize: 20, padding: '0 4px', lineHeight: 1 }}>×</button>
           </div>

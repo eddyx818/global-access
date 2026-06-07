@@ -524,9 +524,10 @@ export async function confirmConversationContact(conversationId, adminUserId) {
 
 export async function submitInterestToSupport(userId, { form, interests, userType, masterPricingInterest = false }) {
   const convo = await getOrCreateSupportConversation(userId);
-  const itemsList = interests.map(i =>
-    `• ${i.brandName} — ${i.productName}\n  ${i.flavor} · Qty ${i.qty || 1} ${i.orderMode === 'pallet' ? 'pallet(s)' : 'case(s)'}`
-  ).join('\n');
+  const itemsList = interests.map(i => {
+    const unit = i.orderUnitLabel || (i.orderMode === 'pallet' ? 'pallets' : 'cases');
+    return `• ${i.brandName} — ${i.productName}\n  ${i.flavor} · Qty ${i.qty || 1} ${unit}`;
+  }).join('\n');
   const text = [
     'Quote request submitted',
     '',

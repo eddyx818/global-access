@@ -27,6 +27,7 @@ export async function approveAccessRequestAndCreateAccount(req) {
 
     if (existingProfile?.user_id) {
       userId = existingProfile.user_id;
+      await supabaseAdmin.auth.admin.updateUserById(userId, { email_confirm: true });
     } else {
       const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
         email,
@@ -45,6 +46,7 @@ export async function approveAccessRequestAndCreateAccount(req) {
     }
   }
 
+  const now = new Date().toISOString();
   const { error: profileErr } = await supabaseAdmin.from('user_profiles').upsert({
     user_id: userId,
     email,
@@ -55,7 +57,9 @@ export async function approveAccessRequestAndCreateAccount(req) {
     user_type: accountType,
     referred_by_user_id: req.referred_by_user_id || null,
     referral_code_used: req.referral_code_used || null,
-    updated_at: new Date().toISOString(),
+    admin_authorized: true,
+    admin_authorized_at: now,
+    updated_at: now,
   }, { onConflict: 'user_id' });
 
   if (profileErr) {

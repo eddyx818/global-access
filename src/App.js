@@ -23,7 +23,7 @@ import { useMessageAlerts } from './hooks/useMessageAlerts';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import { getNotificationPermission } from './lib/notificationPrefs';
 import { subscribeToPushNotifications } from './lib/pushNotifications';
-import { emailVerificationRequired, isEmailVerified } from './lib/authGate';
+import { canAccessPortal, fetchProfileAccess } from './lib/authGate';
 import { isHoneypotClean } from './lib/accessRequestGate';
 import { useTheme } from './context/ThemeContext';
 
@@ -213,7 +213,8 @@ export default function App() {
   }, []);
 
   const applySessionUser = async (sessionUser) => {
-    if (emailVerificationRequired() && !isEmailVerified(sessionUser)) {
+    const accessProfile = await fetchProfileAccess(sessionUser.id);
+    if (!canAccessPortal(sessionUser, accessProfile)) {
       await supabase.auth.signOut();
       setAuthState('login');
       return;
@@ -324,14 +325,14 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, activeBrand, authState, adminMode]);
 
-  const toggleInterest = (sku, productName, brandName, flavor, qty = 1, orderMode = 'master_case', brandId = null) => {
+  const toggleInterest = (sku, productName, brandName, flavor, qty = 1, orderMode = 'master_case', brandId = null, orderUnitLabel = null) => {
     const key = `${sku}__${flavor}`;
     const bid = brandId || activeBrand;
     trackEvent('click', bid ? `brand:${bid}` : view, { element: `interest:${sku}:${flavor}`, user_id: user?.id });
     setInterests(prev => (
       prev.find(i => i.key === key)
         ? prev.filter(i => i.key !== key)
-        : [...prev, { key, sku, productName, brandName, brandId: bid, flavor, qty, orderMode }]
+        : [...prev, { key, sku, productName, brandName, brandId: bid, flavor, qty, orderMode, orderUnitLabel }]
     ));
   };
 

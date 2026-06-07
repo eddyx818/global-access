@@ -16,15 +16,15 @@ export const BRANDS = [
     gallery: ["/images/churros-locos/mad-honey-horchata.jpeg","/images/churros-locos/mushroom-horchata.jpeg","/images/churros-locos/sex-royal-strawberry.jpeg"],
     products: [
       { sku: "CL-MUSH-5000", name: "Mushroom 5,000mg", detail: "40 pieces/jar · 10 jars/case", orderUnit: "master_case", image: "/images/churros-locos/mushroom-horchata.jpeg",
-        units_per_inner: 40, inner_unit_label: "pieces", inners_per_case: 10, inner_pack_label: "jar",
+        units_per_inner: 40, inner_unit_label: "pieces", inners_per_case: 10, inner_pack_label: "jar", retail_order_unit: "jar",
         flavors_retail: ["Chocolate","Strawberry Cheesecake","Horchata","Cookies & Cream"],
         flavors_distro: ["Chocolate","Strawberry Cheesecake","Horchata","Cookies & Cream"] },
       { sku: "CL-MAD-10000", name: "Mad Honey 10,000mg", detail: "40 pieces/jar · 10 jars/case", orderUnit: "master_case", image: "/images/churros-locos/mad-honey-horchata.jpeg",
-        units_per_inner: 40, inner_unit_label: "pieces", inners_per_case: 10, inner_pack_label: "jar",
+        units_per_inner: 40, inner_unit_label: "pieces", inners_per_case: 10, inner_pack_label: "jar", retail_order_unit: "jar",
         flavors_retail: ["Hazelnut Milk Chocolate","Strawberry Cheesecake","Horchata","Cookies & Cream"],
         flavors_distro: ["Hazelnut Milk Chocolate","Strawberry Cheesecake","Horchata","Cookies & Cream"] },
       { sku: "CL-SEX", name: "Sex Royal Honey", detail: "40 pieces/jar · 10 jars/case", orderUnit: "master_case", image: "/images/churros-locos/sex-royal-strawberry.jpeg",
-        units_per_inner: 40, inner_unit_label: "pieces", inners_per_case: 10, inner_pack_label: "jar",
+        units_per_inner: 40, inner_unit_label: "pieces", inners_per_case: 10, inner_pack_label: "jar", retail_order_unit: "jar",
         flavors_retail: ["Chocolate","Strawberry"],
         flavors_distro: ["Chocolate","Strawberry"] },
     ]
@@ -41,7 +41,7 @@ export const BRANDS = [
       {
         sku: "GW-200", name: "200g · Mini", orderUnit: "pallet",
         detail: "20 units/case · 60 cases/pallet · Each case is pre-mixed",
-        inners_per_case: 20, inner_pack_label: "units", cases_per_pallet: 60,
+        inners_per_case: 20, inner_pack_label: "unit", retail_order_unit: "case", cases_per_pallet: 60,
         image: "/images/goldwhip/200g-original.png",
         // 200g: each case is pre-mixed — buyer selects which variety cases they want
         // Retailers pick variety case type
@@ -118,6 +118,7 @@ export const BRANDS = [
     gallery: ["/images/luxgas/700g-natural.jpeg","/images/luxgas/700g-watermelon.jpeg","/images/luxgas/700g-strawberry.jpeg","/images/luxgas/700g-blueberry-raspberry.jpeg","/images/luxgas/700g-peach-mango.jpeg","/images/luxgas/2100g-natural.jpeg"],
     products: [
       { sku: "LG-700", name: "700g", orderUnit: "pallet", detail: "6 units/box · 75 boxes/pallet · Pallet orders only", image: "/images/luxgas/700g-natural.jpeg",
+        inners_per_case: 6, inner_pack_label: "box", inner_unit_label: "units", retail_order_unit: "box",
         flavors_retail: ["Natural","Watermelon","Strawberry","Blueberry Raspberry","Peach Mango"],
         flavors_distro: ["Natural Pallet — 75 boxes (all Natural)","Flavored Pallet — 75 boxes (19 Watermelon · 19 Strawberry · 19 Blueberry Raspberry · 18 Peach Mango)"] },
       { sku: "LG-2100", name: "2100g", orderUnit: "pallet", detail: "128-192 units/pallet · Pallet orders only", image: "/images/luxgas/2100g-natural.jpeg",
@@ -155,18 +156,23 @@ export const BRANDS = [
     gallery: ["/images/numbz/100mg-display.jpeg","/images/numbz/300mg-cherry-limeade.jpeg","/images/numbz/500mg-strawberry-dragonfruit.jpeg","/images/numbz/1000mg-ultra-strawberry-banana.jpeg","/images/numbz/1000mg-pseudo-popsicle.jpeg"],
     products: [
       { sku: "NB-100", name: "100mg", orderUnit: "master_case", detail: "5mg/chew · 20 chewables · flat pack · 20 boxes/master case", image: "/images/numbz/100mg-display.jpeg",
+        units_per_inner: 20, inner_unit_label: "chewables", inners_per_case: 20, inner_pack_label: "box", retail_order_unit: "box",
         flavors_retail: ["Watermelon Rush","Mint","Strawberry Dragonfruit","Mango Cream","Grape Soda","Cherry Limeade","Kiwi Apple","Berry Burst"],
         flavors_distro: ["Watermelon Rush","Mint","Strawberry Dragonfruit","Mango Cream","Grape Soda","Cherry Limeade","Kiwi Apple","Berry Burst"] },
       { sku: "NB-300", name: "300mg", orderUnit: "master_case", detail: "15mg/chew · 20 chewables · tube · 20 boxes/master case", image: "/images/numbz/300mg-cherry-limeade.jpeg",
+        units_per_inner: 20, inner_unit_label: "chewables", inners_per_case: 20, inner_pack_label: "box", retail_order_unit: "box",
         flavors_retail: ["Mint","Strawberry Dragonfruit","Kiwi Apple","Grape Soda","Cherry Limeade","Berry Burst","Mango Cream","Watermelon Rush","Pineapple Guava","Passionfruit Peach"],
         flavors_distro: ["Mint","Strawberry Dragonfruit","Kiwi Apple","Grape Soda","Cherry Limeade","Berry Burst","Mango Cream","Watermelon Rush","Pineapple Guava","Passionfruit Peach"] },
       { sku: "NB-500", name: "500mg", orderUnit: "master_case", detail: "50mg/chew · 10 chewables · tube · 20 boxes/master case", image: "/images/numbz/500mg-strawberry-dragonfruit.jpeg",
+        units_per_inner: 10, inner_unit_label: "chewables", inners_per_case: 20, inner_pack_label: "box", retail_order_unit: "box",
         flavors_retail: ["Strawberry Dragonfruit","Mango Cream","Grape Soda","Cherry Limeade","Berry Burst","Watermelon Rush","Kiwi Apple","Mint","Pineapple Guava","Passionfruit Peach"],
         flavors_distro: ["Strawberry Dragonfruit","Mango Cream","Grape Soda","Cherry Limeade","Berry Burst","Watermelon Rush","Kiwi Apple","Mint","Pineapple Guava","Passionfruit Peach"] },
       { sku: "NB-1000-OH", name: "1000mg · 7-OH Ultra", orderUnit: "master_case", detail: "100mg/chew · 10 chewables · tube · 20 boxes/master case", image: "/images/numbz/1000mg-ultra-strawberry-banana.jpeg",
+        units_per_inner: 10, inner_unit_label: "chewables", inners_per_case: 20, inner_pack_label: "box", retail_order_unit: "box",
         flavors_retail: ["Strawberry Banana","Rainbow Road","Popsicle","White Grape","Melon Dew","Sour Apple"],
         flavors_distro: ["Strawberry Banana","Rainbow Road","Popsicle","White Grape","Melon Dew","Sour Apple"] },
       { sku: "NB-1000-PX", name: "1000mg · Pseudoindoxyl", orderUnit: "master_case", detail: "100mg/chew · 10 chewables · tube · 20 boxes/master case", image: "/images/numbz/1000mg-pseudo-popsicle.jpeg",
+        units_per_inner: 10, inner_unit_label: "chewables", inners_per_case: 20, inner_pack_label: "box", retail_order_unit: "box",
         flavors_retail: ["Cool Cactus","Blueberry Blast","Cherry Limeade","Mint Chew","Kiwi Apple","Strawberry Rush","Popsicle"],
         flavors_distro: ["Cool Cactus","Blueberry Blast","Cherry Limeade","Mint Chew","Kiwi Apple","Strawberry Rush","Popsicle"] },
     ]
@@ -181,6 +187,7 @@ export const BRANDS = [
     gallery: ["/images/rise/rise-display.jpeg"],
     products: [
       { sku: "RS-CHEW", name: "Rise Chewables", orderUnit: "master_case", detail: "20 boxes/master case", image: "/images/rise/rise-display.jpeg",
+        inners_per_case: 20, inner_pack_label: "box", retail_order_unit: "box",
         flavors_retail: ["Coming Soon"],
         flavors_distro: ["Coming Soon"] },
     ]
@@ -200,9 +207,11 @@ export const BRANDS = [
     ],
     products: [
       { sku: "BC-CONES", name: "Cone Woods", orderUnit: "master_case", detail: "2 cones/pouch · 10 pouches/box · 24 boxes/master case", image: "/images/blizzy-cones/cone-woods-4-flavors.jpeg",
+        units_per_inner: 2, inner_unit_label: "cones", inners_per_case: 10, inner_pack_label: "pouch", retail_order_unit: "box",
         flavors_retail: ["Original Classic","Banana","Grape","Russian Cream","Aromatic","Emerald","Pink","Yellow Safari","Purple Haze","White"],
         flavors_distro: ["Original Classic","Banana","Grape","Russian Cream","Aromatic","Emerald","Pink","Yellow Safari","Purple Haze","White"] },
       { sku: "BW-WRAPS", name: "Flat Wraps", orderUnit: "master_case", detail: "2 wraps/pouch · 40 boxes/master case", image: "/images/blizzy-wraps/wraps-all-6.jpeg",
+        units_per_inner: 2, inner_unit_label: "wraps", inner_pack_label: "pouch", retail_order_unit: "box", inners_per_case: 40,
         flavors_retail: ["Natural","Pink","Diamond","Emerald","White","Buck-Oh Red Ohio (Limited Edition)"],
         flavors_distro: ["Natural","Pink","Diamond","Emerald","White","Buck-Oh Red Ohio (Limited Edition)"] },
     ]
@@ -217,12 +226,15 @@ export const BRANDS = [
     gallery: ["/images/good-spirits/austin-palmer-functional.jpeg","/images/good-spirits/la-paloma-functional.jpeg","/images/good-spirits/french-exhale-functional.jpeg","/images/good-spirits/austin-palmer-thc5.jpeg","/images/good-spirits/la-paloma-thc5.jpeg","/images/good-spirits/french-exhale-thc5.jpeg"],
     products: [
       { sku: "GS-FUNC", name: "Functional Beverages", orderUnit: "both", detail: "12oz · 24 cans/case · No THC · Nationwide legal", image: "/images/good-spirits/austin-palmer-functional.jpeg",
+        inners_per_case: 24, inner_pack_label: "can", retail_order_unit: "case", retail_order_units: "box, case", distributor_order_units: "box, case, master case, pallet",
         flavors_retail: ["Austin Palmer (Lemonade & Black Tea)","La Paloma (Grapefruit Lime)","French Exhale (Lemon Lavender)"],
         flavors_distro: ["Austin Palmer (Lemonade & Black Tea)","La Paloma (Grapefruit Lime)","French Exhale (Lemon Lavender)"] },
       { sku: "GS-THC-1-5", name: "THC 1.5mg", orderUnit: "both", detail: "12oz · 24 cans/case · Restricted markets only", image: "/images/good-spirits/french-exhale-thc5.jpeg",
+        inners_per_case: 24, inner_pack_label: "can", retail_order_unit: "case", retail_order_units: "box, case", distributor_order_units: "box, case, master case, pallet",
         flavors_retail: ["Austin Palmer (Lemonade & Black Tea)","La Paloma (Grapefruit Lime)","French Exhale (Lemon Lavender)"],
         flavors_distro: ["Austin Palmer (Lemonade & Black Tea)","La Paloma (Grapefruit Lime)","French Exhale (Lemon Lavender)"] },
       { sku: "GS-THC-5", name: "THC 5mg", orderUnit: "both", detail: "12oz · 24 cans/case · Standard THC markets", image: "/images/good-spirits/austin-palmer-thc5.jpeg",
+        inners_per_case: 24, inner_pack_label: "can", retail_order_unit: "case", retail_order_units: "box, case", distributor_order_units: "box, case, master case, pallet",
         flavors_retail: ["Austin Palmer (Lemonade & Black Tea)","La Paloma (Grapefruit Lime)","French Exhale (Lemon Lavender)"],
         flavors_distro: ["Austin Palmer (Lemonade & Black Tea)","La Paloma (Grapefruit Lime)","French Exhale (Lemon Lavender)"] },
     ]
