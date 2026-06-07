@@ -5,6 +5,8 @@ import { formatRoleLabel } from '../lib/roles';
 import { BRANDS } from '../lib/data';
 import { CRM_TIER, normalizeMasterBrandIds } from '../lib/accountBadges';
 import CustomerBadges from './CustomerBadges';
+import { useTheme } from '../context/ThemeContext';
+import { getAdminUi } from '../lib/theme';
 import { authorizePortalAccess, revokePortalAuthorization } from '../lib/authGate';
 
 const ROLES = ['retailer', 'distributor', 'sales_rep', 'admin'];
@@ -21,6 +23,7 @@ export default function UserManager() {
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saved, setSaved] = useState('');
+  const [error, setError] = useState('');
   const [authorizingId, setAuthorizingId] = useState(null);
 
   useEffect(() => { loadUsers(); }, []);
