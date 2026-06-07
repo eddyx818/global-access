@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import React, { useState } from 'react';
 import { BRANDS } from '../lib/data';
 import { saveBrandContent, saveProductContent, uploadBrandImage } from '../lib/content';
+import { parseCommerceFields } from '../lib/pricing';
 
 const FONT_STYLES = [
   { id: 'modern', label: 'Modern', font: "'DM Sans', sans-serif", preview: 'Clean & minimal' },
@@ -23,7 +24,7 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState('');
   const [uploading, setUploading] = useState({});
-  const [activeProductTab, setActiveProductTab] = useState('details'); // 'details' | 'flavors'
+  const [activeProductTab, setActiveProductTab] = useState('details'); // 'details' | 'flavors' | 'pricing'
   const fileRefs = React.useRef({});
 
   const loadBrand = (brand) => {
@@ -45,6 +46,7 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
         orderUnit: po.order_unit || p.orderUnit || 'master_case',
         flavors_retail: po.flavors_retail ? JSON.parse(po.flavors_retail) : [...p.flavors_retail],
         flavors_distro: po.flavors_distro ? JSON.parse(po.flavors_distro) : [...p.flavors_distro],
+        ...parseCommerceFields(po),
       };
     });
     setProductForms(pf);
@@ -161,10 +163,10 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
 
       {/* Tab selector */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        {['details', 'flavors'].map(t => (
+        {['details', 'pricing', 'flavors'].map(t => (
           <button key={t} onClick={() => setActiveProductTab(t)}
             style={{ background: activeProductTab === t ? '#1A1A1A' : '#FFF', color: activeProductTab === t ? '#FFF' : '#888', border: `0.5px solid ${activeProductTab === t ? '#1A1A1A' : '#E0DDD8'}`, borderRadius: 8, padding: '7px 16px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: activeProductTab === t ? 600 : 400, textTransform: 'capitalize' }}>
-            {t === 'details' ? 'Product Details & Images' : 'Flavors & Availability'}
+            {t === 'details' ? 'Details & Images' : t === 'pricing' ? 'Pricing & Promos' : 'Flavors'}
           </button>
         ))}
       </div>
@@ -215,6 +217,74 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
                     <option value="both">Both (buyer chooses)</option>
                   </select>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeProductTab === 'pricing' && (
+            <div>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 12, lineHeight: 1.5 }}>Retailers see wholesale + MSRP. Distributors also see unit/case/pallet and retailer tier pricing.</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 14 }}>
+                {[['price_per_unit', 'Per unit'], ['price_per_case', 'Per case'], ['price_per_pallet', 'Per pallet'], ['price_wholesale', 'Wholesale'], ['price_retail', 'Retailer tier'], ['price_msrp', 'MSRP']].map(([field, label]) => (
+                  <div key={field}>
+                    <label style={labelStyle}>{label}</label>
+                    <input type="number" step="0.01" min="0" value={productForms[product.sku]?.[field] ?? ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], [field]: e.target.value } }))} style={inputStyle} placeholder="0.00" />
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 14 }}>
+                <div>
+                  <label style={labelStyle}>MOQ qty</label>
+                  <input type="number" min="1" value={productForms[product.sku]?.moq_qty ?? ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], moq_qty: e.target.value } }))} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>MOQ unit</label>
+                  <select value={productForms[product.sku]?.moq_unit || 'case'} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], moq_unit: e.target.value } }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+                    <option value="unit">Unit</option>
+                    <option value="case">Case</option>
+                    <option value="pallet">Pallet</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Free ship at qty</label>
+                  <input type="number" min="1" value={productForms[product.sku]?.free_shipping_moq_qty ?? ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], free_shipping_moq_qty: e.target.value } }))} style={inputStyle} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 12 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#555', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!productForms[product.sku]?.shipping_included} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], shipping_included: e.target.checked } }))} />
+                  Shipping included
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#555', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!productForms[product.sku]?.shipping_free_after_moq} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], shipping_free_after_moq: e.target.checked } }))} />
+                  Free shipping after MOQ
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#555', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!productForms[product.sku]?.promo_active} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], promo_active: e.target.checked } }))} />
+                  Promotion active
+                </label>
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <label style={labelStyle}>Shipping note</label>
+                <input value={productForms[product.sku]?.shipping_note || ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], shipping_note: e.target.value } }))} style={inputStyle} placeholder="e.g. FOB Los Angeles" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={labelStyle}>Promo label</label>
+                  <input value={productForms[product.sku]?.promo_label || ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], promo_label: e.target.value } }))} style={inputStyle} placeholder="e.g. 10% off first order" />
+                </div>
+                <div>
+                  <label style={labelStyle}>Promo audience</label>
+                  <select value={productForms[product.sku]?.promo_audience || 'both'} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], promo_audience: e.target.value } }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+                    <option value="both">Both</option>
+                    <option value="retailer">Retailers only</option>
+                    <option value="distributor">Distributors only</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <label style={labelStyle}>Promo details</label>
+                <input value={productForms[product.sku]?.promo_detail || ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], promo_detail: e.target.value } }))} style={inputStyle} placeholder="Terms, dates, or bundle info" />
               </div>
             </div>
           )}

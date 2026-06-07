@@ -12,7 +12,8 @@ import {
   readFileAsText,
   callAdminAnalyze,
 } from '../lib/adminUpload';
-import DesignPreview from './DesignPreview';
+import { saveProductContent } from '../lib/content';
+import { commercePayloadFromForm } from '../lib/pricing';
 
 const EXTENDED_PROMPT = `
 Extended capabilities (file uploads, products, analytics):
@@ -41,6 +42,7 @@ You have access to these actions. When the user asks you to do something, respon
 Available actions:
 - update_brand_content: Update brand tagline, description, color. data: {brand_id, tagline?, description?, color?}
 - update_product_content: Update product name, detail, flavors. data: {brand_id, sku, name?, detail?, flavors_retail?, flavors_distro?}
+- update_product_pricing: Update SKU pricing, MOQ, shipping, and promotions. data: {brand_id, sku, price_per_unit?, price_per_case?, price_per_pallet?, price_wholesale?, price_retail?, price_msrp?, moq_qty?, moq_unit?, shipping_included?, shipping_free_after_moq?, free_shipping_moq_qty?, shipping_note?, promo_label?, promo_detail?, promo_active?, promo_audience?}
 - toggle_flavor_soldout: Mark a flavor sold out or in stock. data: {brand_id, sku, flavor, flavor_type, sold_out}
 - add_flavor: Add a new flavor to a product. data: {brand_id, sku, flavor, flavor_type}
 - remove_flavor: Remove a flavor from a product. data: {brand_id, sku, flavor, flavor_type}
@@ -128,7 +130,7 @@ const IMMEDIATE_ACTIONS = ['query_database', 'check_system'];
 const ANALYSIS_ACTIONS = ['analyze_image', 'parse_document'];
 
 function hasVisualPreview(action) {
-  return isDesignAction(action) || ['create_product', 'bulk_import', 'generate_preview'].includes(action);
+  return isDesignAction(action) || ['create_product', 'bulk_import', 'generate_preview', 'update_product_pricing'].includes(action);
 }
 
 function formatAnalysisSummary(analysis) {
@@ -438,6 +440,15 @@ export default function AdminAgent() {
         if (data.flavors_distro) payload.flavors_distro = JSON.stringify(data.flavors_distro);
         const { error } = await supabase.from('product_content').upsert(payload, { onConflict: 'sku' });
         if (error) throw new Error(error.message);
+        break;
+      }
+
+      case 'update_product_pricing': {
+        if (!data.brand_id || !data.sku) throw new Error('brand_id and sku are required');
+        const ok = await saveProductContent(data.brand_id, data.sku, {
+          ...commercePayloadFromForm(data),
+        });
+        if (!ok) throw new Error('Could not save pricing');
         break;
       }
 

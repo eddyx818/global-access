@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { BRANDS } from './data';
 import { executeAdminAction, isDesignAction } from './adminActions';
+import { commercePayloadFromForm } from './pricing';
 
 async function getSiteSetting(key) {
   const { data } = await supabase.from('site_settings').select('value').eq('key', key).single();
@@ -67,6 +68,7 @@ export async function createProduct(data) {
   };
   if (data.flavors_retail) payload.flavors_retail = JSON.stringify(data.flavors_retail);
   if (data.flavors_distro) payload.flavors_distro = JSON.stringify(data.flavors_distro);
+  Object.assign(payload, commercePayloadFromForm(data));
 
   const { error } = await supabase.from('product_content').upsert(payload, { onConflict: 'sku' });
   if (error) throw new Error(error.message);

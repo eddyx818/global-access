@@ -399,3 +399,48 @@ export async function checkUsernameAvailable(username, currentUserId) {
   if (!data) return true;
   return data.user_id === currentUserId;
 }
+
+export async function confirmConversationContact(conversationId, adminUserId) {
+  const { data, error } = await supabase
+    .from('conversations')
+    .update({
+      contact_revealed: true,
+      contact_confirmed_at: new Date().toISOString(),
+      contact_confirmed_by: adminUserId,
+    })
+    .eq('id', conversationId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function submitInterestToSupport(userId, { form, interests, userType }) {
+  const convo = await getOrCreateSupportConversation(userId);
+  const itemsList = interests.map(i =>
+    `• ${i.brandName} — ${i.productName}\n  ${i.flavor} · Qty ${i.qty || 1} ${i.orderMode === 'pallet' ? 'pallet(s)' : 'case(s)'}`
+  ).join('\n');
+  const text = [
+    'New interest list submitted',
+    '',
+    itemsList,
+    '',
+    `Notes: ${form.notes || '—'}`,
+    `Account type: ${userType}`,
+  ].join('\n');
+  const adminId = convo.participant_user_ids.find(id => id !== userId);
+  await sendMessage({
+    conversationId: convo.id,
+    fromUserId: userId,
+    toUserId: adminId,
+    content: text,
+  });
+  return convo;
+}
+
+export function redactProfileContacts(profile, { contactRevealed, isSelf }) {
+  if (!profile) return profile;
+  if (contactRevealed || isSelf) return profile;
+  const { email, phone, ...rest } = profile;
+  return { ...rest, email: null, phone: null };
+}

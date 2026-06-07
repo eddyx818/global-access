@@ -1,6 +1,7 @@
 import React from 'react';
 import { BRANDS } from '../lib/data';
 import { getFontFamily, getButtonRadius, DEFAULT_GLOBAL_STYLES } from '../lib/design';
+import { formatPrice, getVisiblePrices, getActivePromo } from '../lib/pricing';
 
 function Swatch({ color, label }) {
   if (!color) return null;
@@ -96,6 +97,8 @@ export function AssetPreview({ data }) {
 
 export function ProductPreview({ data }) {
   const brand = BRANDS.find(b => b.id === data.brand_id);
+  const prices = getVisiblePrices(data, 'retailer', 'master_case');
+  const promo = getActivePromo(data, 'retailer');
   return (
     <div style={{ borderRadius: 10, border: '0.5px solid #E0DDD8', padding: 12, marginTop: 8, background: '#FFF' }}>
       {(data.images?.[0] || data.image_url) && (
@@ -104,6 +107,12 @@ export function ProductPreview({ data }) {
       <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A' }}>{data.name || 'New Product'}</div>
       <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>{brand?.name || data.brand_id} · SKU: {data.sku}</div>
       {data.detail && <div style={{ fontSize: 11, color: '#666', marginTop: 6 }}>{data.detail}</div>}
+      {prices.length > 0 && (
+        <div style={{ fontSize: 10, color: '#888', marginTop: 8 }}>
+          {prices.map(p => `${p.label}: ${formatPrice(p.value)}`).join(' · ')}
+        </div>
+      )}
+      {promo && <div style={{ fontSize: 10, color: '#A07A20', marginTop: 6 }}>🏷 {promo.label}</div>}
       {data.flavors_retail?.length > 0 && (
         <div style={{ fontSize: 10, color: '#AAA', marginTop: 8 }}>{data.flavors_retail.length} retail flavors</div>
       )}
@@ -158,6 +167,8 @@ export default function DesignPreview({ action, data }) {
     case 'update_navigation':
       return <NavigationPreview data={data} />;
     case 'create_product':
+      return <ProductPreview data={data} />;
+    case 'update_product_pricing':
       return <ProductPreview data={data} />;
     case 'bulk_import':
       return <BulkImportPreview data={data} />;

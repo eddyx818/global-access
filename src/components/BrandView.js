@@ -1,4 +1,6 @@
 import React, { useState, useRef } from 'react';
+import ProductCommerceInfo from './ProductCommerceInfo';
+import { minQtyForProduct } from '../lib/pricing';
 
 export default function BrandView({ brand, userType, onBack, toggleInterest, isInterested, interests, onSubmit, isMobile }) {
   const [lightbox, setLightbox] = useState(null);
@@ -46,8 +48,9 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
     return 'master_case'; // default for 'both'
   };
 
-  const setQty = (key, val) => {
-    const n = parseInt(val) || 0;
+  const setQty = (key, val, product) => {
+    const min = minQtyForProduct(product);
+    const n = Math.max(min, parseInt(val, 10) || min);
     setQuantities(prev => ({ ...prev, [key]: n }));
   };
 
@@ -55,7 +58,7 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
     const isSoldOut = flavor.includes('SOLD OUT');
     if (isSoldOut) return;
     const mode = getOrderMode(product);
-    const qty = quantities[`${product.sku}__${flavor}`] || 1;
+    const qty = quantities[`${product.sku}__${flavor}`] || minQtyForProduct(product);
     toggleInterest(product.sku, product.name, brand.name, flavor, qty, mode);
   };
 
@@ -261,6 +264,8 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
               )}
 
               <div style={{ padding: '1rem 1.25rem 1.25rem' }}>
+                <ProductCommerceInfo product={product} userType={userType} orderMode={currentMode} />
+
                 {/* Order unit toggle for distributors with 'both' option */}
                 {showToggle && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
@@ -309,11 +314,11 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
                         {selected && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, padding: '0 2px' }}>
                             <span style={{ fontSize: 11, color: '#AAA' }}>Qty:</span>
-                            <button onClick={() => setQty(key, (quantities[key] || 1) - 1)} style={{ width: 24, height: 24, background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555' }}>−</button>
-                            <input type="number" min="1" value={quantities[key] || 1} onChange={e => setQty(key, e.target.value)}
+                            <button onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product)) - 1, product)} style={{ width: 24, height: 24, background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555' }}>−</button>
+                            <input type="number" min={minQtyForProduct(product)} value={quantities[key] || minQtyForProduct(product)} onChange={e => setQty(key, e.target.value, product)}
                               style={{ width: 44, textAlign: 'center', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 6, padding: '4px', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: '#1A1A1A' }} />
-                            <button onClick={() => setQty(key, (quantities[key] || 1) + 1)} style={{ width: 24, height: 24, background: brand.color, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' }}>+</button>
-                            <span style={{ fontSize: 11, color: '#AAA' }}>{unitLabel(product)}{(quantities[key] || 1) !== 1 ? 's' : ''}</span>
+                            <button onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product)) + 1, product)} style={{ width: 24, height: 24, background: brand.color, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' }}>+</button>
+                            <span style={{ fontSize: 11, color: '#AAA' }}>{unitLabel(product)}{(quantities[key] || minQtyForProduct(product)) !== 1 ? 's' : ''}</span>
                           </div>
                         )}
                       </div>

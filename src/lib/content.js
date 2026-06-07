@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import { BRANDS } from './data';
 import { DEFAULT_GLOBAL_STYLES, parseJsonField } from './design';
+import { mergeProductCommerce, commercePayloadFromForm } from './pricing';
 
 export function useBrandContent() {
   const [brandOverrides, setBrandOverrides] = useState({});
@@ -94,20 +95,19 @@ export function useBrandContent() {
         products: brand.products.map(product => {
           const po = productOverrides[product.sku] || {};
           const mergedImage = po.image_url || product.image || null;
-          return {
+          return mergeProductCommerce({
             ...product,
             name: po.name || product.name,
             detail: po.detail || product.detail,
             image: mergedImage,
             orderUnit: po.order_unit || product.orderUnit,
-            // Always use saved flavors if they exist, even if empty array
             flavors_retail: po.flavors_retail !== undefined && po.flavors_retail !== null
               ? (typeof po.flavors_retail === 'string' ? JSON.parse(po.flavors_retail) : po.flavors_retail)
               : product.flavors_retail,
             flavors_distro: po.flavors_distro !== undefined && po.flavors_distro !== null
               ? (typeof po.flavors_distro === 'string' ? JSON.parse(po.flavors_distro) : po.flavors_distro)
               : product.flavors_distro,
-          };
+          }, po);
         }),
       };
     });
@@ -141,6 +141,7 @@ export async function saveProductContent(brandId, sku, data) {
   // Always save flavor fields (even empty arrays) so deletions persist
   payload.flavors_retail = data.flavors_retail ? JSON.stringify(data.flavors_retail) : null;
   payload.flavors_distro = data.flavors_distro ? JSON.stringify(data.flavors_distro) : null;
+  Object.assign(payload, commercePayloadFromForm(data));
 
   const { error } = await supabase.from('product_content').upsert(payload, { onConflict: 'sku' });
   if (error) console.error('saveProductContent error:', error);

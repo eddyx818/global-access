@@ -3,7 +3,7 @@ import {
   fetchConversations, fetchMessages, sendMessage, markMessagesRead,
   getOrCreateDirectConversation, getOrCreateSupportConversation, subscribeToMessages, getUnreadCount,
   fetchContactableUsers, getConversationTitle, isGroupConversation,
-  getCustomerParticipantId,
+  getCustomerParticipantId, confirmConversationContact, redactProfileContacts,
 } from '../../lib/community';
 import { supabase } from '../../lib/supabase';
 import ConversationList from './ConversationList';
@@ -15,7 +15,7 @@ async function loadProfileMap(userIds) {
   if (!userIds.length) return {};
   const { data } = await supabase
     .from('user_profiles')
-    .select('user_id, username, name, company, profile_avatar_url, status, is_portal_admin')
+    .select('user_id, username, name, company, profile_avatar_url, status, is_portal_admin, email, phone')
     .in('user_id', userIds);
   const m = {};
   (data || []).forEach(p => { m[p.user_id] = p; });
@@ -31,6 +31,7 @@ export default function ChatSidebar({ user, open, onClose, isAdmin = false }) {
   const [contactableUsers, setContactableUsers] = useState([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const subRef = useRef(null);
 
   const mergeProfiles = async (convos, msgs = []) => {
@@ -125,7 +126,27 @@ export default function ChatSidebar({ user, open, onClose, isAdmin = false }) {
     if (isAdmin) refresh();
   };
 
+  const handleConfirmContact = async () => {
+    if (!activeConvo?.id || !isAdmin) return;
+    setConfirming(true);
+    try {
+      const updated = await confirmConversationContact(activeConvo.id, user.id);
+      setActiveConvo(updated);
+      await refresh();
+    } catch (_) {}
+    setConfirming(false);
+  };
+
   const activeIsGroup = isGroupConversation(activeConvo);
+  const contactRevealed = !!activeConvo?.contact_revealed;
+  const otherUserId = activeConvo && !activeIsGroup
+    ? activeConvo.participant_user_ids.find(id => id !== user.id)
+    : null;
+  const otherProfile = otherUserId ? profiles[otherUserId] : null;
+  const safeOtherProfile = otherProfile
+    ? redactProfileContacts(otherProfile, { contactRevealed, isSelf: false })
+    : null;
+
   const headerTitle = activeConvo
     ? getConversationTitle(activeConvo, profiles, user.id, { isAdmin })
     : (isAdmin ? `Messages${unread ? ` (${unread})` : ''}` : 'Support');
@@ -163,6 +184,35 @@ export default function ChatSidebar({ user, open, onClose, isAdmin = false }) {
 
         {activeConvo ? (
           <>
+            {!activeIsGroup && (
+              <div style={{ padding: '10px 12px', borderBottom: '0.5px solid #E8E4DF', background: '#FAFAF8', fontSize: 11, color: '#666', lineHeight: 1.5 }}>
+                {!contactRevealed && (
+                  <>
+                    {isAdmin ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <span>Contact info is hidden until you confirm this lead.</span>
+                        <button onClick={handleConfirmContact} disabled={confirming}
+                          style={{ alignSelf: 'flex-start', background: '#4CAF7D', color: '#FFF', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: confirming ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                          {confirming ? 'Confirming…' : 'Confirm & share contact info'}
+                        </button>
+                      </div>
+                    ) : (
+                      <span>Our team will confirm your inquiry in chat before sharing direct contact details (email / WhatsApp).</span>
+                    )}
+                  </>
+                )}
+                {contactRevealed && safeOtherProfile && (safeOtherProfile.phone || safeOtherProfile.email) && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: contactRevealed && !isAdmin ? 0 : 0 }}>
+                    {safeOtherProfile.email && <span>📧 {safeOtherProfile.email}</span>}
+                    {safeOtherProfile.phone && (
+                      <a href={`https://wa.me/${safeOtherProfile.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ color: '#4CAF7D', textDecoration: 'none' }}>
+                        💬 WhatsApp {safeOtherProfile.phone}
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <MessageThread messages={messages} currentUserId={user.id} profiles={profiles} loading={loading} isGroup={activeIsGroup} showStaffNames={isAdmin} />
             <MessageInput onSend={handleSend} placeholder={isAdmin ? 'Reply to customer...' : 'Type a message...'} />
           </>

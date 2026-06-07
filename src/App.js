@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
 import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, clearPortalSession } from './lib/session';
-import { updateUserPresence, resolvePortalAdmin, ensurePortalAdminFlag } from './lib/community';
-import { WHATSAPP_NUMBER } from './lib/data';
+import { updateUserPresence, resolvePortalAdmin, ensurePortalAdminFlag, submitInterestToSupport } from './lib/community';
 import { useBrandContent } from './lib/content';
 import { getFontFamily } from './lib/design';
 import LoginScreen from './components/LoginScreen';
@@ -215,11 +214,24 @@ export default function App() {
   };
 
   const doSubmit = async () => {
-    const itemsList = interests.map(i => `• ${i.brandName} - ${i.productName}\n  ${i.flavor}\n  Qty: ${i.qty || 1} ${i.orderMode === 'pallet' ? 'Pallet(s)' : 'Master Case(s)'}`).join('\n');
-    const msg = encodeURIComponent(`*New Inquiry - Global Access Portal*\n\nName: ${form.name}\nCompany: ${form.company}\nPhone: ${form.phone || '—'}\nEmail: ${form.email || '—'}\nAccount Type: ${userType}\n\nInterested In:\n${itemsList}\n\nNotes: ${form.notes || '—'}`);
     const sessionId = await getSessionId();
-    supabase.from('inquiries').insert({ session_id: sessionId, user_id: user?.id || null, name: form.name, company: form.company, phone: form.phone, email: form.email, notes: form.notes, interests: interests, user_type: userType, created_at: new Date().toISOString() }).then(() => {});
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`, '_blank');
+    await supabase.from('inquiries').insert({
+      session_id: sessionId,
+      user_id: user?.id || null,
+      name: form.name,
+      company: form.company,
+      phone: form.phone,
+      email: form.email,
+      notes: form.notes,
+      interests,
+      user_type: userType,
+      created_at: new Date().toISOString(),
+    });
+    if (user?.id) {
+      try {
+        await submitInterestToSupport(user.id, { form, interests, userType });
+      } catch (_) {}
+    }
     setShowSignupPrompt(false);
     setView('thanks');
   };
@@ -239,17 +251,6 @@ export default function App() {
       status: 'pending',
       created_at: new Date().toISOString(),
     });
-    const msg = encodeURIComponent(
-      `*Access Request - Global Access Portal*\n\n` +
-      `Name: ${data.name}\nCompany: ${data.company}\n` +
-      `Type: ${data.account_type} · ${data.store_type}\n` +
-      `Email: ${data.email}\nPhone: ${data.phone}\n` +
-      `Address: ${data.address || '—'}\n` +
-      `Locations: ${data.location_count}\n` +
-      (data.has_retail ? `Also has ${data.retail_count} retail location(s)\n` : '') +
-      `\nApprove at: ${window.location.origin}`
-    );
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`, '_blank');
   };
 
   if (authState === 'loading') return (
@@ -317,7 +318,7 @@ export default function App() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
           <div style={{ background: '#FFF', borderRadius: 20, padding: '2rem', maxWidth: 420, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: '0.04em', color: '#1A1A1A', marginBottom: 6 }}>Ready to connect?</div>
-            <p style={{ fontSize: 14, color: '#888', lineHeight: 1.6, marginBottom: '1.5rem' }}>Fill in your details and we'll send your interest list to our team via WhatsApp.</p>
+            <p style={{ fontSize: 14, color: '#888', lineHeight: 1.6, marginBottom: '1.5rem' }}>Submit your interest list here. We will follow up via Support chat or email — direct contact is shared after we confirm your inquiry.</p>
             {[['name','Your name *'],['company','Company / Store *'],['phone','Phone / WhatsApp'],['email','Email']].map(([field, label]) => (
               <div key={field} style={{ marginBottom: '0.875rem' }}>
                 <label style={{ fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
@@ -330,7 +331,7 @@ export default function App() {
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem' }}>
               <button onClick={() => setShowSignupPrompt(false)} style={{ flex: 1, background: 'none', border: '0.5px solid #E0DDD8', borderRadius: 10, padding: '12px', fontSize: 13, color: '#AAA', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
-              <button onClick={doSubmit} style={{ flex: 2, background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 10, padding: '12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Send via WhatsApp →</button>
+              <button onClick={doSubmit} style={{ flex: 2, background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 10, padding: '12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Submit inquiry</button>
             </div>
           </div>
         </div>
@@ -350,7 +351,12 @@ export default function App() {
         />
       )}
       {view === 'interest' && <InterestView interests={interests} toggleInterest={toggleInterest} form={form} setForm={setForm} onSubmit={handleSubmitAttempt} onBack={() => setView(activeBrand ? 'brand' : 'home')} isMobile={isMobile} />}
-      {view === 'thanks' && <ThanksView onBack={goHome} />}
+      {view === 'thanks' && (
+        <ThanksView
+          onBack={goHome}
+          onOpenSupport={user ? () => { setChatOpen(true); } : null}
+        />
+      )}
     </div>
   );
 }

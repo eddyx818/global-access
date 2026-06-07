@@ -251,7 +251,7 @@ export default function HomeView({ onBrandClick, isMobile }) {
       {/* Footer */}
       <div style={{ borderTop: '0.5px solid #E0DDD8', padding: '2rem 1.5rem', textAlign: 'center' }}>
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.12em', color: '#1A1A1A', marginBottom: 6 }}>Global Access</div>
-        <div style={{ fontSize: 12, color: '#CCC' }}>Trade portal · Invite only · edward@churroslocos.shop</div>
+        <div style={{ fontSize: 12, color: '#CCC' }}>Trade portal · Invite only · Contact us via Support chat or your interest form</div>
       </div>
     </div>
   );

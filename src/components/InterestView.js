@@ -35,23 +35,26 @@ export function InterestView({ interests, toggleInterest, form, setForm, onSubmi
         <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Questions, timeline, or extra info..." style={{ ...inputStyle, height: 80, resize: 'none' }} />
       </div>
       <button onClick={onSubmit} disabled={interests.length === 0} style={{ width: '100%', background: interests.length > 0 ? '#1A1A1A' : '#E0DDD8', color: interests.length > 0 ? '#FFF' : '#AAA', border: 'none', borderRadius: 10, padding: '15px', fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', cursor: interests.length > 0 ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontFamily: 'inherit' }}>
-        Send via WhatsApp →
+        Submit inquiry →
       </button>
-      <div style={{ textAlign: 'center', fontSize: 12, color: '#CCC', marginTop: 10 }}>Opens WhatsApp with your inquiry pre-filled.</div>
+      <div style={{ textAlign: 'center', fontSize: 12, color: '#CCC', marginTop: 10 }}>Saved to our team. Use Support chat for follow-up — WhatsApp is shared after we confirm.</div>
     </div>
   );
 }
 
-export function ThanksView({ onBack }) {
+export function ThanksView({ onBack, onOpenSupport }) {
   return (
     <div style={{ minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center' }}>
       <div style={{ width: 72, height: 72, background: '#F0FAF4', border: '0.5px solid #C6EDD7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, marginBottom: '1.5rem' }}>✓</div>
       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 44, letterSpacing: '0.04em', color: '#1A1A1A', marginBottom: 8 }}>We Got It!</div>
-      <div style={{ fontSize: 15, color: '#888', lineHeight: 1.7, maxWidth: 360, marginBottom: '2rem' }}>Your interest list has been sent to our team. We'll reach out within 1 business day.</div>
-      <div style={{ background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 12, padding: '1.25rem 2rem', marginBottom: '2rem', fontSize: 13, color: '#555' }}>
-        <a href="https://wa.me/18183199888" style={{ color: '#1A1A1A', textDecoration: 'none', fontWeight: 500 }}>+1 (818) 319-9888</a><br />
-        <span style={{ color: '#AAA', fontSize: 12 }}>WhatsApp · Text · Call</span>
+      <div style={{ fontSize: 15, color: '#888', lineHeight: 1.7, maxWidth: 400, marginBottom: '2rem' }}>
+        Your interest list was submitted. Our team will reply in Support chat or by email. Direct WhatsApp contact is shared once we confirm your inquiry in chat.
       </div>
+      {onOpenSupport && (
+        <button onClick={onOpenSupport} style={{ background: '#4CAF7D', color: '#FFF', border: 'none', borderRadius: 10, padding: '12px 32px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12 }}>
+          Open Support chat
+        </button>
+      )}
       <button onClick={onBack} style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 10, padding: '12px 32px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Browse More Brands</button>
     </div>
   );
