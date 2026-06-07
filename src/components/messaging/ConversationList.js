@@ -1,11 +1,11 @@
 import React from 'react';
 import { getConversationTitle, getCustomerParticipantId } from '../../lib/community';
 
-export default function ConversationList({ conversations, profiles, currentUserId, isAdmin, onSelect, onMessageSupport, isMobile = false }) {
+export default function ConversationList({ conversations, profiles, currentUserId, isStaff = false, onSelect, onMessageSupport, isMobile = false }) {
   if (!conversations.length) {
     return (
       <div style={{ padding: isMobile ? '2rem 1.25rem' : 24, textAlign: 'center', fontSize: isMobile ? 14 : 13, color: '#AAA', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        {isAdmin ? (
+        {isStaff ? (
           'No conversations yet. Message a customer from the Customers tab.'
         ) : (
           <>
@@ -24,7 +24,7 @@ export default function ConversationList({ conversations, profiles, currentUserI
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-      {!isAdmin && onMessageSupport && (
+      {!isStaff && onMessageSupport && (
         <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #F0EDE8' }}>
           <button onClick={onMessageSupport}
             style={{ width: '100%', background: '#F8F6F3', color: '#1A1A1A', border: '0.5px solid #E0DDD8', borderRadius: 10, padding: '10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -33,10 +33,10 @@ export default function ConversationList({ conversations, profiles, currentUserI
         </div>
       )}
       {conversations.map(convo => {
-        const label = getConversationTitle(convo, profiles, currentUserId, { isAdmin });
-        const customerId = isAdmin ? getCustomerParticipantId(convo, profiles) : null;
+        const label = getConversationTitle(convo, profiles, currentUserId, { isAdmin: isStaff, isSalesRep: isStaff });
+        const customerId = isStaff ? getCustomerParticipantId(convo, profiles) : null;
         const p = profiles[customerId || convo.participant_user_ids.find(id => id !== currentUserId)] || {};
-        const subtitle = isAdmin
+        const subtitle = isStaff
           ? (p.company || p.role || 'Customer')
           : 'Direct message';
 

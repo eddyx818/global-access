@@ -6,7 +6,7 @@ import { alertIncomingMessage, setAppBadgeCount } from '../lib/messageAlerts';
 async function getSenderProfile(userId) {
   const { data } = await supabase
     .from('user_profiles')
-    .select('name, company, username, is_portal_admin, role')
+    .select('name, company, username, is_portal_admin, is_sales_rep, role')
     .eq('user_id', userId)
     .maybeSingle();
   return data;
@@ -20,10 +20,12 @@ function senderLabel(profile) {
 export function useMessageAlerts({
   userId,
   isAdmin = false,
+  isSalesRep = false,
   enabled = true,
   unread = 0,
   onOpenChat,
 }) {
+  const isStaff = isAdmin || isSalesRep;
   const onOpenChatRef = useRef(onOpenChat);
   onOpenChatRef.current = onOpenChat;
 
@@ -50,9 +52,9 @@ export function useMessageAlerts({
         const msg = payload.new;
         if (!msg || msg.from_user_id === userId) return;
 
-        if (isAdmin) {
+        if (isStaff) {
           const sender = await getSenderProfile(msg.from_user_id);
-          if (sender?.is_portal_admin || sender?.role === 'admin') return;
+          if (sender?.is_portal_admin || sender?.role === 'admin' || sender?.is_sales_rep) return;
           const label = senderLabel(sender);
           const company = sender?.company ? ` (${sender.company})` : '';
           alertIncomingMessage({
@@ -68,7 +70,7 @@ export function useMessageAlerts({
         if (msg.to_user_id && msg.to_user_id !== userId) return;
 
         const sender = await getSenderProfile(msg.from_user_id);
-        const fromStaff = sender?.is_portal_admin || sender?.role === 'admin';
+        const fromStaff = sender?.is_portal_admin || sender?.role === 'admin' || sender?.is_sales_rep;
         if (!fromStaff) return;
 
         alertIncomingMessage({
@@ -84,7 +86,7 @@ export function useMessageAlerts({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, isAdmin, enabled]);
+  }, [userId, isStaff, enabled]);
 
   useEffect(() => () => setAppBadgeCount(0), []);
 }

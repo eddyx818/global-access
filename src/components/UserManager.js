@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, supabaseAdmin } from '../lib/supabase';
+import { generateRepCodeFromName, normalizeRepCode } from '../lib/repCodes';
 
-const ROLES = ['retailer', 'distributor', 'admin'];
-const ROLE_COLORS = { retailer: '#4CAF7D', distributor: '#C9A84C', admin: '#7B6CF6' };
+const ROLES = ['retailer', 'distributor', 'sales_rep', 'admin'];
+const ROLE_COLORS = { retailer: '#4CAF7D', distributor: '#C9A84C', sales_rep: '#E07A5F', admin: '#7B6CF6' };
 
 export default function UserManager() {
   const [users, setUsers] = useState([]);
@@ -46,6 +47,10 @@ export default function UserManager() {
         company: createForm.company.trim() || null,
         role: createForm.role,
         is_portal_admin: createForm.role === 'admin',
+        is_sales_rep: createForm.role === 'sales_rep',
+        rep_code: createForm.role === 'sales_rep' || createForm.role === 'admin'
+          ? normalizeRepCode(generateRepCodeFromName(createForm.name || createForm.email, data.user.id))
+          : null,
         temp_password: createForm.password,
         created_at: new Date().toISOString(),
       });
@@ -66,6 +71,7 @@ export default function UserManager() {
       name: user.name || '',
       company: user.company || '',
       role: user.role || 'retailer',
+      rep_code: user.rep_code || '',
       new_password: '',
       master_pricing_qualified: !!user.master_pricing_qualified,
     });
@@ -77,6 +83,13 @@ export default function UserManager() {
       const name = editForm.name?.trim() || null;
       const company = editForm.company?.trim() || null;
       const role = editForm.role || 'retailer';
+      const isSalesRep = role === 'sales_rep';
+      const isAdminRole = role === 'admin';
+      let repCode = editForm.rep_code?.trim() ? normalizeRepCode(editForm.rep_code) : user.rep_code;
+      if ((isSalesRep || isAdminRole) && !repCode) {
+        repCode = normalizeRepCode(generateRepCodeFromName(name || user.email, user.user_id));
+      }
+      if (!isSalesRep && !isAdminRole) repCode = null;
 
       const { error: profileErr } = await supabaseAdmin
         .from('user_profiles')
@@ -84,7 +97,9 @@ export default function UserManager() {
           name,
           company,
           role,
-          is_portal_admin: role === 'admin',
+          is_portal_admin: isAdminRole,
+          is_sales_rep: isSalesRep,
+          rep_code: repCode,
           master_pricing_qualified: role === 'distributor' ? !!editForm.master_pricing_qualified : false,
           updated_at: new Date().toISOString(),
         })
@@ -197,6 +212,7 @@ export default function UserManager() {
             <div style={{ fontSize: 11, color: '#CCC', marginTop: 6 }}>
               {createForm.role === 'retailer' ? 'Sees individual flavors, case ordering' :
                createForm.role === 'distributor' ? 'Sees pallet configs, bulk ordering' :
+               createForm.role === 'sales_rep' ? 'Rep dashboard — own customers, messages, contact imports. Gets a personal access code.' :
                'Full admin dashboard access — use carefully'}
             </div>
           </div>
@@ -237,6 +253,19 @@ export default function UserManager() {
                   ))}
                 </div>
               </div>
+              {(editForm.role === 'sales_rep' || editForm.role === 'admin') && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={labelStyle}>Personal access code</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input value={editForm.rep_code || ''} onChange={e => setEditForm(f => ({ ...f, rep_code: e.target.value }))} placeholder="e.g. jane-a1b2" style={{ ...inputStyle, flex: 1 }} />
+                    <button type="button" onClick={() => setEditForm(f => ({ ...f, rep_code: normalizeRepCode(generateRepCodeFromName(f.name || user.email, user.user_id)) }))}
+                      style={{ background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: '#555', whiteSpace: 'nowrap' }}>
+                      Generate
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#AAA', marginTop: 6 }}>Retailers enter this at the gate so you get credit for sign-ups.</div>
+                </div>
+              )}
               <div style={{ marginBottom: '1rem' }}>
                 <label style={labelStyle}>New Password (leave blank to keep current)</label>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -286,6 +315,9 @@ export default function UserManager() {
                 </div>
                 <div style={{ fontSize: 13, color: '#888' }}>{user.company || '—'}</div>
                 <div style={{ fontSize: 12, color: '#AAA', marginTop: 2 }}>{user.email}</div>
+                {user.rep_code && (
+                  <div style={{ fontSize: 11, color: '#C9A84C', marginTop: 4, fontWeight: 600 }}>Code: {user.rep_code}</div>
+                )}
                 {user.temp_password && (
                   <div style={{ fontSize: 11, color: '#CCC', marginTop: 3 }}>Temp password: <span style={{ fontFamily: 'monospace', background: '#F8F6F3', padding: '1px 6px', borderRadius: 4 }}>{user.temp_password}</span></div>
                 )}

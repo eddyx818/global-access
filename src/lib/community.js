@@ -21,6 +21,22 @@ export async function fetchUserPortalAdmin(userId) {
   return !!(data?.is_portal_admin || data?.role === 'admin');
 }
 
+export async function fetchUserSalesRep(userId) {
+  if (!userId) return false;
+  const { data } = await supabase
+    .from('user_profiles')
+    .select('is_sales_rep, role')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return !!(data?.is_sales_rep || data?.role === 'sales_rep');
+}
+
+export async function resolveSalesRep(sessionUser) {
+  if (!sessionUser?.id) return false;
+  if (await fetchUserPortalAdmin(sessionUser.id)) return false;
+  return fetchUserSalesRep(sessionUser.id);
+}
+
 export async function resolvePortalAdmin(sessionUser) {
   if (!sessionUser?.id) return false;
   if (isLegacyAdminEmail(sessionUser.email)) {
@@ -28,6 +44,15 @@ export async function resolvePortalAdmin(sessionUser) {
     return true;
   }
   return fetchUserPortalAdmin(sessionUser.id);
+}
+
+export async function resolveAuthRole(sessionUser) {
+  if (!sessionUser?.id) return { isAdmin: false, isSalesRep: false, authState: 'portal' };
+  const isAdmin = await resolvePortalAdmin(sessionUser);
+  if (isAdmin) return { isAdmin: true, isSalesRep: false, authState: 'admin' };
+  const isSalesRep = await resolveSalesRep(sessionUser);
+  if (isSalesRep) return { isAdmin: false, isSalesRep: true, authState: 'sales_rep' };
+  return { isAdmin: false, isSalesRep: false, authState: 'portal' };
 }
 
 export async function ensurePortalAdminFlag(userId, email) {
@@ -53,13 +78,22 @@ export async function fetchPortalAdmins() {
   return data || [];
 }
 
-export async function fetchContactableUsers(currentUserId, isAdmin) {
+export async function fetchContactableUsers(currentUserId, { isAdmin = false, isSalesRep = false } = {}) {
   if (isAdmin) {
     const { data } = await supabase
       .from('user_profiles')
-      .select('user_id, username, name, company, role, status, profile_avatar_url, last_active_at, email, is_portal_admin')
+      .select('user_id, username, name, company, role, status, profile_avatar_url, last_active_at, email, is_portal_admin, referred_by_user_id, referral_code_used')
       .eq('is_portal_admin', false)
+      .eq('is_sales_rep', false)
       .neq('user_id', currentUserId)
+      .order('last_active_at', { ascending: false, nullsFirst: false });
+    return data || [];
+  }
+  if (isSalesRep) {
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('user_id, username, name, company, role, status, profile_avatar_url, last_active_at, email, referred_by_user_id, referral_code_used')
+      .eq('referred_by_user_id', currentUserId)
       .order('last_active_at', { ascending: false, nullsFirst: false });
     return data || [];
   }
@@ -107,21 +141,21 @@ export async function fetchOnlineUsers(isAdmin = false) {
   return data || [];
 }
 
-export async function fetchConversations(userId, { isAdmin = false } = {}) {
+export async function fetchConversations(userId, { isAdmin = false, isSalesRep = false } = {}) {
   let query = supabase
     .from('conversations')
     .select('*')
     .order('last_message_at', { ascending: false });
 
-  if (!isAdmin) {
-    query = query.contains('participant_user_ids', [userId]);
-  } else {
+  if (isAdmin || isSalesRep) {
     query = query.eq('is_group', false);
+  } else {
+    query = query.contains('participant_user_ids', [userId]);
   }
 
   const { data } = await query;
   let convos = data || [];
-  if (!isAdmin) {
+  if (!isAdmin && !isSalesRep) {
     convos = convos.filter(c => !c.is_group);
   }
   return convos;
@@ -282,14 +316,17 @@ export async function joinGroupChat(conversationId) {
 }
 
 export function getCustomerParticipantId(convo, profiles = {}) {
-  return (convo?.participant_user_ids || []).find(id => !profiles[id]?.is_portal_admin);
+  return (convo?.participant_user_ids || []).find(id => {
+    const p = profiles[id];
+    return !p?.is_portal_admin && !p?.is_sales_rep;
+  });
 }
 
-export function getConversationTitle(convo, profiles, currentUserId, { isAdmin = false } = {}) {
+export function getConversationTitle(convo, profiles, currentUserId, { isAdmin = false, isSalesRep = false } = {}) {
   if (convo.is_group) {
     return convo.group_name || 'Group chat';
   }
-  if (isAdmin) {
+  if (isAdmin || isSalesRep) {
     const customerId = getCustomerParticipantId(convo, profiles);
     const p = profiles[customerId] || {};
     return p.name || p.company || p.username || 'Customer';
@@ -304,20 +341,20 @@ export function isGroupConversation(convo) {
   return !!convo?.is_group;
 }
 
-export async function markMessagesRead(conversationId, userId, { isAdmin = false } = {}) {
-  if (isAdmin) {
+export async function markMessagesRead(conversationId, userId, { isAdmin = false, isSalesRep = false } = {}) {
+  if (isAdmin || isSalesRep) {
     const { data: msgs } = await supabase
       .from('messages')
       .select('id, from_user_id')
       .eq('conversation_id', conversationId)
       .eq('read_status', false);
-    const { data: admins } = await supabase
+    const { data: staff } = await supabase
       .from('user_profiles')
       .select('user_id')
-      .eq('is_portal_admin', true);
-    const adminIds = new Set((admins || []).map(a => a.user_id));
+      .or('is_portal_admin.eq.true,is_sales_rep.eq.true');
+    const staffIds = new Set((staff || []).map(a => a.user_id));
     const customerMsgIds = (msgs || [])
-      .filter(m => !adminIds.has(m.from_user_id))
+      .filter(m => !staffIds.has(m.from_user_id))
       .map(m => m.id);
     if (!customerMsgIds.length) return;
     await supabase.from('messages').update({ read_status: true }).in('id', customerMsgIds);
@@ -331,9 +368,14 @@ export async function markMessagesRead(conversationId, userId, { isAdmin = false
     .eq('read_status', false);
 }
 
-export async function getUnreadCount(userId, { isAdmin = false } = {}) {
+export async function getUnreadCount(userId, { isAdmin = false, isSalesRep = false } = {}) {
   if (isAdmin) {
     const { data, error } = await supabase.rpc('get_admin_unread_count');
+    if (error) return 0;
+    return data || 0;
+  }
+  if (isSalesRep) {
+    const { data, error } = await supabase.rpc('get_sales_rep_unread_count');
     if (error) return 0;
     return data || 0;
   }

@@ -2,14 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getUnreadCount, subscribeToMessages } from '../lib/community';
 
-export function useUnreadCount(userId, { isAdmin = false, enabled = true } = {}) {
+export function useUnreadCount(userId, { isAdmin = false, isSalesRep = false, enabled = true } = {}) {
   const [unread, setUnread] = useState(0);
 
   const refresh = useCallback(async () => {
     if (!userId || !enabled) return;
-    const count = await getUnreadCount(userId, { isAdmin });
+    const count = await getUnreadCount(userId, { isAdmin, isSalesRep });
     setUnread(count);
-  }, [userId, isAdmin, enabled]);
+  }, [userId, isAdmin, isSalesRep, enabled]);
 
   useEffect(() => {
     if (!userId || !enabled) {

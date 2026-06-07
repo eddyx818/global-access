@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
-import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, clearPortalSession } from './lib/session';
-import { updateUserPresence, resolvePortalAdmin, ensurePortalAdminFlag, submitInterestToSupport, isProfileComplete } from './lib/community';
+import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, clearPortalSession, getPortalReferral } from './lib/session';
+import { updateUserPresence, resolveAuthRole, ensurePortalAdminFlag, submitInterestToSupport, isProfileComplete } from './lib/community';
 import { useBrandContent } from './lib/content';
 import { getFontFamily } from './lib/design';
 import LoginScreen from './components/LoginScreen';
@@ -10,6 +10,7 @@ import HomeView from './components/HomeView';
 import BrandView from './components/BrandView';
 import { InterestView, ThanksView } from './components/InterestView';
 import AdminDashboard from './components/AdminDashboard';
+import StaffDashboard from './components/StaffDashboard';
 import ProfileModal from './components/ProfileModal';
 import ChatSidebar from './components/messaging/ChatSidebar';
 import MobileBottomNav from './components/MobileBottomNav';
@@ -37,9 +38,12 @@ export default function App() {
   const [profileGate, setProfileGate] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [isPortalAdmin, setIsPortalAdmin] = useState(false);
+  const [isSalesRep, setIsSalesRep] = useState(false);
+  const [staffProfile, setStaffProfile] = useState(null);
   const { getMergedBrands, bgColor, globalStyles, navigation } = useBrandContent();
   const { unread: chatUnread, refresh: refreshUnread } = useUnreadCount(user?.id, {
     isAdmin: isPortalAdmin,
+    isSalesRep,
     enabled: !!user?.id,
   });
   const { canInstall, showIosHint, isInstalled, install } = usePwaInstall();
@@ -113,6 +117,7 @@ export default function App() {
   useMessageAlerts({
     userId: user?.id,
     isAdmin: isPortalAdmin,
+    isSalesRep,
     enabled: !!user?.id && inPortalView,
     unread: chatUnread,
     onOpenChat: openChat,
@@ -154,27 +159,50 @@ export default function App() {
     }
   }, []);
 
+  const applySessionUser = async (sessionUser) => {
+    const { isAdmin, isSalesRep: salesRep, authState: nextAuth } = await resolveAuthRole(sessionUser);
+    setUser(sessionUser);
+    setIsPortalAdmin(isAdmin);
+    setIsSalesRep(salesRep);
+    setAuthState(nextAuth);
+    if (isAdmin) {
+      setAdminMode('dashboard');
+      setForm(f => ({
+        ...f,
+        name: f.name || 'Global Access',
+        company: f.company || 'Global Access',
+        email: sessionUser.email,
+      }));
+      await ensurePortalAdminFlag(sessionUser.id, sessionUser.email);
+    }
+    try {
+      const { data: profile } = await supabase.from('user_profiles')
+        .select('user_type, name, company, phone, username, bio, profile_avatar_url, master_pricing_qualified, master_pricing_interest, rep_code, is_sales_rep')
+        .eq('user_id', sessionUser.id)
+        .single();
+      if (profile?.user_type) setUserType(profile.user_type);
+      if (salesRep) setStaffProfile(profile);
+      else setStaffProfile(null);
+      if (profile?.name && !salesRep && !isAdmin) {
+        setForm(f => ({
+          ...f,
+          name: profile.name,
+          company: profile.company || f.company,
+          phone: profile.phone || f.phone,
+        }));
+      }
+      setMasterPricingQualified(!!profile?.master_pricing_qualified);
+      setMasterPricingInterest(!!profile?.master_pricing_interest);
+    } catch (_) {}
+    await linkPortalSessionToUser(sessionUser.id);
+    await updateUserPresence(sessionUser.id, 'online');
+  };
+
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        const isAdmin = await resolvePortalAdmin(session.user);
-        setUser(session.user);
-        setIsPortalAdmin(isAdmin);
-        setAuthState(isAdmin ? 'admin' : 'portal');
-        if (isAdmin) {
-          setForm(f => ({ ...f, name: f.name || 'Global Access', company: f.company || 'Global Access', email: session.user.email }));
-          await ensurePortalAdminFlag(session.user.id, session.user.email);
-        }
-        try {
-          const { data: profile } = await supabase.from('user_profiles').select('user_type, name, company, phone, username, bio, profile_avatar_url, master_pricing_qualified, master_pricing_interest').eq('user_id', session.user.id).single();
-          if (profile?.user_type) setUserType(profile.user_type);
-          if (profile?.name) setForm(f => ({ ...f, name: profile.name, company: profile.company || f.company, phone: profile.phone || f.phone }));
-          setMasterPricingQualified(!!profile?.master_pricing_qualified);
-          setMasterPricingInterest(!!profile?.master_pricing_interest);
-        } catch (_) {}
-        await linkPortalSessionToUser(session.user.id);
-        await updateUserPresence(session.user.id, 'online');
+        await applySessionUser(session.user);
       } else {
         const verified = await isPortalCodeVerified();
         const wantsAdmin = new URLSearchParams(window.location.search).get('admin') === '1'
@@ -185,13 +213,7 @@ export default function App() {
     init();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_e, session) => {
       if (session?.user) {
-        const isAdmin = await resolvePortalAdmin(session.user);
-        setUser(session.user);
-        setIsPortalAdmin(isAdmin);
-        setAuthState(isAdmin ? 'admin' : 'portal');
-        if (isAdmin) await ensurePortalAdminFlag(session.user.id, session.user.email);
-        await linkPortalSessionToUser(session.user.id);
-        await updateUserPresence(session.user.id, 'online');
+        await applySessionUser(session.user);
       }
     });
     return () => subscription.unsubscribe();
@@ -294,6 +316,8 @@ export default function App() {
     await clearPortalSession();
     setUser(null);
     setIsPortalAdmin(false);
+    setIsSalesRep(false);
+    setStaffProfile(null);
     setAuthState('gate');
     setInterests([]);
     setMasterPricingQualified(false);
@@ -302,39 +326,7 @@ export default function App() {
   };
 
   const handleLoggedIn = async (sessionUser) => {
-    const isAdmin = await resolvePortalAdmin(sessionUser);
-    setUser(sessionUser);
-    setIsPortalAdmin(isAdmin);
-    setAuthState(isAdmin ? 'admin' : 'portal');
-    if (isAdmin) {
-      setAdminMode('dashboard');
-      setForm(f => ({
-        ...f,
-        name: f.name || 'Global Access',
-        company: f.company || 'Global Access',
-        email: sessionUser.email,
-      }));
-      await ensurePortalAdminFlag(sessionUser.id, sessionUser.email);
-    }
-    try {
-      const { data: profile } = await supabase.from('user_profiles')
-        .select('user_type, name, company, phone, username, bio, profile_avatar_url, master_pricing_qualified, master_pricing_interest')
-        .eq('user_id', sessionUser.id)
-        .single();
-      if (profile?.user_type) setUserType(profile.user_type);
-      if (profile?.name) {
-        setForm(f => ({
-          ...f,
-          name: profile.name,
-          company: profile.company || f.company,
-          phone: profile.phone || f.phone,
-        }));
-      }
-      setMasterPricingQualified(!!profile?.master_pricing_qualified);
-      setMasterPricingInterest(!!profile?.master_pricing_interest);
-    } catch (_) {}
-    await linkPortalSessionToUser(sessionUser.id);
-    await updateUserPresence(sessionUser.id, 'online');
+    await applySessionUser(sessionUser);
   };
 
   const handleSubmitAttempt = () => {
@@ -367,6 +359,7 @@ export default function App() {
   };
 
   const handleRequestAccess = async (data) => {
+    const referral = await getPortalReferral();
     await supabase.from('access_requests').insert({
       name: data.name,
       company: data.company,
@@ -378,6 +371,8 @@ export default function App() {
       location_count: data.location_count,
       has_retail: data.has_retail,
       retail_count: data.retail_count,
+      referred_by_user_id: referral?.referral_rep_id || null,
+      referral_code_used: referral?.referral_code || null,
       status: 'pending',
       created_at: new Date().toISOString(),
     });
@@ -418,6 +413,9 @@ export default function App() {
       />
     </>
   );
+  if (authState === 'sales_rep') {
+    return <StaffDashboard user={user} profile={staffProfile} onLogout={handleLogout} />;
+  }
   if (authState === 'admin' && adminMode === 'dashboard') return <AdminDashboard user={user} onLogout={handleLogout} onViewPortal={() => setAdminMode('portal')} />;
 
   return (

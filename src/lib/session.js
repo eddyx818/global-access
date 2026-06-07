@@ -77,6 +77,33 @@ export async function setPortalCodeVerified(verified = true) {
   } catch (_) {}
 }
 
+export async function setPortalReferral({ repUserId, code }) {
+  const token = await getPortalSessionToken();
+  try {
+    await supabase.from('portal_sessions').upsert({
+      session_token: token,
+      referral_rep_id: repUserId || null,
+      referral_code: code || null,
+      code_verified: true,
+      last_seen_at: new Date().toISOString(),
+    }, { onConflict: 'session_token' });
+  } catch (_) {}
+}
+
+export async function getPortalReferral() {
+  const token = await getPortalSessionToken();
+  try {
+    const { data } = await supabase
+      .from('portal_sessions')
+      .select('referral_rep_id, referral_code')
+      .eq('session_token', token)
+      .maybeSingle();
+    return data || null;
+  } catch (_) {
+    return null;
+  }
+}
+
 export async function linkPortalSessionToUser(userId) {
   const token = await getPortalSessionToken();
   try {

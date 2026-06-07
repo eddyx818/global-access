@@ -8,8 +8,9 @@ import AdminAgent from './AdminAgent';
 import UserManager from './UserManager';
 import ActivityFeed from './ActivityFeed';
 import CustomerDirectory from './CustomerDirectory';
+import ContactImportPanel from './ContactImportPanel';
  
-export default function AdminDashboard({ onLogout, onViewPortal }) {
+export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const [tab, setTab] = useState('overview');
   const [brandOverrides, setBrandOverrides] = useState({});
   const [productOverrides, setProductOverrides] = useState({});
@@ -120,7 +121,7 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
       {alert && <div style={{ background: '#FEF3C7', border: '0.5px solid #FCD34D', padding: '12px 1.5rem', fontSize: 13, color: '#92400E', display: 'flex', justifyContent: 'space-between' }}>{alert}<button onClick={() => setAlert(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#92400E' }}>×</button></div>}
       <div style={{ padding: '1.5rem', maxWidth: 960, margin: '0 auto' }}>
         <div style={{ display: 'flex', gap: 8, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          {['overview','community','pages','clicks','requests','inquiries','content','users','map','brands','marketing'].map(t => (
+          {['overview','community','contacts','pages','clicks','requests','inquiries','content','users','map','brands','marketing'].map(t => (
             <button key={t} onClick={() => setTab(t)} style={tabBtn(t)}>{t === 'requests' && pending.length > 0 ? `Requests (${pending.length})` : t.charAt(0).toUpperCase() + t.slice(1)}</button>
           ))}
           <button onClick={loadAll} style={{ ...tabBtn(''), marginLeft: 'auto' }}>↻ Refresh</button>
@@ -148,6 +149,9 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
               {inquiries.length === 0 && <div style={{ fontSize: 13, color: '#CCC' }}>No inquiries yet.</div>}
             </div>
           </div>
+        )}
+        {!loading && tab === 'contacts' && (
+          <ContactImportPanel userId={user?.id} isAdmin defaultRepId={user?.id} />
         )}
         {!loading && tab === 'community' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -193,7 +197,9 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
             {requests.map(req => (
               <div key={req.id} style={{ ...card, borderLeft: `3px solid ${req.status === 'pending' ? '#C9A84C' : req.status === 'approved' ? '#4CAF7D' : '#E05A5A'}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                  <div><div style={{ fontWeight: 500, fontSize: 15 }}>{req.name} — {req.company}</div><div style={{ fontSize: 12, color: '#AAA', marginTop: 2 }}>{req.email} · {req.phone}</div></div>
+                  <div><div style={{ fontWeight: 500, fontSize: 15 }}>{req.name} — {req.company}</div><div style={{ fontSize: 12, color: '#AAA', marginTop: 2 }}>{req.email} · {req.phone}</div>
+                    {req.referral_code_used && <div style={{ fontSize: 11, color: '#C9A84C', marginTop: 4 }}>Rep code: {req.referral_code_used}</div>}
+                  </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: req.status === 'pending' ? '#FDF6E3' : req.status === 'approved' ? '#F0FAF4' : '#FEF0F0', color: req.status === 'pending' ? '#A07A20' : req.status === 'approved' ? '#2D7A50' : '#C53030', fontWeight: 500, textTransform: 'uppercase' }}>{req.status}</span>
                     {req.status === 'pending' && <>

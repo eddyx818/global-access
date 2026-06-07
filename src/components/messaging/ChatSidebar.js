@@ -29,11 +29,13 @@ export default function ChatSidebar({
   open,
   onClose,
   isAdmin = false,
+  isSalesRep = false,
   variant = 'sidebar',
   onUnreadChange,
   profileComplete = true,
   onRequireProfile,
 }) {
+  const isStaff = isAdmin || isSalesRep;
   const isPage = variant === 'page';
   const [tab, setTab] = useState('chats');
   const [conversations, setConversations] = useState([]);
@@ -57,16 +59,16 @@ export default function ChatSidebar({
   const refresh = useCallback(async () => {
     if (!user?.id) return;
     const [convos, contacts, count] = await Promise.all([
-      fetchConversations(user.id, { isAdmin }),
-      fetchContactableUsers(user.id, isAdmin),
-      getUnreadCount(user.id, { isAdmin }),
+      fetchConversations(user.id, { isAdmin, isSalesRep }),
+      fetchContactableUsers(user.id, { isAdmin, isSalesRep }),
+      getUnreadCount(user.id, { isAdmin, isSalesRep }),
     ]);
     setConversations(convos);
     setContactableUsers(contacts);
     setUnread(count);
     onUnreadChange?.(count);
     await mergeProfiles(convos);
-  }, [user?.id, isAdmin, onUnreadChange]);
+  }, [user?.id, isAdmin, isSalesRep, onUnreadChange]);
 
   useEffect(() => {
     if (!(open || isPage) || !user?.id) return;
@@ -94,7 +96,7 @@ export default function ChatSidebar({
       setMessages(msgs);
       await mergeProfiles([activeConvo], msgs);
       if (!isGroupConversation(activeConvo)) {
-        await markMessagesRead(activeConvo.id, user.id, { isAdmin });
+        await markMessagesRead(activeConvo.id, user.id, { isAdmin, isSalesRep });
         refresh();
       }
       setLoading(false);
@@ -104,17 +106,17 @@ export default function ChatSidebar({
       setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg]);
       await mergeProfiles([], [msg]);
       if (!isGroupConversation(activeConvo)) {
-        const shouldMark = isAdmin
+        const shouldMark = isStaff
           ? !profiles[msg.from_user_id]?.is_portal_admin
           : msg.to_user_id === user.id;
         if (shouldMark) {
-          await markMessagesRead(activeConvo.id, user.id, { isAdmin });
+          await markMessagesRead(activeConvo.id, user.id, { isAdmin, isSalesRep });
           refresh();
         }
       }
     });
     return () => subRef.current?.unsubscribe();
-  }, [activeConvo?.id, user.id, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeConvo?.id, user.id, isStaff]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openChatWith = async (otherUserId) => {
     const convo = await getOrCreateDirectConversation(user.id, otherUserId);
@@ -124,7 +126,7 @@ export default function ChatSidebar({
   };
 
   const openSupportChat = async () => {
-    if (!isAdmin && !profileComplete) {
+    if (!isStaff && !profileComplete) {
       onRequireProfile?.();
       return;
     }
@@ -138,14 +140,14 @@ export default function ChatSidebar({
 
   const handleSend = async (text, attachment = null) => {
     if (!activeConvo) return;
-    if (!isAdmin && !profileComplete) {
+    if (!isStaff && !profileComplete) {
       onRequireProfile?.();
       return;
     }
     const isGroup = isGroupConversation(activeConvo);
     let otherId = null;
     if (!isGroup) {
-      if (isAdmin) {
+      if (isStaff) {
         otherId = getCustomerParticipantId(activeConvo, profiles)
           || activeConvo.participant_user_ids.find(id => id !== user.id);
       } else {
@@ -193,11 +195,11 @@ export default function ChatSidebar({
     : null;
 
   const headerTitle = activeConvo
-    ? getConversationTitle(activeConvo, profiles, user.id, { isAdmin })
-    : (isAdmin ? `Messages${unread ? ` (${unread})` : ''}` : 'Support');
+    ? getConversationTitle(activeConvo, profiles, user.id, { isAdmin, isSalesRep })
+    : (isStaff ? `Messages${unread ? ` (${unread})` : ''}` : 'Support');
   const headerSub = activeIsGroup
     ? `${activeConvo.participant_user_ids.length} members`
-    : (isAdmin && activeConvo ? 'Shared support thread' : (isPage && !activeConvo ? 'Chat with our team' : null));
+    : (isStaff && activeConvo ? 'Customer conversation' : (isPage && !activeConvo ? 'Chat with our team' : null));
 
   if (!open && !isPage) return null;
 
@@ -251,7 +253,7 @@ export default function ChatSidebar({
         )}
       </div>
 
-      {!activeConvo && isAdmin && (
+      {!activeConvo && isStaff && (
         <div style={{ display: 'flex', borderBottom: '0.5px solid #E8E4DF', flexShrink: 0 }}>
           {[['chats', 'Inbox'], ['people', 'Customers']].map(([id, label]) => (
             <button key={id} type="button" onClick={() => setTab(id)}
@@ -294,27 +296,27 @@ export default function ChatSidebar({
                 )}
               </div>
             )}
-            <MessageThread messages={messages} currentUserId={user.id} profiles={profiles} loading={loading} isGroup={activeIsGroup} showStaffNames={isAdmin} />
+            <MessageThread messages={messages} currentUserId={user.id} profiles={profiles} loading={loading} isGroup={activeIsGroup} showStaffNames={isStaff} />
             <MessageInput
               onSend={handleSend}
-              placeholder={isAdmin ? 'Reply to customer...' : 'Type a message...'}
+              placeholder={isStaff ? 'Reply to customer...' : 'Type a message...'}
               isMobile={isPage}
               conversationId={activeConvo.id}
               userId={user.id}
             />
           </>
-        ) : tab === 'chats' || !isAdmin ? (
+        ) : tab === 'chats' || !isStaff ? (
           <ConversationList
             conversations={conversations}
             profiles={profiles}
             currentUserId={user.id}
-            isAdmin={isAdmin}
+            isStaff={isStaff}
             onSelect={setActiveConvo}
-            onMessageSupport={!isAdmin ? openSupportChat : null}
+            onMessageSupport={!isStaff ? openSupportChat : null}
             isMobile={isPage}
           />
         ) : (
-          <UserList users={contactableUsers} onSelect={(u) => openChatWith(u.user_id)} emptyLabel="No customers yet." />
+          <UserList users={contactableUsers} onSelect={(u) => openChatWith(u.user_id)} emptyLabel={isSalesRep ? 'No assigned customers yet. Share your rep code when signing people up.' : 'No customers yet.'} />
         )}
       </div>
     </div>

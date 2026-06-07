@@ -4,18 +4,24 @@ import { fetchAllProfiles } from '../lib/community';
 
 const STATUS_COLOR = { online: '#4CAF7D', away: '#C9A84C', offline: '#CCC' };
 
-export default function CustomerDirectory() {
+export default function CustomerDirectory({ repUserId = null }) {
   const [users, setUsers] = useState([]);
+  const [repNames, setRepNames] = useState({});
   const [stats, setStats] = useState({});
   const [filter, setFilter] = useState('');
   const [sortKey, setSortKey] = useState('last_active_at');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [repUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = async () => {
     setLoading(true);
     const profiles = await fetchAllProfiles();
+    const reps = {};
+    profiles.forEach(p => {
+      if (p.rep_code || p.is_sales_rep) reps[p.user_id] = p.name || p.company || p.email;
+    });
+    setRepNames(reps);
 
     const { data: activityCounts } = await supabase.from('user_activity').select('user_id');
     const { data: messageCounts } = await supabase.from('messages').select('from_user_id');
@@ -25,10 +31,16 @@ export default function CustomerDirectory() {
     const msgMap = {};
     (messageCounts || []).forEach(r => { if (r.from_user_id) msgMap[r.from_user_id] = (msgMap[r.from_user_id] || 0) + 1; });
 
-    const merged = profiles.map(p => ({
+    let customerProfiles = profiles.filter(p => !p.is_portal_admin && !p.is_sales_rep);
+    if (repUserId) {
+      customerProfiles = customerProfiles.filter(p => p.referred_by_user_id === repUserId);
+    }
+
+    const merged = customerProfiles.map(p => ({
       ...p,
       pages_viewed: actMap[p.user_id] || 0,
       messages_sent: msgMap[p.user_id] || 0,
+      signed_up_by: reps[p.referred_by_user_id] || (p.referral_code_used ? `Code: ${p.referral_code_used}` : '—'),
     }));
 
     setUsers(merged);
@@ -40,7 +52,7 @@ export default function CustomerDirectory() {
     .filter(u => {
       const q = filter.toLowerCase();
       if (!q) return true;
-      return [u.username, u.name, u.email, u.company, u.role].some(v => (v || '').toLowerCase().includes(q));
+      return [u.username, u.name, u.email, u.company, u.role, u.signed_up_by, u.referral_code_used].some(v => (v || '').toLowerCase().includes(q));
     })
     .sort((a, b) => {
       const av = a[sortKey] || '';
@@ -49,13 +61,16 @@ export default function CustomerDirectory() {
     });
 
   const exportCsv = () => {
-    const headers = ['username', 'name', 'email', 'company', 'role', 'status', 'pages_viewed', 'messages_sent', 'last_active_at'];
-    const rows = filtered.map(u => headers.map(h => `"${(u[h] ?? '').toString().replace(/"/g, '""')}"`).join(','));
+    const headers = ['username', 'name', 'email', 'company', 'role', 'status', 'signed_up_by', 'referral_code', 'pages_viewed', 'messages_sent', 'last_active_at'];
+    const rows = filtered.map(u => headers.map(h => {
+      const val = h === 'signed_up_by' ? u.signed_up_by : h === 'referral_code' ? u.referral_code_used : u[h];
+      return `"${(val ?? '').toString().replace(/"/g, '""')}"`;
+    }).join(','));
     const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'global-access-users.csv';
+    a.download = repUserId ? 'my-customers.csv' : 'global-access-users.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -82,6 +97,7 @@ export default function CustomerDirectory() {
                 {th('username', 'Username')}
                 {th('company', 'Company')}
                 {th('role', 'Role')}
+                {!repUserId && th('signed_up_by', 'Signed up by')}
                 {th('status', 'Status')}
                 {th('pages_viewed', 'Pages')}
                 {th('messages_sent', 'Messages')}
@@ -97,6 +113,14 @@ export default function CustomerDirectory() {
                   </td>
                   <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', color: '#666' }}>{u.company || '—'}</td>
                   <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', textTransform: 'capitalize', color: '#666' }}>{u.role || u.user_type || '—'}</td>
+                  {!repUserId && (
+                    <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', fontSize: 12, color: '#666' }}>
+                      {u.signed_up_by}
+                      {u.referral_code_used && u.signed_up_by !== `Code: ${u.referral_code_used}` && (
+                        <div style={{ fontSize: 10, color: '#AAA' }}>{u.referral_code_used}</div>
+                      )}
+                    </td>
+                  )}
                   <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#666' }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLOR[u.status] || STATUS_COLOR.offline }} />

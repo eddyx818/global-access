@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { ACCESS_CODE } from '../lib/data';
+import { validateAccessCode } from '../lib/repCodes';
+import { setPortalReferral, getPortalReferral } from '../lib/session';
  
 const STORE_TYPES = {
   retailer: ['Smoke Shop', 'Convenience Store', 'Liquor Store', 'Vape Shop', 'CBD Shop', 'Dispensary', 'Gas Station', 'Other'],
@@ -50,12 +51,24 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     setError('');
   };
  
-  const handleCode = () => {
-    if (code.trim().toLowerCase() === ACCESS_CODE.toLowerCase()) {
-      onCodeVerified(); setMode('login'); setError('');
-    } else {
-      setError('Incorrect access code. Please try again or request access.');
+  const handleCode = async () => {
+    if (!code.trim()) {
+      setError('Please enter an access code.');
+      return;
     }
+    setLoading(true);
+    setError('');
+    const result = await validateAccessCode(code);
+    if (result.valid) {
+      if (result.type === 'rep') {
+        await setPortalReferral({ repUserId: result.repUserId, code: result.code });
+      }
+      onCodeVerified(result);
+      setMode('login');
+    } else {
+      setError('Incorrect access code. Ask your rep for their personal code, or request access below.');
+    }
+    setLoading(false);
   };
  
   const handleLogin = async () => {
@@ -106,6 +119,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     });
     if (err) { setError(err.message); setLoading(false); return; }
     if (data.user) {
+      const referral = await getPortalReferral();
       await supabase.from('user_profiles').upsert({
         user_id: data.user.id,
         email: regForm.email.trim().toLowerCase(),
@@ -115,6 +129,8 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
         role: regForm.account_type,
         user_type: regForm.account_type,
         status: 'online',
+        referred_by_user_id: referral?.referral_rep_id || null,
+        referral_code_used: referral?.referral_code || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
@@ -144,13 +160,13 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
           {/* GATE */}
           {mode === 'gate' && (
             <>
-              <p style={{ fontSize: 13, color: '#888', marginBottom: '1.5rem', lineHeight: 1.6 }}>Enter your access code or sign in with your account.</p>
+              <p style={{ fontSize: 13, color: '#888', marginBottom: '1.5rem', lineHeight: 1.6 }}>Enter your access code or sign in with your account. Your sales rep may have given you a personal code.</p>
               <div style={{ marginBottom: '1.25rem' }}>
                 <label style={labelStyle}>Access Code</label>
                 <input value={code} onChange={e => setCode(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCode()} placeholder="Enter code" style={inputStyle} autoCapitalize="none" />
               </div>
               {error && <ErrBox msg={error} />}
-              <button onClick={handleCode} style={btnPrimary}>Continue →</button>
+              <button onClick={handleCode} disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.7 : 1 }}>{loading ? 'Checking…' : 'Continue →'}</button>
               <Divider />
               <button onClick={() => setMode('login')} style={{ ...btnPrimary, background: '#FFF', color: '#1A1A1A', border: '0.5px solid #E0DDD8' }}>Sign In with Account</button>
               <div style={{ textAlign: 'center', marginTop: 8 }}><button onClick={() => setMode('register')} style={btnLink}>Create an account</button></div>
