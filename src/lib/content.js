@@ -1,10 +1,30 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
 import { supabase } from './supabase';
 import { BRANDS } from './data';
 import { DEFAULT_GLOBAL_STYLES, parseJsonField } from './design';
 import { mergeProductCommerce, commercePayloadFromForm, packPayloadFromForm } from './pricing';
 
+const BrandContentContext = createContext(null);
+
 const CONTENT_SYNC_CHANNEL = 'ga-content-sync';
+
+function safeJsonArray(value, fallback = []) {
+  if (!value) return fallback;
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function parseFlavorField(value, fallback) {
+  if (value === undefined || value === null) return fallback;
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') return safeJsonArray(value, fallback);
+  return fallback;
+}
 
 /** Tell every open tab + in-app listeners to reload CMS content from Supabase. */
 export function notifyContentUpdated(detail = {}) {
@@ -18,6 +38,12 @@ export function notifyContentUpdated(detail = {}) {
 }
 
 export function useBrandContent() {
+  const ctx = useContext(BrandContentContext);
+  if (!ctx) throw new Error('useBrandContent must be used within BrandContentProvider');
+  return ctx;
+}
+
+function useBrandContentState() {
   const [brandOverrides, setBrandOverrides] = useState({});
   const [productOverrides, setProductOverrides] = useState({});
   const [galleryOverrides, setGalleryOverrides] = useState({});
@@ -64,8 +90,8 @@ export function useBrandContent() {
       const { data } = await supabase.from('site_settings').select('*');
       if (data) {
         data.forEach(s => {
-          if (s.key === 'hidden_brands') setHiddenBrands(JSON.parse(s.value || '[]'));
-          if (s.key === 'custom_brands') setCustomBrands(JSON.parse(s.value || '[]'));
+          if (s.key === 'hidden_brands') setHiddenBrands(safeJsonArray(s.value, []));
+          if (s.key === 'custom_brands') setCustomBrands(safeJsonArray(s.value, []));
           if (s.key === 'bg_color') setBgColor(s.value || '#F5F2ED');
           if (s.key === 'hero_config') setHeroConfig(parseJsonField(s.value, {}));
           if (s.key === 'global_styles') setGlobalStyles({ ...DEFAULT_GLOBAL_STYLES, ...parseJsonField(s.value, {}) });
@@ -77,10 +103,13 @@ export function useBrandContent() {
   }, []);
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([loadContentData(), loadSettingsData()]);
-    if (!initialLoadDone.current) {
-      initialLoadDone.current = true;
-      setLoading(false);
+    try {
+      await Promise.all([loadContentData(), loadSettingsData()]);
+    } finally {
+      if (!initialLoadDone.current) {
+        initialLoadDone.current = true;
+        setLoading(false);
+      }
     }
   }, [loadContentData, loadSettingsData]);
 
@@ -102,28 +131,32 @@ export function useBrandContent() {
       };
     } catch (_) {}
 
-    const channel = supabase
-      .channel('ga-content-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'brand_content' }, onUpdate)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_content' }, onUpdate)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'brand_gallery' }, onUpdate)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, onUpdate)
-      .subscribe();
+    let channel;
+    try {
+      channel = supabase
+        .channel('ga-content-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'brand_content' }, onUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'product_content' }, onUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'brand_gallery' }, onUpdate)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, onUpdate)
+        .subscribe();
+    } catch (_) {}
 
     return () => {
       clearTimeout(debounceTimer);
       window.removeEventListener('ga-content-updated', onUpdate);
       bc?.close();
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [refreshAll]);
 
   const loadContent = refreshAll;
 
   const getMergedBrands = () => {
-    const allBrands = [...BRANDS, ...customBrands].filter(b => !hiddenBrands.includes(b.id));
+    const allBrands = [...BRANDS, ...customBrands].filter(b => b?.id && !hiddenBrands.includes(b.id));
     return allBrands.map(brand => {
       const override = brandOverrides[brand.id] || {};
+      const products = Array.isArray(brand.products) ? brand.products : [];
 
       // Gallery: admin gallery uploads + Supabase product photos + hardcoded brand photos
       const galleryItems = (galleryOverrides[brand.id] || [])
@@ -131,13 +164,13 @@ export function useBrandContent() {
         .map(g => g.image_url)
         .filter(url => url && /^https?:\/\//.test(url));
 
-      const uploadedProductImages = brand.products
+      const uploadedProductImages = products
         .map(p => (productOverrides[p.sku] || {}).image_url)
         .filter(url => url && /^https?:\/\//.test(url));
 
       // Drop built-in gallery paths replaced by a SKU upload (avoids duplicate/broken slots).
       const supersededGalleryPaths = new Set(
-        brand.products
+        products
           .filter(p => {
             const url = (productOverrides[p.sku] || {}).image_url;
             return p.image && url && /^https?:\/\//.test(url);
@@ -161,7 +194,7 @@ export function useBrandContent() {
         masterPricingMode: override.master_pricing_mode || brand.masterPricingMode || 'auto',
         layout: parseJsonField(override.layout_config, {}),
         gallery: finalGallery,
-        products: brand.products.map(product => {
+        products: products.map(product => {
           const po = productOverrides[product.sku] || {};
           const mergedImage = po.image_url || product.image || null;
           return mergeProductCommerce({
@@ -170,12 +203,8 @@ export function useBrandContent() {
             detail: po.detail || product.detail,
             image: mergedImage,
             orderUnit: po.order_unit || product.orderUnit,
-            flavors_retail: po.flavors_retail !== undefined && po.flavors_retail !== null
-              ? (typeof po.flavors_retail === 'string' ? JSON.parse(po.flavors_retail) : po.flavors_retail)
-              : product.flavors_retail,
-            flavors_distro: po.flavors_distro !== undefined && po.flavors_distro !== null
-              ? (typeof po.flavors_distro === 'string' ? JSON.parse(po.flavors_distro) : po.flavors_distro)
-              : product.flavors_distro,
+            flavors_retail: parseFlavorField(po.flavors_retail, product.flavors_retail),
+            flavors_distro: parseFlavorField(po.flavors_distro, product.flavors_distro),
           }, po);
         }),
       };
@@ -183,6 +212,15 @@ export function useBrandContent() {
   };
 
   return { getMergedBrands, loadContent, loading, brandOverrides, productOverrides, bgColor, heroConfig, globalStyles, navigation, customerChatLabel };
+}
+
+export function BrandContentProvider({ children }) {
+  const value = useBrandContentState();
+  return (
+    <BrandContentContext.Provider value={value}>
+      {children}
+    </BrandContentContext.Provider>
+  );
 }
 
 export async function saveBrandContent(brandId, data) {

@@ -174,13 +174,13 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
     <div style={ui.page}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
       <div style={ui.header}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.1em', color: t.text }}>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.1em', color: t.text, flexShrink: 0 }}>
           Global Access <span style={{ fontSize: 13, color: t.gold }}>Admin</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <ThemeToggle compact />
-          <button onClick={onViewPortal} style={{ background: t.gold, color: t.btnPrimaryText, border: 'none', borderRadius: 6, padding: '5px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>View Portal</button>
-          <button onClick={onLogout} style={{ background: 'none', border: t.borderHairline, borderRadius: 6, padding: '5px 12px', fontSize: 12, color: t.textMuted, cursor: 'pointer', fontFamily: 'inherit' }}>Sign out</button>
+          <button onClick={onViewPortal} style={{ background: t.gold, color: t.btnPrimaryText, border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Portal</button>
+          <button onClick={onLogout} style={{ background: 'none', border: t.borderHairline, borderRadius: 6, padding: '6px 10px', fontSize: 12, color: t.textMuted, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Sign out</button>
         </div>
       </div>
       {alert && (
@@ -196,13 +196,22 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
         </div>
       )}
       <div style={{ padding: '1.5rem', maxWidth: 960, margin: '0 auto' }}>
-        <div style={{ display: 'flex', gap: 8, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        <div style={{
+          display: 'flex',
+          gap: 6,
+          marginBottom: '1.5rem',
+          overflowX: 'auto',
+          flexWrap: 'nowrap',
+          WebkitOverflowScrolling: 'touch',
+          paddingBottom: 4,
+          scrollbarWidth: 'none',
+        }}>
           {['overview','community','contacts','pages','clicks','requests','inquiries','content','users','map','brands','marketing'].map(tabId => (
-            <button key={tabId} onClick={() => setTab(tabId)} style={ui.tabBtn(tab === tabId)}>
+            <button key={tabId} onClick={() => setTab(tabId)} style={{ ...ui.tabBtn(tab === tabId), flexShrink: 0, whiteSpace: 'nowrap' }}>
               {tabId === 'requests' && pending.length > 0 ? `Requests (${pending.length})` : tabId.charAt(0).toUpperCase() + tabId.slice(1)}
             </button>
           ))}
-          <button onClick={loadAll} style={{ ...ui.tabBtn(false), marginLeft: 'auto' }}>↻ Refresh</button>
+          <button onClick={loadAll} style={{ ...ui.tabBtn(false), flexShrink: 0, marginLeft: 'auto', whiteSpace: 'nowrap' }}>↻ Refresh</button>
         </div>
         {loading && <div style={{ color: t.textFaint, fontSize: 13 }}>Loading...</div>}
         {!loading && tab === 'overview' && (

@@ -46,6 +46,7 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
   const ctaRadius = getButtonRadius(globalStyles.button_style);
 
   useEffect(() => {
+    if (!brands.length) return undefined;
     autoTimer.current = setInterval(() => setSlideIdx(i => (i + 1) % brands.length), 4500);
     return () => clearInterval(autoTimer.current);
   }, [brands.length]);
@@ -89,7 +90,9 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
     setAnimating(true);
     setSlideIdx(newIdx);
     setTimeout(() => setAnimating(false), 600);
-    autoTimer.current = setInterval(() => setSlideIdx(i => (i + 1) % brands.length), 4500);
+    if (brands.length) {
+      autoTimer.current = setInterval(() => setSlideIdx(i => (i + 1) % brands.length), 4500);
+    }
   };
 
   const handleHeroMouseMove = (e) => {
@@ -140,7 +143,22 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
     ));
   };
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div style={{ minHeight: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 28, height: 28, border: `2px solid ${t.border}`, borderTopColor: t.gold, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (!brands.length) {
+    return (
+      <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: t.textMuted, fontSize: 14 }}>
+        No brands are visible right now. Contact your rep if this looks wrong.
+      </div>
+    );
+  }
 
   return (
     <div>

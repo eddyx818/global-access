@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './app.css';
 import App from './App';
 import { ThemeProvider } from './context/ThemeContext';
+import { BrandContentProvider } from './lib/content';
 import { applyTheme, getStoredTheme } from './lib/theme';
 
 document.documentElement.classList.add('app-native');
@@ -42,6 +43,8 @@ if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <ThemeProvider>
-    <App />
+    <BrandContentProvider>
+      <App />
+    </BrandContentProvider>
   </ThemeProvider>
 );
