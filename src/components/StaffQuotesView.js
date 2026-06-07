@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { fetchRecentInquiries, updateInquiryQuoteStatus, QUOTE_STATUSES } from '../lib/inquiries';
+import { fetchRecentInquiries, updateInquiryQuoteStatus, QUOTE_STATUSES, parseInquiryInterests } from '../lib/inquiries';
 import QuoteStatusBadge from './QuoteStatusBadge';
 import { useTheme } from '../context/ThemeContext';
 
@@ -121,7 +121,7 @@ export default function StaffQuotesView({ onCountsChange, isMobile = true }) {
           </div>
         )}
         {!loading && filtered.map(inq => {
-          const interests = Array.isArray(inq.interests) ? inq.interests : [];
+          const interests = parseInquiryInterests(inq.interests);
           return (
             <div key={inq.id} style={{ ...cardStyle, marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>

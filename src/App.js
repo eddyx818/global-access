@@ -219,7 +219,7 @@ export default function App() {
       return;
     }
 
-    if (view === 'quotes' && showCustomerList) {
+    if (view === 'quotes' && !isStaffPortalUser) {
       setView('home');
     }
 
@@ -484,7 +484,12 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, activeBrand, authState, adminMode]);
 
+  useEffect(() => {
+    if (isStaffPortalUser) setInterests([]);
+  }, [isStaffPortalUser]);
+
   const toggleInterest = (sku, productName, brandName, flavor, qty = 1, orderMode = 'master_case', brandId = null, orderUnitLabel = null) => {
+    if (isStaffPortalUser) return;
     const key = `${sku}__${flavor}`;
     const bid = brandId || activeBrand;
     trackEvent('click', bid ? `brand:${bid}` : view, { element: `interest:${sku}:${flavor}`, user_id: user?.id });
@@ -585,6 +590,7 @@ export default function App() {
   };
 
   const handleSubmitAttempt = () => {
+    if (isStaffPortalUser) return;
     if (authState === 'browse') {
       setSignupPromptError('');
       setShowSignupPrompt(true);
@@ -600,6 +606,7 @@ export default function App() {
   };
 
   const doSubmit = async () => {
+    if (isStaffPortalUser) return;
     const nameCheck = validatePersonName(form.name, { label: 'Name' });
     if (!nameCheck.ok) {
       const msg = nameCheck.error;
@@ -906,6 +913,7 @@ export default function App() {
           onSubmit={handleSubmitAttempt}
           isMobile={isMobile || isMobileDevice}
           hasBottomNav={showMobileNav}
+          enableQuoteFlow={showCustomerList}
           masterPricingQualified={masterPricingQualified}
           pricingVisible={authState !== 'browse'}
           onSignIn={authState === 'browse' ? () => setAuthState('login') : null}

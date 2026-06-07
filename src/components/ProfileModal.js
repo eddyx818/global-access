@@ -212,17 +212,15 @@ export default function ProfileModal({
           appointment_notes: appointmentNotes.trim() || null,
           appointment_status: 'pending',
         } : {}),
-        ...(isStaff ? {
-          preferred_appointment_at: null,
-          appointment_notes: null,
+        ...(!isStaff ? {
+          address: addressParts.address_line1?.trim() || null,
+          address_line2: addressParts.address_line2?.trim() || null,
+          city: addressParts.city?.trim() || null,
+          state: addressParts.state?.trim() || null,
+          zip: addressParts.zip?.trim() || null,
+          lat: addressParts.lat,
+          lng: addressParts.lng,
         } : {}),
-        address: addressParts.address_line1?.trim() || null,
-        address_line2: addressParts.address_line2?.trim() || null,
-        city: addressParts.city?.trim() || null,
-        state: addressParts.state?.trim() || null,
-        zip: addressParts.zip?.trim() || null,
-        lat: addressParts.lat,
-        lng: addressParts.lng,
       });
       if (!result.ok) {
         const dupUser = /username|unique|duplicate/i.test(result.error || '');

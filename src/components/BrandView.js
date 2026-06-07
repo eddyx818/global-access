@@ -6,7 +6,7 @@ import { subscribeStockNotify, fetchMyStockAlerts, stockAlertKey } from '../lib/
 import { useTheme } from '../context/ThemeContext';
 import { useBrandContent } from '../lib/content';
 
-export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, updateInterestLine, isInterested, interests, onSubmit, isMobile, hasBottomNav = false, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess, chatLabel = 'Trade Desk' }) {
+export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, updateInterestLine, isInterested, interests, onSubmit, isMobile, hasBottomNav = false, enableQuoteFlow = true, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess, chatLabel = 'Trade Desk' }) {
   const { t, isNight } = useTheme();
   const { bgColor } = useBrandContent();
   const [lightbox, setLightbox] = useState(null);
@@ -581,7 +581,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
       </div>
 
       {/* Sticky submit */}
-      {interests.length > 0 && (
+      {enableQuoteFlow && interests.length > 0 && (
         <div style={{
           position: 'fixed',
           left: 0,

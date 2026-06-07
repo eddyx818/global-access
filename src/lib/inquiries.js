@@ -40,3 +40,17 @@ export async function fetchRecentInquiries(limit = 50) {
     .limit(limit);
   return data || [];
 }
+
+/** interests column may be JSONB or a legacy JSON string */
+export function parseInquiryInterests(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  }
+  return [];
+}
