@@ -47,17 +47,25 @@ export function setAppBadgeCount(count) {
   } catch (_) {}
 }
 
-export function showMessageNotification({ title, body, conversationId, onClick }) {
+export async function showMessageNotification({ title, body, conversationId, onClick }) {
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return null;
 
+  const options = {
+    body: body?.slice(0, 180) || 'New message',
+    icon: '/icon.svg',
+    badge: '/icon.svg',
+    tag: conversationId ? `ga-chat-${conversationId}` : 'ga-chat',
+    renotify: true,
+    data: { conversationId, url: '/' },
+  };
+
   try {
-    const n = new Notification(title, {
-      body: body?.slice(0, 180) || 'New message',
-      icon: '/icon.svg',
-      badge: '/icon.svg',
-      tag: conversationId ? `ga-chat-${conversationId}` : 'ga-chat',
-      renotify: true,
-    });
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification(title, options);
+      return true;
+    }
+    const n = new Notification(title, options);
     n.onclick = () => {
       window.focus();
       n.close();
@@ -72,12 +80,13 @@ export function showMessageNotification({ title, body, conversationId, onClick }
 export function alertIncomingMessage({ title, body, conversationId, onClick, chatFocused = false }) {
   const prefs = getNotificationPrefs();
   const hidden = document.hidden;
+  const shouldAlert = hidden || !chatFocused;
 
-  if (!chatFocused) {
+  if (shouldAlert) {
     if (prefs.sound) playMessageSound();
     if (prefs.vibrate) vibrateDevice();
   }
-  if (prefs.notifications && (hidden || !chatFocused)) {
+  if (prefs.notifications && shouldAlert) {
     showMessageNotification({ title, body, conversationId, onClick });
   }
 }

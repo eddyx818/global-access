@@ -6,6 +6,7 @@ import {
   getCustomerParticipantId, confirmConversationContact, redactProfileContacts,
 } from '../../lib/community';
 import { getNotificationPrefs, requestNotificationPermission } from '../../lib/notificationPrefs';
+import { subscribeToPushNotifications } from '../../lib/pushNotifications';
 import { supabase } from '../../lib/supabase';
 import ConversationList from './ConversationList';
 import MessageThread from './MessageThread';
@@ -66,12 +67,15 @@ export default function ChatSidebar({
   }, [user?.id, isAdmin, onUnreadChange]);
 
   useEffect(() => {
-    if ((open || isPage) && user?.id) {
-      refresh();
-      const prefs = getNotificationPrefs();
-      if (prefs.notifications && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-        requestNotificationPermission();
-      }
+    if (!(open || isPage) || !user?.id) return;
+    refresh();
+    const prefs = getNotificationPrefs();
+    if (prefs.notifications && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      requestNotificationPermission().then((perm) => {
+        if (perm === 'granted') subscribeToPushNotifications(user.id);
+      });
+    } else if (Notification.permission === 'granted') {
+      subscribeToPushNotifications(user.id);
     }
   }, [open, isPage, user?.id, refresh]);
 

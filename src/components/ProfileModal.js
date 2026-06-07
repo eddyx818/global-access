@@ -8,6 +8,7 @@ import {
   requestNotificationPermission,
 } from '../lib/notificationPrefs';
 import { playMessageSound, vibrateDevice } from '../lib/messageAlerts';
+import { subscribeToPushNotifications, isPushSupported } from '../lib/pushNotifications';
 
 export default function ProfileModal({ user, form, setForm, userType, setUserType, onClose, isMobile = false, pwa = {} }) {
   const [saving, setSaving] = useState(false);
@@ -53,7 +54,10 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
   const enablePush = async () => {
     const result = await requestNotificationPermission();
     setNotifyPerm(result);
-    if (result === 'granted') toggleNotify('notifications', true);
+    if (result === 'granted') {
+      toggleNotify('notifications', true);
+      await subscribeToPushNotifications(user?.id);
+    }
   };
 
   const testAlert = () => {
@@ -194,6 +198,16 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
               style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8 }}>
               Allow notifications
             </button>
+          )}
+          {notifyPerm === 'granted' && isPushSupported() && (
+            <div style={{ fontSize: 11, color: '#2D7A50', marginBottom: 8 }}>
+              Push enabled — you will get banners when the app is in the background.
+            </div>
+          )}
+          {notifyPerm === 'granted' && !isPushSupported() && (
+            <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
+              In-app alerts work here. For background banners on iPhone, install the app from Safari and allow notifications.
+            </div>
           )}
           {notifyPerm === 'denied' && (
             <div style={{ fontSize: 11, color: '#C53030', marginBottom: 8 }}>Notifications blocked in browser settings.</div>

@@ -1,4 +1,4 @@
-const CACHE = 'global-access-v2';
+const CACHE = 'global-access-v3';
 const PRECACHE = ['/', '/index.html', '/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -30,6 +30,42 @@ self.addEventListener('fetch', (event) => {
         }
         return res;
       }).catch(() => caches.match('/index.html'));
+    })
+  );
+});
+
+self.addEventListener('push', (event) => {
+  let data = { title: 'Global Access', body: 'New message', url: '/' };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch (_) {}
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Global Access', {
+      body: data.body || 'New message',
+      icon: '/icon.svg',
+      badge: '/icon.svg',
+      tag: data.conversationId ? `ga-chat-${data.conversationId}` : 'ga-chat',
+      renotify: true,
+      data: { url: data.url || '/', conversationId: data.conversationId || null },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ('focus' in client) {
+          client.postMessage({ type: 'OPEN_CHAT', conversationId: event.notification.data?.conversationId });
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+      return undefined;
     })
   );
 });

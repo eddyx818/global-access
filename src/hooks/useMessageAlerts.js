@@ -22,11 +22,8 @@ export function useMessageAlerts({
   isAdmin = false,
   enabled = true,
   unread = 0,
-  chatActive = false,
   onOpenChat,
 }) {
-  const chatActiveRef = useRef(chatActive);
-  chatActiveRef.current = chatActive;
   const onOpenChatRef = useRef(onOpenChat);
   onOpenChatRef.current = onOpenChat;
 
@@ -63,7 +60,7 @@ export function useMessageAlerts({
             body: msg.content,
             conversationId: msg.conversation_id,
             onClick: () => onOpenChatRef.current?.(),
-            chatFocused: chatActiveRef.current && !document.hidden,
+            chatFocused: false,
           });
           return;
         }
@@ -71,15 +68,16 @@ export function useMessageAlerts({
         if (msg.to_user_id && msg.to_user_id !== userId) return;
 
         const sender = await getSenderProfile(msg.from_user_id);
-        if (sender?.is_portal_admin || sender?.role === 'admin') {
-          alertIncomingMessage({
-            title: 'Reply from Global Access',
-            body: msg.content,
-            conversationId: msg.conversation_id,
-            onClick: () => onOpenChatRef.current?.(),
-            chatFocused: chatActiveRef.current && !document.hidden,
-          });
-        }
+        const fromStaff = sender?.is_portal_admin || sender?.role === 'admin';
+        if (!fromStaff) return;
+
+        alertIncomingMessage({
+          title: 'Reply from Global Access',
+          body: msg.content,
+          conversationId: msg.conversation_id,
+          onClick: () => onOpenChatRef.current?.(),
+          chatFocused: false,
+        });
       })
       .subscribe();
 

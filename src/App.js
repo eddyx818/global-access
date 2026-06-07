@@ -17,6 +17,8 @@ import InstallAppBanner from './components/InstallAppBanner';
 import { useUnreadCount } from './hooks/useUnreadCount';
 import { useMessageAlerts } from './hooks/useMessageAlerts';
 import { usePwaInstall } from './hooks/usePwaInstall';
+import { getNotificationPermission } from './lib/notificationPrefs';
+import { subscribeToPushNotifications } from './lib/pushNotifications';
 
 export default function App() {
   const [authState, setAuthState] = useState('loading');
@@ -76,7 +78,6 @@ export default function App() {
     isAdmin: isPortalAdmin,
     enabled: !!user?.id && inPortalView,
     unread: chatUnread,
-    chatActive,
     onOpenChat: openChat,
   });
 
@@ -90,6 +91,22 @@ export default function App() {
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMessage = (event) => {
+      if (event.data?.type === 'OPEN_CHAT') openChat();
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id || !inPortalView || !isMobileDevice) return;
+    if (getNotificationPermission() !== 'granted') return;
+    subscribeToPushNotifications(user.id);
+  }, [user?.id, inPortalView, isMobileDevice]);
 
   // Handle direct hash URL links (e.g. globalaccess.shop/#goldwhip)
   useEffect(() => {
