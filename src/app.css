@@ -207,6 +207,27 @@ html.app-native body {
   min-height: 0;
 }
 
+.portal-home-view--active {
+  animation: portalViewIn 0.26s ease-out;
+}
+
+@keyframes portalViewIn {
+  from {
+    opacity: 0.92;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-home-view--active {
+    animation: none;
+  }
+}
+
 .app-safe-top-chrome {
   flex-shrink: 0;
   padding-left: max(1rem, var(--ga-inset-left));
@@ -616,6 +637,7 @@ html.app-native [contenteditable='true'] {
 html.app-native .hero-carousel,
 html.app-native .brand-card {
   -webkit-touch-callout: none;
+  touch-action: pan-y;
 }
 
 html.app-native .brand-card--reorder {

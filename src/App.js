@@ -45,6 +45,7 @@ export default function App() {
   const { t, isNight } = useTheme();
   const canResumeNavRef = useRef(isSessionResumable());
   const homeScrollRef = useRef(0);
+  const mainContentRef = useRef(null);
   const [authState, setAuthState] = useState('loading');
   const [adminMode, setAdminMode] = useState('dashboard');
   const [repMode, setRepMode] = useState('dashboard');
@@ -153,7 +154,13 @@ export default function App() {
   const navigateHome = () => {
     setShowProfile(false);
     setProfileGate(null);
-    goHome();
+    setActiveBrand(null);
+    setView('home');
+    window.history.replaceState({ view: 'home' }, '', window.location.pathname);
+    requestAnimationFrame(() => {
+      const el = mainContentRef.current;
+      if (el) el.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   };
 
   const navigateList = () => {
@@ -588,7 +595,7 @@ export default function App() {
   }, []);
 
   const goToBrand = (brandId) => {
-    const scrollEl = document.querySelector('.app-main-content');
+    const scrollEl = mainContentRef.current;
     if (scrollEl) homeScrollRef.current = scrollEl.scrollTop;
     trackEvent('click', 'home', { element: `brand_card:${brandId}`, user_id: user?.id });
     window.history.pushState({ view: 'brand', brandId }, '', `#${brandId}`);
@@ -601,8 +608,8 @@ export default function App() {
     setView('home');
     setActiveBrand(null);
     requestAnimationFrame(() => {
-      const scrollEl = document.querySelector('.app-main-content');
-      if (scrollEl) scrollEl.scrollTop = homeScrollRef.current;
+      const scrollEl = mainContentRef.current;
+      if (scrollEl) scrollEl.scrollTo({ top: homeScrollRef.current, behavior: 'auto' });
     });
   };
 
@@ -880,7 +887,7 @@ export default function App() {
         />
       )}
 
-      <div className="app-main-content" style={{ ...mobileContentPad, flex: mobileShell ? 1 : undefined, display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: mobileShell ? 0 : undefined }}>
+      <div ref={mainContentRef} className="app-main-content" style={{ ...mobileContentPad, flex: mobileShell ? 1 : undefined, display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: mobileShell ? 0 : undefined }}>
 
       {/* Signup prompt overlay */}
       {showSignupPrompt && (
@@ -909,16 +916,23 @@ export default function App() {
         </div>
       )}
 
-      {view === 'home' && (
-        <HomeView
-          onBrandClick={goToBrand}
-          isMobile={isMobile}
-          userId={user?.id}
-          userType={userType}
-          masterPricingQualified={masterPricingQualified}
-          isStaff={showStaffTools}
-          chatLabel={chatLabel}
-        />
+      {(showMobileNav || view === 'home') && (
+        <div
+          className={`portal-home-view${view === 'home' ? ' portal-home-view--active' : ''}`}
+          style={{ display: view === 'home' ? 'block' : 'none' }}
+          aria-hidden={view !== 'home'}
+        >
+          <HomeView
+            visible={view === 'home'}
+            onBrandClick={goToBrand}
+            isMobile={isMobile}
+            userId={user?.id}
+            userType={userType}
+            masterPricingQualified={masterPricingQualified}
+            isStaff={showStaffTools}
+            chatLabel={chatLabel}
+          />
+        </div>
       )}
       {view === 'chat' && mobileShell && user && (
         <div style={mobilePageShellStyle}>

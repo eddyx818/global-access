@@ -1,18 +1,39 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useBrandContent } from '../lib/content';
 import { applyBrandOrder, saveUserBrandOrder } from '../lib/userBrandOrder';
 
 import MasterPricingNotice from './MasterPricingNotice';
 import { useTheme } from '../context/ThemeContext';
 
-export default function HomeView({ onBrandClick, isMobile, userId, userType, masterPricingQualified, isStaff = false, chatLabel = 'Trade Desk' }) {
+const heroSlideKey = (userId) => `ga-hero-slide-${userId || 'guest'}`;
+
+function readStoredHeroSlide(userId, len) {
+  if (!len) return 0;
+  try {
+    const n = parseInt(sessionStorage.getItem(heroSlideKey(userId)), 10);
+    if (Number.isFinite(n) && n >= 0 && n < len) return n;
+  } catch (_) {}
+  return 0;
+}
+
+export default function HomeView({
+  onBrandClick,
+  isMobile,
+  userId,
+  userType,
+  masterPricingQualified,
+  isStaff = false,
+  chatLabel = 'Trade Desk',
+  visible = true,
+}) {
   const { t, isNight } = useTheme();
   const [slideIdx, setSlideIdx] = useState(0);
-  const [galleryIdx, setGalleryIdx] = useState(0); // cycles hero bg image
+  const [galleryIdx, setGalleryIdx] = useState(0);
   const [animating, setAnimating] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [cardTilts, setCardTilts] = useState({});
-  const [brandOrder, setBrandOrder] = useState(null);
+  const [customOrder, setCustomOrder] = useState(null);
+  const [heroTransitions, setHeroTransitions] = useState(false);
   const [reorderMode, setReorderMode] = useState(false);
   const [swapSourceIdx, setSwapSourceIdx] = useState(null);
   const [arrowPressed, setArrowPressed] = useState(null);
@@ -22,34 +43,72 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
   const heroTouchRef = useRef({ startX: 0, startY: 0, startTime: 0, moved: false, suppressTap: false });
   const brandPressRef = useRef({ startTime: 0, longPressFired: false, idx: null });
   const longPressTimer = useRef(null);
+  const slideHydratedRef = useRef(false);
   const preloadedHeroImages = useRef(new Set());
   const { getMergedBrands, loading, heroConfig } = useBrandContent();
   const allBrands = getMergedBrands();
 
-  // Per-user brand order (saved on this device)
-  useEffect(() => {
-    if (loading) return;
-    setBrandOrder(applyBrandOrder(allBrands, userId));
-  }, [loading, userId, allBrands.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  const brands = useMemo(() => {
+    if (loading || !allBrands.length) return [];
+    return customOrder ?? applyBrandOrder(allBrands, userId);
+  }, [loading, customOrder, allBrands, userId]);
 
-  const brands = brandOrder || allBrands;
   const heroBg = heroConfig.background_color || '#0D0D0D';
 
   useEffect(() => {
-    if (!brands.length) return undefined;
+    setCustomOrder(null);
+    slideHydratedRef.current = false;
+  }, [userId]);
+
+  useEffect(() => {
+    if (!brands.length || slideHydratedRef.current) return;
+    slideHydratedRef.current = true;
+    setSlideIdx(readStoredHeroSlide(userId, brands.length));
+  }, [brands.length, userId]);
+
+  useEffect(() => {
+    if (!brands.length) return;
+    try {
+      sessionStorage.setItem(heroSlideKey(userId), String(slideIdx));
+    } catch (_) {}
+  }, [slideIdx, brands.length, userId]);
+
+  useEffect(() => {
+    if (!visible) {
+      setHeroTransitions(false);
+      return undefined;
+    }
+    let innerId = 0;
+    const outerId = requestAnimationFrame(() => {
+      innerId = requestAnimationFrame(() => setHeroTransitions(true));
+    });
+    return () => {
+      cancelAnimationFrame(outerId);
+      cancelAnimationFrame(innerId);
+    };
+  }, [visible]);
+
+  useEffect(() => {
+    if (!visible || !brands.length) {
+      clearInterval(autoTimer.current);
+      return undefined;
+    }
     autoTimer.current = setInterval(() => setSlideIdx(i => (i + 1) % brands.length), 4500);
     return () => clearInterval(autoTimer.current);
-  }, [brands.length]);
+  }, [brands.length, visible]);
 
-  // Cycle hero background image for current brand every 2.5s
   useEffect(() => {
-    setGalleryIdx(0); // reset when brand changes
+    if (!visible) {
+      clearInterval(galleryTimer.current);
+      return undefined;
+    }
+    setGalleryIdx(0);
     const gallery = brands[slideIdx]?.gallery || [];
-    if (gallery.length <= 1) return;
+    if (gallery.length <= 1) return undefined;
     galleryTimer.current = setInterval(() => setGalleryIdx(i => (i + 1) % gallery.length), 2500);
     return () => clearInterval(galleryTimer.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slideIdx]);
+  }, [slideIdx, visible]);
 
   // Preload hero gallery images for the active brand (avoids pop-in on 2nd+ photo)
   useEffect(() => {
@@ -86,10 +145,38 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
     }
   };
 
-  const TAP_MAX_MS = 380;
-  const LONG_PRESS_MS = 520;
+  const TAP_MAX_MS = 280;
+  const TAP_MAX_MOVE_PX = 14;
+  const LONG_PRESS_MS = 3000;
   const SWIPE_MIN_PX = 44;
   const DRAG_START_PX = 12;
+
+  const resetBrandPress = () => {
+    brandPressRef.current = {
+      idx: null,
+      startTime: 0,
+      startX: 0,
+      startY: 0,
+      lastX: 0,
+      lastY: 0,
+      moved: false,
+      longPressFired: false,
+    };
+  };
+
+  const markBrandPressMoved = () => {
+    brandPressRef.current.moved = true;
+    clearLongPress();
+  };
+
+  const isDeliberateTap = (st) => {
+    if (st.moved) return false;
+    const elapsed = Date.now() - st.startTime;
+    if (elapsed > TAP_MAX_MS) return false;
+    const dx = st.lastX - st.startX;
+    const dy = st.lastY - st.startY;
+    return Math.hypot(dx, dy) <= TAP_MAX_MOVE_PX;
+  };
 
   const clearLongPress = () => {
     if (longPressTimer.current) {
@@ -102,7 +189,7 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
     setReorderMode(false);
     setSwapSourceIdx(null);
     clearLongPress();
-    brandPressRef.current = { startTime: 0, longPressFired: false, idx: null };
+    resetBrandPress();
   };
 
   const enterReorderMode = (idx = null) => {
@@ -124,10 +211,12 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
 
   const handleHeroTouchStart = (e) => {
     if (!isMobile || e.touches.length !== 1) return;
-    const t = e.touches[0];
+    const touch = e.touches[0];
     heroTouchRef.current = {
-      startX: t.clientX,
-      startY: t.clientY,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      lastX: touch.clientX,
+      lastY: touch.clientY,
       startTime: Date.now(),
       moved: false,
       suppressTap: false,
@@ -136,11 +225,16 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
 
   const handleHeroTouchMove = (e) => {
     if (!isMobile || e.touches.length !== 1) return;
-    const t = e.touches[0];
+    const touch = e.touches[0];
     const st = heroTouchRef.current;
-    const dx = t.clientX - st.startX;
-    const dy = t.clientY - st.startY;
-    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) st.moved = true;
+    st.lastX = touch.clientX;
+    st.lastY = touch.clientY;
+    const dx = touch.clientX - st.startX;
+    const dy = touch.clientY - st.startY;
+    if (Math.abs(dx) > TAP_MAX_MOVE_PX || Math.abs(dy) > TAP_MAX_MOVE_PX) {
+      st.moved = true;
+    }
+    // Horizontal swipe on hero carousel — keep page from scrolling sideways
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > DRAG_START_PX) {
       e.preventDefault();
     }
@@ -149,9 +243,11 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
   const handleHeroTouchEnd = (e) => {
     if (!isMobile) return;
     const st = heroTouchRef.current;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - st.startX;
-    const dy = t.clientY - st.startY;
+    const touch = e.changedTouches[0];
+    st.lastX = touch.clientX;
+    st.lastY = touch.clientY;
+    const dx = touch.clientX - st.startX;
+    const dy = touch.clientY - st.startY;
     const elapsed = Date.now() - st.startTime;
 
     if (Math.abs(dx) >= SWIPE_MIN_PX && Math.abs(dx) > Math.abs(dy)) {
@@ -162,7 +258,10 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
       return;
     }
 
-    if (!st.moved && !st.suppressTap && elapsed < TAP_MAX_MS) {
+    // Vertical scroll or any drag — never open a brand from the hero
+    if (Math.abs(dy) > TAP_MAX_MOVE_PX && Math.abs(dy) >= Math.abs(dx)) return;
+    if (st.moved || st.suppressTap) return;
+    if (isDeliberateTap(st)) {
       onBrandClick(brands[slideIdx]?.id);
     }
   };
@@ -200,7 +299,7 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
     const newOrder = [...brands];
     const [moved] = newOrder.splice(fromIdx, 1);
     newOrder.splice(toIdx, 0, moved);
-    setBrandOrder(newOrder);
+    setCustomOrder(newOrder);
     saveUserBrandOrder(userId, newOrder.map(b => b.id));
   };
 
@@ -217,33 +316,65 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
     setSwapSourceIdx(null);
   };
 
-  const handleBrandPressStart = (idx) => {
-    brandPressRef.current = { startTime: Date.now(), longPressFired: false, idx };
+  const handleBrandPressStart = (e, idx) => {
+    if (!isMobile) return;
+    const touch = e.touches[0];
+    brandPressRef.current = {
+      idx,
+      startTime: Date.now(),
+      startX: touch.clientX,
+      startY: touch.clientY,
+      lastX: touch.clientX,
+      lastY: touch.clientY,
+      moved: false,
+      longPressFired: false,
+    };
     if (reorderMode) return;
     clearLongPress();
     longPressTimer.current = window.setTimeout(() => {
+      if (brandPressRef.current.moved || brandPressRef.current.idx !== idx) return;
       brandPressRef.current.longPressFired = true;
       enterReorderMode(idx);
     }, LONG_PRESS_MS);
   };
 
+  const handleBrandTouchMove = (e, idx) => {
+    if (!isMobile || brandPressRef.current.idx !== idx) return;
+    const touch = e.touches[0];
+    const st = brandPressRef.current;
+    st.lastX = touch.clientX;
+    st.lastY = touch.clientY;
+    const dx = touch.clientX - st.startX;
+    const dy = touch.clientY - st.startY;
+    if (Math.abs(dx) > TAP_MAX_MOVE_PX || Math.abs(dy) > TAP_MAX_MOVE_PX) {
+      markBrandPressMoved();
+    }
+  };
+
   const handleBrandPressEnd = (idx, brandId) => {
+    if (!isMobile) return;
     const st = brandPressRef.current;
     clearLongPress();
-    const elapsed = Date.now() - st.startTime;
+    if (st.idx !== idx) return;
 
     if (st.longPressFired) {
-      brandPressRef.current = { startTime: 0, longPressFired: false, idx: null };
+      resetBrandPress();
+      return;
+    }
+
+    if (st.moved || !isDeliberateTap(st)) {
+      resetBrandPress();
       return;
     }
 
     if (reorderMode) {
       handleBrandSwapTap(idx);
+      resetBrandPress();
       return;
     }
 
-    if (elapsed <= TAP_MAX_MS) onBrandClick(brandId);
-    brandPressRef.current = { startTime: 0, longPressFired: false, idx: null };
+    onBrandClick(brandId);
+    resetBrandPress();
   };
 
   const handleBrandCardClick = (e, idx, brandId) => {
@@ -302,6 +433,7 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
           -webkit-user-select: none;
           user-select: none;
           -webkit-touch-callout: none;
+          touch-action: pan-y;
         }
         .brand-card--dragging {
           opacity: 0.45;
@@ -325,9 +457,11 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
         }
         .hero-slide-copy--active {
           opacity: 1;
+          visibility: visible;
         }
         .hero-slide-copy--inactive {
           opacity: 0;
+          visibility: hidden;
           pointer-events: none;
         }
       `}</style>
@@ -353,7 +487,18 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
         }}
       >
         {brands.map((brand, i) => (
-          <div key={brand.id} style={{ position: 'absolute', inset: 0, transition: 'opacity 0.7s ease', opacity: i === slideIdx ? 1 : 0, pointerEvents: 'none' }}>
+          <div
+            key={brand.id}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: i === slideIdx ? 2 : 0,
+              transition: heroTransitions ? 'opacity 0.7s ease' : 'none',
+              opacity: i === slideIdx ? 1 : 0,
+              visibility: i === slideIdx ? 'visible' : 'hidden',
+              pointerEvents: 'none',
+            }}
+          >
             <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 60%, ${brand.color}65 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, ${brand.color}30 0%, transparent 50%), ${heroBg}` }} />
             {brand.gallery && brand.gallery.length > 0 && (
               <div
@@ -439,7 +584,9 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
                 cursor: isMobile ? 'default' : 'pointer',
                 pointerEvents: isActive ? (isMobile ? 'none' : 'auto') : 'none',
                 transform: isActive ? `perspective(800px) rotateY(${mousePos.x * 0.03}deg) rotateX(${-mousePos.y * 0.03}deg)` : 'none',
-                transition: 'transform 0.35s ease-out',
+                transition: heroTransitions
+                  ? 'opacity 0.85s ease-in-out, transform 0.35s ease-out'
+                  : 'transform 0.35s ease-out',
               }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: 520, gap: 14 }}>
@@ -569,7 +716,7 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
             <div style={{ fontSize: 11, color: t.textDisabled }}>
               {reorderMode
                 ? (swapSourceIdx != null ? 'Tap another brand to swap' : 'Tap a brand, then tap where to move it')
-                : (isMobile ? 'Tap to open · hold to reorder' : `${brands.length} brands · hold or Reorder`)}
+                : (isMobile ? 'Tap to open · hold 3 sec to reorder' : `${brands.length} brands · Reorder to arrange`)}
             </div>
           </div>
         </div>
@@ -602,9 +749,10 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
                     else if (!isMobile) onBrandClick(brand.id);
                   }
                 }}
-                onTouchStart={() => isMobile && handleBrandPressStart(idx)}
+                onTouchStart={(e) => isMobile && handleBrandPressStart(e, idx)}
+                onTouchMove={(e) => isMobile && handleBrandTouchMove(e, idx)}
                 onTouchEnd={() => isMobile && handleBrandPressEnd(idx, brand.id)}
-                onTouchCancel={clearLongPress}
+                onTouchCancel={() => { clearLongPress(); resetBrandPress(); }}
                 onMouseMove={(e) => !reorderMode && handleCardMouseMove(e, brand.id)}
                 onMouseLeave={() => { clearLongPress(); handleCardMouseLeave(brand.id); }}
                 style={{
