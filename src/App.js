@@ -67,7 +67,9 @@ export default function App() {
         await updateUserPresence(session.user.id, 'online');
       } else {
         const verified = await isPortalCodeVerified();
-        setAuthState(verified ? 'browse' : 'gate');
+        const wantsAdmin = new URLSearchParams(window.location.search).get('admin') === '1'
+          || window.location.hash === '#admin';
+        setAuthState(wantsAdmin ? 'login' : (verified ? 'browse' : 'gate'));
       }
     };
     init();
@@ -167,9 +169,44 @@ export default function App() {
     await supabase.auth.signOut();
     await clearPortalSession();
     setUser(null);
+    setIsPortalAdmin(false);
     setAuthState('gate');
     setInterests([]);
     setAdminMode('dashboard');
+  };
+
+  const handleLoggedIn = async (sessionUser) => {
+    const isAdmin = await resolvePortalAdmin(sessionUser);
+    setUser(sessionUser);
+    setIsPortalAdmin(isAdmin);
+    setAuthState(isAdmin ? 'admin' : 'portal');
+    if (isAdmin) {
+      setAdminMode('dashboard');
+      setForm(f => ({
+        ...f,
+        name: f.name || 'Global Access',
+        company: f.company || 'Global Access',
+        email: sessionUser.email,
+      }));
+      await ensurePortalAdminFlag(sessionUser.id, sessionUser.email);
+    }
+    try {
+      const { data: profile } = await supabase.from('user_profiles')
+        .select('user_type, name, company, phone, username, bio, profile_avatar_url')
+        .eq('user_id', sessionUser.id)
+        .single();
+      if (profile?.user_type) setUserType(profile.user_type);
+      if (profile?.name) {
+        setForm(f => ({
+          ...f,
+          name: profile.name,
+          company: profile.company || f.company,
+          phone: profile.phone || f.phone,
+        }));
+      }
+    } catch (_) {}
+    await linkPortalSessionToUser(sessionUser.id);
+    await updateUserPresence(sessionUser.id, 'online');
   };
 
   const handleSubmitAttempt = () => {
@@ -222,8 +259,24 @@ export default function App() {
     </div>
   );
 
-  if (authState === 'gate') return <LoginScreen showLogin={false} onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }} onLoggedIn={(u) => { setUser(u); setAuthState('portal'); }} onRequestAccess={handleRequestAccess} />;
-  if (authState === 'login') return <LoginScreen showLogin={true} onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }} onLoggedIn={(u) => { setUser(u); setAuthState('portal'); }} onRequestAccess={handleRequestAccess} />;
+  if (authState === 'gate') return (
+    <LoginScreen
+      showLogin={false}
+      onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }}
+      onLoggedIn={handleLoggedIn}
+      onAdminEntry={() => setAuthState('login')}
+      onRequestAccess={handleRequestAccess}
+    />
+  );
+  if (authState === 'login') return (
+    <LoginScreen
+      showLogin={true}
+      onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }}
+      onLoggedIn={handleLoggedIn}
+      onAdminEntry={() => setAuthState('login')}
+      onRequestAccess={handleRequestAccess}
+    />
+  );
   if (authState === 'admin' && adminMode === 'dashboard') return <AdminDashboard user={user} onLogout={handleLogout} onViewPortal={() => setAdminMode('portal')} />;
 
   return (

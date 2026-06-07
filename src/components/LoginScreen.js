@@ -7,7 +7,7 @@ const STORE_TYPES = {
   distributor: ['Regional Distributor', 'National Distributor', 'Wholesale', 'Broker', 'Other'],
 };
  
-export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAccess, showLogin }) {
+export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAccess, onAdminEntry, showLogin }) {
   const [mode, setMode] = useState(showLogin ? 'login' : 'gate');
   const [code, setCode] = useState('');
   const [email, setEmail] = useState('');
@@ -27,7 +27,28 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
   const labelStyle = { fontSize: 11, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 };
   const btnPrimary = { width: '100%', background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '13px', fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', cursor: 'pointer', fontFamily: 'inherit', marginBottom: '1rem' };
+  const btnAdmin = {
+    width: '100%',
+    background: 'rgba(201,168,76,0.12)',
+    color: '#A07A20',
+    border: '0.5px solid rgba(201,168,76,0.45)',
+    borderRadius: 8,
+    padding: '12px',
+    fontSize: 12,
+    fontWeight: 600,
+    letterSpacing: '0.06em',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    marginTop: '0.75rem',
+  };
+
   const btnLink = { background: 'none', border: 'none', fontSize: 12, color: '#AAA', cursor: 'pointer', padding: 0, fontFamily: 'inherit' };
+
+  const goAdminLogin = () => {
+    onAdminEntry?.();
+    setMode('login');
+    setError('');
+  };
  
   const handleCode = () => {
     if (code.trim().toLowerCase() === ACCESS_CODE.toLowerCase()) {
@@ -134,6 +155,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
               <button onClick={() => setMode('login')} style={{ ...btnPrimary, background: '#FFF', color: '#1A1A1A', border: '0.5px solid #E0DDD8' }}>Sign In with Account</button>
               <div style={{ textAlign: 'center', marginTop: 8 }}><button onClick={() => setMode('register')} style={btnLink}>Create an account</button></div>
               <div style={{ textAlign: 'center' }}><button onClick={() => setMode('request')} style={btnLink}>Don't have access? Request it</button></div>
+              <button type="button" onClick={goAdminLogin} style={btnAdmin}>Admin Dashboard →</button>
             </>
           )}
  
@@ -160,6 +182,9 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                 <button onClick={() => setMode('reset')} style={btnLink}>Forgot password?</button>
                 <button onClick={() => setMode('request')} style={btnLink}>Request access</button>
               </div>
+              <button type="button" onClick={goAdminLogin} style={{ ...btnAdmin, marginTop: '1rem' }}>
+                Admin Dashboard →
+              </button>
             </>
           )}
  

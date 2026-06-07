@@ -56,7 +56,71 @@ ${EXTENDED_PROMPT}
 
 Brands available: ${BRANDS.map(b => `${b.id} (${b.name})`).join(', ')}
 
-Always be helpful, professional, and confirm before making changes (except query_database and check_system which run immediately). If the user's request is unclear, ask for clarification.`;
+Always be helpful, professional, and confirm before making changes (except query_database and check_system which run immediately). If the user's request is unclear, ask for clarification.
+
+RESPONSE RULES (critical):
+- Output ONLY one raw JSON object. No markdown code fences. No text before or after the JSON.
+- The "message" field must be plain, readable English for the admin (short paragraphs, bullets with •). Never put JSON inside "message".
+- For questions with no site change, set "action": null and put the full answer in "message".
+- You CANNOT access GitHub, edit source code, or create pull requests. You manage live site content via actions only. For code changes, tell the admin to use Cursor IDE (or paste fixes you suggest as plain instructions in "message").
+- Do NOT invent GitHub bot accounts, PAT tokens, or repo setup unless building a real integrated feature.`;
+
+function parseAgentResponse(rawText) {
+  const text = (rawText || '').trim();
+  if (!text) return { message: "I didn't get a response. Please try again.", action: null };
+
+  let cleaned = text
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/i, '')
+    .trim();
+
+  const tryParse = (str) => {
+    try {
+      return JSON.parse(str);
+    } catch {
+      return null;
+    }
+  };
+
+  let parsed = tryParse(cleaned);
+  if (!parsed) {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) parsed = tryParse(match[0]);
+  }
+
+  if (parsed && typeof parsed === 'object') {
+    const action = parsed.action === 'null' || parsed.action === null || parsed.action === undefined
+      ? null
+      : parsed.action;
+    let message = typeof parsed.message === 'string' ? parsed.message.trim() : '';
+    if (!message) {
+      message = action
+        ? 'I can make that change — please review the preview and confirm.'
+        : 'How can I help you next?';
+    }
+    return { message, action, preview: parsed.preview, data: parsed.data };
+  }
+
+  if (cleaned.startsWith('{') && cleaned.includes('"message"')) {
+    const msgMatch = cleaned.match(/"message"\s*:\s*"((?:\\.|[^"\\])*)"/s);
+    if (msgMatch) {
+      const unescaped = msgMatch[1]
+        .replace(/\\n/g, '\n')
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\');
+      return { message: unescaped, action: null };
+    }
+  }
+
+  if (cleaned.startsWith('{')) {
+    return {
+      message: 'I had trouble formatting that reply. Please ask again, or use Cursor for code and deployment questions.',
+      action: null,
+    };
+  }
+
+  return { message: cleaned, action: null };
+}
 
 const IMMEDIATE_ACTIONS = ['query_database', 'check_system'];
 const ANALYSIS_ACTIONS = ['analyze_image', 'parse_document'];
@@ -241,12 +305,7 @@ export default function AdminAgent() {
       if (!res.ok) throw new Error(data.error || 'Assistant request failed');
 
       const rawText = data.content?.[0]?.text || '{}';
-      let parsed;
-      try {
-        parsed = JSON.parse(rawText.replace(/```json|```/g, '').trim());
-      } catch {
-        parsed = { message: rawText, action: null };
-      }
+      const parsed = parseAgentResponse(rawText);
 
       addMessage('assistant', parsed.message);
 
@@ -257,7 +316,10 @@ export default function AdminAgent() {
 
       if (IMMEDIATE_ACTIONS.includes(parsed.action)) {
         const result = await executeExtendedAction(parsed.action, parsed.data || {});
-        addMessage('assistant', `\`\`\`\n${JSON.stringify(result, null, 2)}\n\`\`\``);
+        const summary = typeof result === 'object'
+          ? Object.entries(result).map(([k, v]) => `${k}: ${v}`).join('\n')
+          : String(result);
+        addMessage('assistant', summary);
         setLoading(false);
         return;
       }
