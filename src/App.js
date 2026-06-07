@@ -12,6 +12,11 @@ import { InterestView, ThanksView } from './components/InterestView';
 import AdminDashboard from './components/AdminDashboard';
 import ProfileModal from './components/ProfileModal';
 import ChatSidebar from './components/messaging/ChatSidebar';
+import MobileBottomNav from './components/MobileBottomNav';
+import InstallAppBanner from './components/InstallAppBanner';
+import { useUnreadCount } from './hooks/useUnreadCount';
+import { useMessageAlerts } from './hooks/useMessageAlerts';
+import { usePwaInstall } from './hooks/usePwaInstall';
 
 export default function App() {
   const [authState, setAuthState] = useState('loading');
@@ -30,6 +35,41 @@ export default function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [isPortalAdmin, setIsPortalAdmin] = useState(false);
   const { getMergedBrands, bgColor, globalStyles, navigation } = useBrandContent();
+  const { unread: chatUnread, refresh: refreshUnread } = useUnreadCount(user?.id, {
+    isAdmin: isPortalAdmin,
+    enabled: !!user?.id,
+  });
+  const { canInstall, showIosHint, install } = usePwaInstall();
+
+  const inPortalView = authState === 'portal' || authState === 'browse' || (authState === 'admin' && adminMode === 'portal');
+  const showInstallBanner = inPortalView;
+  const showMobileNav = isMobile && user && inPortalView;
+  const chatLabel = isPortalAdmin ? 'Messages' : 'Support';
+
+  const openChat = () => {
+    if (isMobile) setView('chat');
+    else setChatOpen(true);
+  };
+
+  const closeChat = () => {
+    if (isMobile) setView(activeBrand ? 'brand' : 'home');
+    else setChatOpen(false);
+  };
+
+  const chatActive = (isMobile && view === 'chat') || chatOpen;
+
+  useMessageAlerts({
+    userId: user?.id,
+    isAdmin: isPortalAdmin,
+    enabled: !!user?.id && inPortalView,
+    unread: chatUnread,
+    chatActive,
+    onOpenChat: openChat,
+  });
+
+  const mobileContentPad = showMobileNav
+    ? { paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))' }
+    : {};
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -284,22 +324,28 @@ export default function App() {
   );
 
   if (authState === 'gate') return (
-    <LoginScreen
-      showLogin={false}
-      onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }}
-      onLoggedIn={handleLoggedIn}
-      onAdminEntry={() => setAuthState('login')}
-      onRequestAccess={handleRequestAccess}
-    />
+    <>
+      <InstallAppBanner canInstall={canInstall} showIosHint={showIosHint} onInstall={install} />
+      <LoginScreen
+        showLogin={false}
+        onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }}
+        onLoggedIn={handleLoggedIn}
+        onAdminEntry={() => setAuthState('login')}
+        onRequestAccess={handleRequestAccess}
+      />
+    </>
   );
   if (authState === 'login') return (
-    <LoginScreen
-      showLogin={true}
-      onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }}
-      onLoggedIn={handleLoggedIn}
-      onAdminEntry={() => setAuthState('login')}
-      onRequestAccess={handleRequestAccess}
-    />
+    <>
+      <InstallAppBanner canInstall={canInstall} showIosHint={showIosHint} onInstall={install} />
+      <LoginScreen
+        showLogin={true}
+        onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }}
+        onLoggedIn={handleLoggedIn}
+        onAdminEntry={() => setAuthState('login')}
+        onRequestAccess={handleRequestAccess}
+      />
+    </>
   );
   if (authState === 'admin' && adminMode === 'dashboard') return <AdminDashboard user={user} onLogout={handleLogout} onViewPortal={() => setAdminMode('portal')} />;
 
@@ -321,6 +367,15 @@ export default function App() {
         </div>
       )}
 
+      {/* Install app banner */}
+      {showInstallBanner && (
+        <InstallAppBanner
+          canInstall={canInstall}
+          showIosHint={showIosHint}
+          onInstall={install}
+        />
+      )}
+
       {/* Browse banner */}
       {authState === 'browse' && (
         <div style={{ background: '#FDF6E3', borderBottom: '0.5px solid #FCD34D', padding: '10px 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
@@ -332,9 +387,33 @@ export default function App() {
         </div>
       )}
 
-      <Nav interests={interests} view={view} setView={setView} onLogout={authState === 'browse' ? null : handleLogout} navigation={navigation} globalStyles={globalStyles} onNavClick={handleNavClick} onProfile={user ? () => setShowProfile(true) : null} onChat={user ? () => setChatOpen(true) : null} chatLabel={authState === 'admin' ? 'Messages' : 'Support'} />
-      {user && <ChatSidebar user={user} open={chatOpen} onClose={() => setChatOpen(false)} isAdmin={isPortalAdmin} />}
+      <Nav
+        interests={interests}
+        view={view}
+        setView={setView}
+        onLogout={authState === 'browse' ? null : handleLogout}
+        navigation={navigation}
+        globalStyles={globalStyles}
+        onNavClick={handleNavClick}
+        onProfile={user && !showMobileNav ? () => setShowProfile(true) : null}
+        onChat={user && !showMobileNav ? openChat : null}
+        chatLabel={chatLabel}
+        isMobile={isMobile}
+        hideMobileActions={showMobileNav}
+        unread={chatUnread}
+      />
+      {user && !isMobile && (
+        <ChatSidebar
+          user={user}
+          open={chatOpen}
+          onClose={() => setChatOpen(false)}
+          isAdmin={isPortalAdmin}
+          onUnreadChange={refreshUnread}
+        />
+      )}
       {showProfile && <ProfileModal user={user} form={form} setForm={setForm} userType={userType} setUserType={setUserType} onClose={() => setShowProfile(false)} />}
+
+      <div style={mobileContentPad}>
 
       {/* Signup prompt overlay */}
       {showSignupPrompt && (
@@ -370,6 +449,18 @@ export default function App() {
           onSetMasterPricingInterest={user?.id && userType === 'distributor' ? setMasterPricingInterestFlag : null}
         />
       )}
+      {view === 'chat' && isMobile && user && (
+        <div style={{ height: 'calc(100dvh - 48px - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))', minHeight: 320 }}>
+          <ChatSidebar
+            user={user}
+            open
+            variant="page"
+            onClose={closeChat}
+            isAdmin={isPortalAdmin}
+            onUnreadChange={refreshUnread}
+          />
+        </div>
+      )}
       {view === 'brand' && activeBrand && (
         <BrandView
           brand={getMergedBrands().find(b => b.id === activeBrand)}
@@ -400,7 +491,22 @@ export default function App() {
       {view === 'thanks' && (
         <ThanksView
           onBack={goHome}
-          onOpenSupport={user ? () => { setChatOpen(true); } : null}
+          onOpenSupport={user ? openChat : null}
+        />
+      )}
+      </div>
+
+      {showMobileNav && (
+        <MobileBottomNav
+          activeView={view}
+          onHome={goHome}
+          onList={() => setView('interest')}
+          onChat={openChat}
+          onProfile={() => setShowProfile(true)}
+          listCount={interests.length}
+          unread={chatUnread}
+          chatLabel={chatLabel}
+          showList
         />
       )}
     </div>

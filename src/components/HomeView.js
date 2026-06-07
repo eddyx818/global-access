@@ -71,7 +71,7 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
   };
 
   const handleHeroMouseMove = (e) => {
-    if (!heroRef.current) return;
+    if (isMobile || !heroRef.current) return;
     const rect = heroRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width - 0.5) * 16;
     const y = ((e.clientY - rect.top) / rect.height - 0.5) * 8;
@@ -80,6 +80,7 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
 
   // 3D card tilt
   const handleCardMouseMove = (e, brandId) => {
+    if (isMobile) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width - 0.5) * 24;
     const y = ((e.clientY - rect.top) / rect.height - 0.5) * 18;
@@ -209,11 +210,15 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
                   opacity: isDraggingThis ? 0.4 : 1,
                   animation: `cardEntrance 0.4s ease-out ${idx * 0.06}s both`,
                   // 3D transform
-                  transform: `perspective(600px) rotateY(${tilt.x * 0.6}deg) rotateX(${-tilt.y * 0.6}deg) translateZ(0) scale(${tilt.x !== 0 || tilt.y !== 0 ? 1.04 : 1})`,
-                  transition: 'transform 0.15s ease-out, box-shadow 0.2s ease, border-color 0.2s',
-                  boxShadow: tilt.x !== 0 || tilt.y !== 0
-                    ? `${-tilt.x * 0.5}px ${tilt.y * 0.5}px 32px rgba(0,0,0,0.15), 0 8px 24px ${brand.color}22, inset 0 1px 0 rgba(255,255,255,0.8)`
-                    : '0 4px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                  transform: isMobile
+                    ? 'none'
+                    : `perspective(600px) rotateY(${tilt.x * 0.6}deg) rotateX(${-tilt.y * 0.6}deg) translateZ(0) scale(${tilt.x !== 0 || tilt.y !== 0 ? 1.04 : 1})`,
+                  transition: isMobile ? 'box-shadow 0.2s ease' : 'transform 0.15s ease-out, box-shadow 0.2s ease, border-color 0.2s',
+                  boxShadow: isMobile
+                    ? '0 4px 16px rgba(0,0,0,0.06)'
+                    : (tilt.x !== 0 || tilt.y !== 0
+                      ? `${-tilt.x * 0.5}px ${tilt.y * 0.5}px 32px rgba(0,0,0,0.15), 0 8px 24px ${brand.color}22, inset 0 1px 0 rgba(255,255,255,0.8)`
+                      : '0 4px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)'),
                   transformStyle: 'preserve-3d',
                 }}>
 

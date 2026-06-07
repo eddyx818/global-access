@@ -17,7 +17,7 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
   };
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, background: '#FAFAF8' }}>
+    <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, background: '#FAFAF8', minHeight: 0 }}>
       {messages.map(msg => {
         const mine = msg.from_user_id === currentUserId;
         const fromProfile = profiles[msg.from_user_id] || {};
@@ -29,9 +29,9 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
               <div style={{ fontSize: 10, color: '#888', marginBottom: 3, marginLeft: 4 }}>{staffLabel}</div>
             )}
             <div style={{
-              maxWidth: '80%', padding: '8px 12px', borderRadius: mine ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+              maxWidth: '85%', padding: '10px 14px', borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
               background: mine ? '#1A1A1A' : '#FFF', color: mine ? '#FFF' : '#1A1A1A',
-              fontSize: 13, lineHeight: 1.45, border: mine ? 'none' : '0.5px solid #E8E4DF',
+              fontSize: 15, lineHeight: 1.45, border: mine ? 'none' : '0.5px solid #E8E4DF',
               boxShadow: mine ? 'none' : '0 1px 4px rgba(0,0,0,0.04)',
             }}>
               {msg.content}

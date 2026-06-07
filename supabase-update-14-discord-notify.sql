@@ -1,0 +1,23 @@
+-- Discord notifications for new customer chat messages
+-- Run after update 13. Then complete setup in Supabase Dashboard (steps below).
+
+-- Optional: enable pg_net if you prefer an automatic DB trigger instead of a Dashboard webhook
+-- CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+
+-- ─── SETUP (required) ───────────────────────────────────────────────────────
+-- 1. Deploy edge function: notify-discord
+-- 2. Supabase → Project Settings → Edge Functions → Secrets:
+--      DISCORD_WEBHOOK_URL  = your Discord channel webhook URL
+--      DISCORD_NOTIFY_SECRET = long random string (e.g. openssl rand -hex 32)
+--      PORTAL_URL           = https://your-portal-domain.com  (optional, for link in Discord)
+-- 3. Supabase → Database → Webhooks → Create webhook:
+--      Name:     notify-discord-messages
+--      Table:    messages
+--      Events:   INSERT
+--      Type:     Supabase Edge Function
+--      Function: notify-discord
+--    OR use HTTP Request:
+--      URL:      https://YOUR_PROJECT_REF.supabase.co/functions/v1/notify-discord
+--      Method:   POST
+--      Headers:  Authorization: Bearer YOUR_DISCORD_NOTIFY_SECRET
+--      Body:     { "record": { "id": "{{ record.id }}", "conversation_id": "{{ record.conversation_id }}", "from_user_id": "{{ record.from_user_id }}", "content": "{{ record.content }}", "created_at": "{{ record.created_at }}" } }

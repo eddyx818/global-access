@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { saveProfile, checkUsernameAvailable } from '../lib/community';
+import {
+  getNotificationPrefs,
+  saveNotificationPrefs,
+  getNotificationPermission,
+  requestNotificationPermission,
+} from '../lib/notificationPrefs';
+import { playMessageSound, vibrateDevice } from '../lib/messageAlerts';
 
 export default function ProfileModal({ user, form, setForm, userType, setUserType, onClose }) {
   const [saving, setSaving] = useState(false);
@@ -9,6 +16,8 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [error, setError] = useState('');
+  const [notifyPrefs, setNotifyPrefs] = useState(getNotificationPrefs);
+  const [notifyPerm, setNotifyPerm] = useState(getNotificationPermission);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -30,6 +39,23 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
   const labelStyle = {
     fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6,
     letterSpacing: '0.06em', textTransform: 'uppercase'
+  };
+
+  const toggleNotify = (key, value) => {
+    const next = { ...notifyPrefs, [key]: value };
+    setNotifyPrefs(next);
+    saveNotificationPrefs(next);
+  };
+
+  const enablePush = async () => {
+    const result = await requestNotificationPermission();
+    setNotifyPerm(result);
+    if (result === 'granted') toggleNotify('notifications', true);
+  };
+
+  const testAlert = () => {
+    if (notifyPrefs.sound) playMessageSound();
+    if (notifyPrefs.vibrate) vibrateDevice();
   };
 
   const handleSave = async () => {
@@ -105,6 +131,45 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
           <label style={labelStyle}>Notes</label>
           <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Optional notes for our team..."
             style={{ ...inputStyle, height: 72, resize: 'none' }} />
+        </div>
+
+        <div style={{ marginBottom: '1rem', padding: '14px 16px', background: '#F8F6F3', borderRadius: 12, border: '0.5px solid #E8E4DF' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>Message alerts</div>
+          <div style={{ fontSize: 11, color: '#888', lineHeight: 1.45, marginBottom: 12 }}>
+            Sound, vibration, and badge when you receive chat messages. Install the app for the best experience on mobile.
+          </div>
+          {[
+            ['sound', 'Sound'],
+            ['vibrate', 'Vibrate (mobile)'],
+            ['badge', 'App icon badge'],
+          ].map(([key, label]) => (
+            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, fontSize: 13, color: '#555', cursor: 'pointer' }}>
+              <input type="checkbox" checked={!!notifyPrefs[key]} onChange={e => toggleNotify(key, e.target.checked)} />
+              {label}
+            </label>
+          ))}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, fontSize: 13, color: '#555', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={!!notifyPrefs.notifications && notifyPerm === 'granted'}
+              disabled={notifyPerm === 'denied' || notifyPerm === 'unsupported'}
+              onChange={e => toggleNotify('notifications', e.target.checked)}
+            />
+            Push notifications
+          </label>
+          {notifyPerm === 'default' && (
+            <button type="button" onClick={enablePush}
+              style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8 }}>
+              Allow notifications
+            </button>
+          )}
+          {notifyPerm === 'denied' && (
+            <div style={{ fontSize: 11, color: '#C53030', marginBottom: 8 }}>Notifications blocked in browser settings.</div>
+          )}
+          <button type="button" onClick={testAlert}
+            style={{ background: '#FFF', color: '#555', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '7px 12px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Test sound & vibrate
+          </button>
         </div>
 
         {error && <div style={{ background: '#FEF0F0', border: '0.5px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#C53030', marginBottom: '1rem' }}>{error}</div>}

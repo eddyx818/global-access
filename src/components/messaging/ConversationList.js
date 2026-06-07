@@ -1,18 +1,18 @@
 import React from 'react';
 import { getConversationTitle, getCustomerParticipantId } from '../../lib/community';
 
-export default function ConversationList({ conversations, profiles, currentUserId, isAdmin, onSelect, onMessageSupport }) {
+export default function ConversationList({ conversations, profiles, currentUserId, isAdmin, onSelect, onMessageSupport, isMobile = false }) {
   if (!conversations.length) {
     return (
-      <div style={{ padding: 24, textAlign: 'center', fontSize: 13, color: '#AAA' }}>
+      <div style={{ padding: isMobile ? '2rem 1.25rem' : 24, textAlign: 'center', fontSize: isMobile ? 14 : 13, color: '#AAA', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         {isAdmin ? (
           'No conversations yet. Message a customer from the Customers tab.'
         ) : (
           <>
-            <div style={{ marginBottom: 16 }}>No messages yet. Reach out to our team if you have questions about products or orders.</div>
+            <div style={{ marginBottom: 20, lineHeight: 1.6, maxWidth: 280 }}>Questions about products, pricing, or orders? Our team is here to help.</div>
             {onMessageSupport && (
-              <button onClick={onMessageSupport}
-                style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button type="button" onClick={onMessageSupport}
+                style={{ background: '#4CAF7D', color: '#FFF', border: 'none', borderRadius: 12, padding: isMobile ? '14px 24px' : '10px 18px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', minHeight: 48 }}>
                 Message Global Access
               </button>
             )}
@@ -23,7 +23,7 @@ export default function ConversationList({ conversations, profiles, currentUserI
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto' }}>
+    <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
       {!isAdmin && onMessageSupport && (
         <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #F0EDE8' }}>
           <button onClick={onMessageSupport}
@@ -41,9 +41,9 @@ export default function ConversationList({ conversations, profiles, currentUserI
           : 'Direct message';
 
         return (
-          <button key={convo.id} onClick={() => onSelect(convo)}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', border: 'none', borderBottom: '0.5px solid #F0EDE8', background: '#FFF', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#F0EDE8', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: '#888' }}>
+          <button key={convo.id} type="button" onClick={() => onSelect(convo)}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: isMobile ? '14px 16px' : '12px 14px', border: 'none', borderBottom: '0.5px solid #F0EDE8', background: '#FFF', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', minHeight: isMobile ? 64 : undefined }}>
+            <div style={{ width: isMobile ? 44 : 36, height: isMobile ? 44 : 36, borderRadius: '50%', background: '#F0EDE8', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 16 : 14, color: '#888' }}>
               {p.profile_avatar_url ? <img src={p.profile_avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (label[0] || '?').toUpperCase()}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
