@@ -39,10 +39,12 @@ export default function App() {
     isAdmin: isPortalAdmin,
     enabled: !!user?.id,
   });
-  const { canInstall, showIosHint, install } = usePwaInstall();
+  const { canInstall, showIosHint, isInstalled, install } = usePwaInstall();
 
   const inPortalView = authState === 'portal' || authState === 'browse' || (authState === 'admin' && adminMode === 'portal');
-  const showInstallBanner = inPortalView;
+  const isMobileDevice = isMobile || /Android|iPhone|iPad|iPod|Mobile/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : '');
+  const showInstallPrompt = isMobileDevice && !isInstalled;
+  const showInstallBanner = showInstallPrompt && inPortalView;
   const showMobileNav = isMobile && user && inPortalView;
   const chatLabel = isPortalAdmin ? 'Messages' : 'Support';
 
@@ -336,7 +338,9 @@ export default function App() {
 
   if (authState === 'gate') return (
     <>
-      <InstallAppBanner canInstall={canInstall} showIosHint={showIosHint} onInstall={install} />
+      {showInstallPrompt && (
+        <InstallAppBanner canInstall={canInstall} showIosHint={showIosHint} onInstall={install} />
+      )}
       <LoginScreen
         showLogin={false}
         onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }}
@@ -348,7 +352,9 @@ export default function App() {
   );
   if (authState === 'login') return (
     <>
-      <InstallAppBanner canInstall={canInstall} showIosHint={showIosHint} onInstall={install} />
+      {showInstallPrompt && (
+        <InstallAppBanner canInstall={canInstall} showIosHint={showIosHint} onInstall={install} />
+      )}
       <LoginScreen
         showLogin={true}
         onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }}
@@ -422,7 +428,18 @@ export default function App() {
           onUnreadChange={refreshUnread}
         />
       )}
-      {showProfile && <ProfileModal user={user} form={form} setForm={setForm} userType={userType} setUserType={setUserType} onClose={() => setShowProfile(false)} isMobile={isMobile} />}
+      {showProfile && (
+        <ProfileModal
+          user={user}
+          form={form}
+          setForm={setForm}
+          userType={userType}
+          setUserType={setUserType}
+          onClose={() => setShowProfile(false)}
+          isMobile={isMobile}
+          pwa={{ canInstall, showIosHint, isInstalled, install, isMobileDevice }}
+        />
+      )}
 
       <div style={mobileContentPad}>
 

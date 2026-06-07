@@ -9,7 +9,7 @@ import {
 } from '../lib/notificationPrefs';
 import { playMessageSound, vibrateDevice } from '../lib/messageAlerts';
 
-export default function ProfileModal({ user, form, setForm, userType, setUserType, onClose, isMobile = false }) {
+export default function ProfileModal({ user, form, setForm, userType, setUserType, onClose, isMobile = false, pwa = {} }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [username, setUsername] = useState('');
@@ -40,6 +40,9 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
     fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6,
     letterSpacing: '0.06em', textTransform: 'uppercase'
   };
+
+  const { canInstall = false, showIosHint = false, isInstalled = false, install, isMobileDevice = false } = pwa;
+  const showInstallInSettings = isMobileDevice && !isInstalled && (canInstall || showIosHint);
 
   const toggleNotify = (key, value) => {
     const next = { ...notifyPrefs, [key]: value };
@@ -165,7 +168,7 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
         <div style={{ marginBottom: '1rem', padding: '14px 16px', background: '#F8F6F3', borderRadius: 12, border: '0.5px solid #E8E4DF' }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>Message alerts</div>
           <div style={{ fontSize: 11, color: '#888', lineHeight: 1.45, marginBottom: 12 }}>
-            Sound, vibration, and badge when you receive chat messages. Install the app for the best experience on mobile.
+            Sound, vibration, and badge when you receive chat messages.
           </div>
           {[
             ['sound', 'Sound'],
@@ -200,6 +203,29 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
             Test sound & vibrate
           </button>
         </div>
+
+        {showInstallInSettings && (
+          <div style={{ marginBottom: '1rem', padding: '14px 16px', background: '#F8F6F3', borderRadius: 12, border: '0.5px solid #E8E4DF' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>Install app</div>
+            <div style={{ fontSize: 11, color: '#888', lineHeight: 1.45, marginBottom: 10 }}>
+              {showIosHint && !canInstall
+                ? 'On iPhone: tap Share in Safari, then Add to Home Screen.'
+                : 'Add Global Access to your home screen for full-screen mobile use.'}
+            </div>
+            {canInstall && (
+              <button type="button" onClick={install}
+                style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Install on this device
+              </button>
+            )}
+          </div>
+        )}
+
+        {isInstalled && isMobileDevice && (
+          <div style={{ marginBottom: '1rem', padding: '10px 14px', background: '#F0FAF4', borderRadius: 10, border: '0.5px solid #C6EDD7', fontSize: 12, color: '#2D7A50' }}>
+            App installed on this device
+          </div>
+        )}
 
         {error && <div style={{ background: '#FEF0F0', border: '0.5px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#C53030', marginBottom: '1rem' }}>{error}</div>}
 
