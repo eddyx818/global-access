@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { validateAccessCode } from '../lib/repCodes';
 import { setPortalReferral, getPortalReferral } from '../lib/session';
 import { getRememberLogin, getSavedLogin, saveLogin, clearSavedLogin } from '../lib/loginPrefs';
+import { APP_SESSION_HINT } from '../lib/appSession';
 import { emailVerificationRequired, isEmailVerified, resendSignupConfirmation, canAccessPortal, fetchProfileAccess } from '../lib/authGate';
 import { isValidRequestEmail, isHoneypotClean, canSubmitAccessRequest } from '../lib/accessRequestGate';
 import { useTheme } from '../context/ThemeContext';
@@ -274,6 +275,9 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                 />
                 Remember me on this device
               </label>
+              <p style={{ fontSize: 11, color: t.textFaint, lineHeight: 1.5, margin: '0 0 1rem' }}>
+                {APP_SESSION_HINT}
+              </p>
               {error && <ErrBox msg={error} />}
               {pendingVerifyEmail && (
                 <button type="button" onClick={handleResendVerification} disabled={loading} style={{ ...btnPrimary, background: t.bgElevated, color: t.text, border: t.borderHairline, marginBottom: '0.75rem', opacity: loading ? 0.7 : 1 }}>

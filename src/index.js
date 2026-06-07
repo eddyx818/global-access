@@ -6,8 +6,10 @@ import { ThemeProvider } from './context/ThemeContext';
 import { BrandContentProvider } from './lib/content';
 import { applyTheme, getStoredTheme } from './lib/theme';
 import { initSafeAreaInsets } from './lib/safeAreaInsets';
+import { initAppSession } from './lib/appSession';
 
 document.documentElement.classList.add('app-native');
+initAppSession();
 initSafeAreaInsets();
 applyTheme(getStoredTheme());
 

@@ -10,6 +10,7 @@ import {
 import { playMessageSound, vibrateDevice } from '../lib/messageAlerts';
 import { subscribeToPushNotifications, isPushSupported } from '../lib/pushNotifications';
 import { useTheme } from '../context/ThemeContext';
+import { APP_SESSION_HINT } from '../lib/appSession';
 import ThemeToggle from './ThemeToggle';
 
 function splitAppointment(iso) {
@@ -338,8 +339,9 @@ export default function ProfileModal({
       )}
 
       {isInstalled && isMobileDevice && (
-        <div style={{ marginBottom: '1rem', padding: '10px 14px', background: t.successBg, borderRadius: 10, border: `0.5px solid ${t.successBorder}`, fontSize: 12, color: t.successText }}>
-          App installed on this device
+        <div style={{ marginBottom: '1rem', padding: '10px 14px', background: t.successBg, borderRadius: 10, border: `0.5px solid ${t.successBorder}`, fontSize: 12, color: t.successText, lineHeight: 1.5 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>App installed on this device</div>
+          <div style={{ fontSize: 11, opacity: 0.9 }}>{APP_SESSION_HINT}</div>
         </div>
       )}
 

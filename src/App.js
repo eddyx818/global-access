@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
 import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, getPortalReferral } from './lib/session';
-import { getSavedLogin } from './lib/loginPrefs';
+import { getRememberLogin, getSavedLogin } from './lib/loginPrefs';
 import { updateUserPresence, resolveAuthRole, ensurePortalAdminFlag, submitInterestToSupport, isProfileComplete } from './lib/community';
 import { resolveCustomerChatLabel, staffChatLabel } from './lib/chatLabels';
 import { useBrandContent } from './lib/content';
@@ -32,9 +32,11 @@ import {
   readSavedPortalNav,
   saveAppNavigation,
 } from './lib/appNavigation';
+import { isSessionResumable } from './lib/appSession';
 
 export default function App() {
   const { t, isNight } = useTheme();
+  const canResumeNavRef = useRef(isSessionResumable());
   const [authState, setAuthState] = useState('loading');
   const [adminMode, setAdminMode] = useState('dashboard');
   const [user, setUser] = useState(null);
@@ -229,14 +231,17 @@ export default function App() {
   useEffect(() => {
     const hash = window.location.hash.replace('#', '');
     if (!hash || hash === 'admin') return;
-    const saved = loadAppNavigation();
-    if (saved?.view === 'brand' && saved?.activeBrand) return;
+    if (canResumeNavRef.current) {
+      const saved = loadAppNavigation();
+      if (saved?.view === 'brand' && saved?.activeBrand) return;
+    }
     setActiveBrand(hash);
     setView('brand');
   }, []);
 
-  // Persist navigation so returning from calls / background resumes where you left off
+  // Persist navigation while app stays open (background OK — cleared on full close)
   useEffect(() => {
+    if (!canResumeNavRef.current) return;
     if (!user?.id || authState === 'loading' || authState === 'gate' || authState === 'login') return;
     saveAppNavigation({
       userId: user.id,
@@ -248,8 +253,8 @@ export default function App() {
   }, [user?.id, authState, adminMode, view, activeBrand]);
 
   useEffect(() => {
-    const onPageShow = (event) => {
-      if (!user?.id) return;
+    const onPageShow = () => {
+      if (!canResumeNavRef.current || !user?.id) return;
       const saved = readSavedPortalNav(user.id);
       if (!saved) return;
       if (isPortalAdmin) setAdminMode(saved.adminMode);
@@ -264,7 +269,19 @@ export default function App() {
     return () => window.removeEventListener('pageshow', onPageShow);
   }, [user?.id, authState, isPortalAdmin]);
 
-  const applySessionUser = async (sessionUser, { restoreNav = true } = {}) => {
+  const resetEntryNavigation = () => {
+    setView('home');
+    setActiveBrand(null);
+    setAdminMode('dashboard');
+    setChatOpen(false);
+    setShowProfile(false);
+    setProfileGate(null);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({ view: 'home' }, '', window.location.pathname);
+    }
+  };
+
+  const applySessionUser = async (sessionUser, { restoreNav = canResumeNavRef.current } = {}) => {
     const accessProfile = await fetchProfileAccess(sessionUser.id);
     if (!canAccessPortal(sessionUser, accessProfile)) {
       await supabase.auth.signOut();
@@ -308,6 +325,8 @@ export default function App() {
       } else if (nextView === 'home') {
         setActiveBrand(null);
       }
+    } else if (!restoreNav) {
+      resetEntryNavigation();
     }
     try {
       const { data: profile } = await supabase.from('user_profiles')
@@ -335,22 +354,45 @@ export default function App() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await applySessionUser(session.user);
+      const resumeNav = canResumeNavRef.current;
+      const rememberLogin = getRememberLogin();
+
+      if (!resumeNav) {
+        clearAppNavigation();
+        resetEntryNavigation();
+      }
+
+      if (!resumeNav && !rememberLogin) {
+        await supabase.auth.signOut();
+        setUser(null);
+        setIsPortalAdmin(false);
+        setIsSalesRep(false);
+        setStaffProfile(null);
+        const verified = await isPortalCodeVerified();
+        const wantsAdmin = new URLSearchParams(window.location.search).get('admin') === '1'
+          || window.location.hash === '#admin';
+        setAuthState(wantsAdmin ? 'login' : (verified ? 'browse' : 'gate'));
         return;
       }
 
-      const saved = getSavedLogin();
-      if (saved) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: saved.email,
-          password: saved.password,
-        });
-        if (!error && data?.user) {
-          await applySessionUser(data.user);
-          return;
+      let { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.user && rememberLogin) {
+        const saved = getSavedLogin();
+        if (saved) {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: saved.email,
+            password: saved.password,
+          });
+          if (!error && data?.user) {
+            session = { user: data.user };
+          }
         }
+      }
+
+      if (session?.user) {
+        await applySessionUser(session.user, { restoreNav: resumeNav });
+        return;
       }
 
       const verified = await isPortalCodeVerified();
@@ -361,7 +403,7 @@ export default function App() {
     init();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_e, session) => {
       if (session?.user) {
-        await applySessionUser(session.user);
+        await applySessionUser(session.user, { restoreNav: canResumeNavRef.current });
       }
     });
     return () => subscription.unsubscribe();
