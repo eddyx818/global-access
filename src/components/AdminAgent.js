@@ -12,6 +12,7 @@ import {
   readFileAsText,
   callAdminAnalyze,
 } from '../lib/adminUpload';
+import { callGenerateMedia, buildBrandContext } from '../lib/adminMediaGenerate';
 import DesignPreview from './DesignPreview';
 
 const EXTENDED_PROMPT = `
@@ -23,8 +24,12 @@ Extended capabilities (file uploads, products, analytics):
 - query_database: Read-only analytics. data: {query_type: 'analytics'|'inventory'|'orders'|'users', date_range?: {start, end}}
 - check_system: Health check. data: {components?: ['server','database','cdn','api']}
 - generate_preview: Visual mockup only (no save). data: {preview_type: 'brand_page'|'product_card'|'hero_section', changes: {...}, device?: 'desktop'|'tablet'|'mobile'}
+- generate_media: Create a high-definition professional photo or video render. data: {media_type: 'photo'|'video', prompt: 'detailed description of the render', reference_url?, aspect_ratio?: 'square'|'landscape'|'portrait', brand_id?, sku?, apply_to?: {asset_type: 'product'|'hero'|'gallery', brand_id, sku?}}
+- apply_generated_media: Save a generated render to the live site. data: {file_url?, media_type?, apply_to: {asset_type, brand_id, sku?}} — omit file_url if a render was just generated in this chat.
 
-When the user attaches a file, use file_url and analysis context from their message. For product photos, prefer create_product after analysis. For CSV/catalogs, prefer bulk_import.
+When the user asks for product photos, hero images, lifestyle shots, or short product videos, use generate_media with a detailed commercial photography / cinematography prompt. Include brand_id and sku when known. Set apply_to when they want it on the site (product = product card image, hero/gallery = brand photos section).
+
+When the user attaches a file, use file_url and analysis context from their message. For product photos, prefer create_product after analysis. For CSV/catalogs, prefer bulk_import. For "make this look professional" or "HD render of this product", use generate_media with reference_url from the attachment.
 Categories: whipped cream, disposables, devices, accessories, etc.`;
 
 const SYSTEM_PROMPT = `You are an AI admin assistant for Global Access, a B2B trade portal for alternative products. You help the admin manage the site.
@@ -126,7 +131,7 @@ const IMMEDIATE_ACTIONS = ['query_database', 'check_system'];
 const ANALYSIS_ACTIONS = ['analyze_image', 'parse_document'];
 
 function hasVisualPreview(action) {
-  return isDesignAction(action) || ['create_product', 'bulk_import', 'generate_preview'].includes(action);
+  return isDesignAction(action) || ['create_product', 'bulk_import', 'generate_preview', 'generate_media', 'apply_generated_media'].includes(action);
 }
 
 function formatAnalysisSummary(analysis) {
@@ -147,16 +152,18 @@ export default function AdminAgent() {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      text: "Hi! I'm your Global Access admin assistant. I can update content, change site design, create products from photos or CSVs, run analytics, and more. Attach a product photo or catalog file, or tell me what you'd like to do.",
+      text: "Hi! I'm your Global Access admin assistant. I can update content, change site design, create products from photos or CSVs, generate HD product photos and videos, run analytics, and more. Attach a product photo or catalog file, or tell me what you'd like to do.",
     },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [pending, setPending] = useState(null);
   const [attachment, setAttachment] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const lastGeneratedRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -359,6 +366,38 @@ export default function AdminAgent() {
         return;
       }
 
+      if (parsed.action === 'apply_generated_media') {
+        const applyData = { ...(parsed.data || {}) };
+        if (!applyData.file_url && lastGeneratedRef.current?.file_url) {
+          applyData.file_url = lastGeneratedRef.current.file_url;
+          applyData.media_type = applyData.media_type || lastGeneratedRef.current.media_type;
+        }
+        if (!applyData.file_url) {
+          addMessage('assistant', 'No generated render on file — ask me to generate a photo or video first.');
+          setLoading(false);
+          return;
+        }
+        setPending({ ...parsed, data: applyData });
+        addMessage('assistant', `**Apply render:** ${parsed.preview || applyData.apply_to?.asset_type || 'upload to site'}\n\nShall I go ahead?`, { isConfirm: true });
+        setLoading(false);
+        return;
+      }
+
+      if (parsed.action === 'generate_media') {
+        const mediaData = { ...(parsed.data || {}) };
+        if (!mediaData.reference_url && currentAttachment && isImageFile(currentAttachment.file)) {
+          mediaData.reference_url = currentAttachment.record.file_url;
+        }
+        if (mediaData.brand_id && !mediaData.brand_name) {
+          Object.assign(mediaData, buildBrandContext(mediaData.brand_id, mediaData.sku));
+        }
+        setPending({ ...parsed, data: mediaData });
+        const typeLabel = mediaData.media_type === 'video' ? 'video' : 'HD photo';
+        addMessage('assistant', `**Generate ${typeLabel}:** ${parsed.preview || mediaData.prompt?.slice(0, 80)}\n\nThis uses AI image/video generation (may take 1–3 minutes). Proceed?`, { isConfirm: true });
+        setLoading(false);
+        return;
+      }
+
       setPending(parsed);
       addMessage('assistant', `**Preview:** ${parsed.preview}\n\nShall I go ahead with this change?`, { isConfirm: true });
     } catch (err) {
@@ -370,6 +409,51 @@ export default function AdminAgent() {
 
   const handleConfirm = async () => {
     if (!pending) return;
+
+    if (pending.action === 'generate_media') {
+      setLoading(true);
+      setGenerating(true);
+      const { data } = pending;
+      setPending(null);
+
+      try {
+        const ctx = buildBrandContext(data.brand_id, data.sku);
+        const result = await callGenerateMedia({
+          media_type: data.media_type || 'photo',
+          prompt: data.prompt,
+          reference_url: data.reference_url,
+          aspect_ratio: data.aspect_ratio || 'square',
+          ...ctx,
+        });
+
+        const generated = {
+          file_url: result.file_url,
+          file_id: result.file_id,
+          media_type: data.media_type || 'photo',
+          apply_to: data.apply_to,
+        };
+        lastGeneratedRef.current = generated;
+
+        addMessage('assistant', `✨ **HD ${generated.media_type} ready!**${data.apply_to ? '\n\nApply this to the live site?' : '\n\nTell me where to use it (product photo, gallery, etc.) or confirm if apply_to was set.'}`);
+
+        setPending({
+          action: 'apply_generated_media',
+          preview: `Generated ${generated.media_type}`,
+          data: generated,
+        });
+        if (data.apply_to) {
+          addMessage('assistant', `**Apply to site:** ${data.apply_to.asset_type} on ${data.apply_to.brand_id}${data.apply_to.sku ? ` (${data.apply_to.sku})` : ''}`, { isConfirm: true });
+        } else {
+          addMessage('assistant', '**Your render:**', { isConfirm: true, showGeneratedOnly: true });
+        }
+      } catch (err) {
+        addMessage('assistant', `❌ Generation failed: ${err.message}\n\nEnsure OPENAI_API_KEY (photos) and/or REPLICATE_API_TOKEN (videos) are set in Supabase Edge Function secrets, and deploy admin-generate-media.`);
+      }
+      setGenerating(false);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const { action, data } = pending;
     setPending(null);
@@ -377,6 +461,19 @@ export default function AdminAgent() {
     try {
       if (action === 'generate_preview') {
         addMessage('assistant', 'Preview shown above — no changes were saved. Want me to apply any of these changes?');
+        setLoading(false);
+        return;
+      }
+
+      if (action === 'apply_generated_media') {
+        if (!data.apply_to) {
+          addMessage('assistant', 'Tell me where to use this — e.g. "set as product photo for numbz NB-100" or "add to good-spirits gallery".');
+          setLoading(false);
+          return;
+        }
+        await executeExtendedAction(action, data);
+        window.dispatchEvent(new CustomEvent('ga-content-updated'));
+        addMessage('assistant', '✅ Done! The render is live on the site.');
         setLoading(false);
         return;
       }
@@ -545,8 +642,16 @@ export default function AdminAgent() {
                     )}
                     {pending && (
                       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                        <button onClick={handleConfirm} style={{ flex: 1, background: '#4CAF7D', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✓ Yes, do it</button>
-                        <button onClick={handleCancel} style={{ flex: 1, background: '#F8F6F3', color: '#555', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '8px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>✗ Cancel</button>
+                        {pending.action === 'generate_media' ? (
+                          <button onClick={handleConfirm} style={{ flex: 1, background: '#4CAF7D', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✓ Generate render</button>
+                        ) : pending.action === 'apply_generated_media' && pending.data?.apply_to ? (
+                          <button onClick={handleConfirm} style={{ flex: 1, background: '#4CAF7D', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✓ Apply to site</button>
+                        ) : !msg.showGeneratedOnly ? (
+                          <button onClick={handleConfirm} style={{ flex: 1, background: '#4CAF7D', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✓ Yes, do it</button>
+                        ) : null}
+                        {(pending.action !== 'apply_generated_media' || pending.data?.apply_to) && !msg.showGeneratedOnly && (
+                          <button onClick={handleCancel} style={{ flex: 1, background: '#F8F6F3', color: '#555', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '8px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>✗ Cancel</button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -555,9 +660,11 @@ export default function AdminAgent() {
                 )}
               </div>
             ))}
-            {(loading || uploading) && (
+            {(loading || uploading || generating) && (
               <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 10 }}>
-                <div style={{ ...bubbleStyle('assistant'), color: '#AAA' }}>{uploading ? 'uploading & analyzing...' : 'thinking...'}</div>
+                <div style={{ ...bubbleStyle('assistant'), color: '#AAA' }}>
+                  {generating ? 'generating HD render (1–3 min)…' : uploading ? 'uploading & analyzing...' : 'thinking...'}
+                </div>
               </div>
             )}
             <div ref={messagesEndRef} />
