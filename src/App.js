@@ -26,6 +26,7 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [isPortalAdmin, setIsPortalAdmin] = useState(false);
   const { getMergedBrands, bgColor, globalStyles, navigation } = useBrandContent();
 
