@@ -4,6 +4,33 @@ function randomPassword() {
   return `${Math.random().toString(36).slice(2, 8)}${Math.random().toString(36).slice(2, 4).toUpperCase()}!`;
 }
 
+async function sendWelcomeEmail({ email, name, tempPassword, portalUrl }) {
+  const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+  const serviceKey = process.env.REACT_APP_SUPABASE_SERVICE_KEY;
+  if (!supabaseUrl || !serviceKey) return { ok: false, skipped: 'not configured' };
+
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/send-access-welcome`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify({
+        email,
+        name,
+        temp_password: tempPassword || null,
+        portal_url: portalUrl,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: data.error || 'Welcome email failed' };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message || 'Welcome email failed' };
+  }
+}
+
 export async function approveAccessRequestAndCreateAccount(req) {
   if (!supabaseAdmin) {
     return { ok: false, error: 'Admin service key not configured (REACT_APP_SUPABASE_SERVICE_KEY).' };
@@ -72,6 +99,12 @@ export async function approveAccessRequestAndCreateAccount(req) {
   }).eq('id', req.id);
 
   const portalUrl = window.location.origin;
+  const emailResult = await sendWelcomeEmail({
+    email,
+    name: req.name,
+    tempPassword: req.linked_user_id ? null : tempPassword,
+    portalUrl,
+  });
 
   return {
     ok: true,
@@ -79,6 +112,8 @@ export async function approveAccessRequestAndCreateAccount(req) {
     email,
     tempPassword: req.linked_user_id ? null : tempPassword,
     portalUrl,
+    welcomeEmailSent: emailResult.ok === true,
+    welcomeEmailError: emailResult.error || null,
     whatsAppMessage: `Hi ${req.name || 'there'}! Your Global Access account is ready.\n\nPortal: ${portalUrl}\nEmail: ${email}${tempPassword ? `\nTemp password: ${tempPassword}\n\nPlease log in and update your profile.` : '\n\nLog in with your existing password.'}`,
   };
 }

@@ -16,19 +16,24 @@ export function isAdminAuthorized(profile) {
   return profile?.admin_authorized === true;
 }
 
-/** Portal access when email is verified or an admin has authorized the account. */
+/** Portal access — customers need admin approval; staff need verified email or admin flag. */
 export function canAccessPortal(user, profile) {
   if (!emailVerificationRequired()) return true;
-  if (isEmailVerified(user)) return true;
-  if (isAdminAuthorized(profile)) return true;
-  return false;
+  const isStaff = profile?.is_portal_admin === true
+    || profile?.is_sales_rep === true
+    || profile?.role === 'admin'
+    || profile?.role === 'sales_rep';
+  if (isStaff) {
+    return isEmailVerified(user) || isAdminAuthorized(profile);
+  }
+  return isAdminAuthorized(profile);
 }
 
 export async function fetchProfileAccess(userId) {
   const { supabase } = await import('./supabase');
   const { data } = await supabase
     .from('user_profiles')
-    .select('admin_authorized, admin_authorized_at')
+    .select('admin_authorized, admin_authorized_at, is_portal_admin, is_sales_rep, role')
     .eq('user_id', userId)
     .maybeSingle();
   return data;

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { validateAccessCode } from '../lib/repCodes';
-import { setPortalReferral, getPortalReferral } from '../lib/session';
+import { setPortalReferral } from '../lib/session';
 import { getRememberLogin, getSavedLogin, saveLogin, clearSavedLogin } from '../lib/loginPrefs';
 import { APP_SESSION_HINT } from '../lib/appSession';
-import { emailVerificationRequired, isEmailVerified, resendSignupConfirmation, canAccessPortal, fetchProfileAccess } from '../lib/authGate';
-import { isValidRequestEmail, isHoneypotClean, canSubmitAccessRequest } from '../lib/accessRequestGate';
+import { canAccessPortal, fetchProfileAccess } from '../lib/authGate';
+import { isValidRequestEmail, isHoneypotClean, canSubmitAccessRequest, savePendingAccess, readPendingAccess, fetchAccessRequestStatus } from '../lib/accessRequestGate';
+import AccessWaitingRoom from './AccessWaitingRoom';
 import { useTheme } from '../context/ThemeContext';
 import AddressFields, { EMPTY_ADDRESS } from './AddressFields';
 import { formatFullAddress } from '../lib/addressFormat';
@@ -32,13 +33,12 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
   );
-  const [pendingVerifyEmail, setPendingVerifyEmail] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(getRememberLogin);
-  const [regForm, setRegForm] = useState({ username: '', email: '', password: '', name: '', company: '', account_type: 'retailer' });
+  const [waitingMeta, setWaitingMeta] = useState(null);
 
   useEffect(() => {
     const saved = getSavedLogin();
@@ -47,6 +47,24 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
       setPassword(saved.password);
       setRememberMe(true);
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const pending = readPendingAccess();
+      if (!pending?.email) return;
+      const result = await fetchAccessRequestStatus(pending.email);
+      if (cancelled) return;
+      if (result.ok && result.status === 'pending') {
+        setWaitingMeta(pending);
+        setMode('waiting');
+      } else if (result.ok && (result.status === 'approved' || result.status === 'denied')) {
+        setWaitingMeta(pending);
+        setMode('waiting');
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -115,7 +133,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   };
  
   const handleLogin = async () => {
-    setLoading(true); setError(''); setPendingVerifyEmail('');
+    setLoading(true); setError(''); setSuccess('');
     const trimmedEmail = email.trim().toLowerCase();
     const { data, error: err } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password });
     if (err) {
@@ -126,9 +144,15 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     const accessProfile = await fetchProfileAccess(data.user.id);
     if (!canAccessPortal(data.user, accessProfile)) {
       await supabase.auth.signOut();
-      setPendingVerifyEmail(trimmedEmail);
       setLoading(false);
-      setError('Please verify your email before signing in, or wait until an admin authorizes your account.');
+      const pending = readPendingAccess();
+      if (pending?.email === trimmedEmail) {
+        setWaitingMeta(pending);
+        setMode('waiting');
+        setError('');
+        return;
+      }
+      setError('Your account is pending admin approval. Request access and use the waiting room, or check your email once approved.');
       return;
     }
     setLoading(false);
@@ -140,16 +164,6 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     onLoggedIn(data.user);
   };
 
-  const handleResendVerification = async () => {
-    if (!pendingVerifyEmail) return;
-    setLoading(true);
-    setError('');
-    const { error: err } = await resendSignupConfirmation(pendingVerifyEmail);
-    setLoading(false);
-    if (err) setError('Could not resend verification email. Try again in a few minutes.');
-    else setSuccess('Verification email sent — check your inbox.');
-  };
- 
   const handleReset = async () => {
     if (!resetEmail.trim()) { setError('Please enter your email.'); return; }
     setLoading(true);
@@ -178,6 +192,13 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     const gate = await canSubmitAccessRequest(reqForm.email);
     if (!gate.ok) {
       setLoading(false);
+      const pending = readPendingAccess();
+      if (pending?.email?.toLowerCase() === reqForm.email.trim().toLowerCase()) {
+        setWaitingMeta(pending);
+        setMode('waiting');
+        setError('');
+        return;
+      }
       setError(gate.error);
       return;
     }
@@ -186,67 +207,21 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
       ...reqForm.addressParts,
       address: formatFullAddress(reqForm.addressParts),
     });
+    const meta = { email: reqForm.email.trim().toLowerCase(), name: reqForm.name.trim() };
+    savePendingAccess(meta);
+    setWaitingMeta(meta);
     setLoading(false);
-    setSuccess("Request sent! We'll reach out within 1 business day.");
+    setSuccess('');
     setError('');
+    setMode('waiting');
   };
- 
-  const handleRegister = async () => {
-    if (!regForm.email || !regForm.password || !regForm.name) {
-      setError('Email, password, and name are required.');
-      return;
-    }
-    if (regForm.password.length < 6) { setError('Password must be at least 6 characters.'); return; }
-    setLoading(true); setError('');
-    const cleanUsername = regForm.username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
-    if (cleanUsername) {
-      const { data: taken } = await supabase.from('user_profiles').select('user_id').eq('username', cleanUsername).maybeSingle();
-      if (taken) { setError('Username is already taken.'); setLoading(false); return; }
-    }
-    const { data, error: err } = await supabase.auth.signUp({
-      email: regForm.email.trim().toLowerCase(),
-      password: regForm.password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { name: regForm.name, company: regForm.company, role: regForm.account_type },
-      },
-    });
-    if (err) { setError(err.message); setLoading(false); return; }
-    if (data.user) {
-      const referral = await getPortalReferral();
-      await supabase.from('user_profiles').upsert({
-        user_id: data.user.id,
-        email: regForm.email.trim().toLowerCase(),
-        username: cleanUsername || null,
-        name: regForm.name,
-        company: regForm.company,
-        role: regForm.account_type,
-        user_type: regForm.account_type,
-        status: 'online',
-        referred_by_user_id: referral?.referral_rep_id || null,
-        referral_code_used: referral?.referral_code || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
-      if (emailVerificationRequired() && !data.session) {
-        setPendingVerifyEmail(regForm.email.trim().toLowerCase());
-        setSuccess('Account created! Verify your email or wait for admin approval, then sign in.');
-      } else {
-        setSuccess('Account created! You can sign in now.');
-      }
-      setMode('login');
-    }
-    setLoading(false);
-  };
-
-  const setReg = (field, val) => setRegForm(f => ({ ...f, [field]: val }));
 
   const setReq = (field, val) => setReqForm(f => ({ ...f, [field]: val }));
  
   return (
     <div className="app-login-screen" style={{ background: t.bg, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: isMobile ? '1rem' : '1.5rem', paddingTop: 'max(1rem, var(--ga-inset-top))', paddingBottom: 'max(1.5rem, var(--ga-inset-bottom))', transition: 'background 0.35s ease', minHeight: '100dvh', overflowY: 'auto' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
-      <div style={{ width: '100%', maxWidth: mode === 'request' ? 480 : 400 }}>
+      <div style={{ width: '100%', maxWidth: mode === 'request' || mode === 'waiting' ? 480 : 400 }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: isMobile ? '1.5rem' : '2.5rem' }}>
           <div style={{ fontSize: 11, letterSpacing: '0.3em', color: t.textFaint, textTransform: 'uppercase', marginBottom: 10 }}>Trade Portal</div>
@@ -268,8 +243,24 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
               <button onClick={handleCode} disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.7 : 1 }}>{loading ? 'Checking…' : 'Continue →'}</button>
               <Divider />
               <button onClick={() => setMode('login')} style={{ ...btnPrimary, background: t.bgElevated, color: t.text, border: t.borderHairline }}>Sign In with Account</button>
-              <div style={{ textAlign: 'center', marginTop: 8 }}><button onClick={() => setMode('register')} style={btnLink}>Create an account</button></div>
-              <div style={{ textAlign: 'center' }}><button onClick={() => setMode('request')} style={btnLink}>Don't have access? Request it</button></div>
+              <div style={{ textAlign: 'center' }}><button onClick={() => setMode('request')} style={btnLink}>Don&apos;t have access? Request it</button></div>
+              {readPendingAccess()?.email && (
+                <div style={{ textAlign: 'center', marginTop: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const pending = readPendingAccess();
+                      if (pending) {
+                        setWaitingMeta(pending);
+                        setMode('waiting');
+                      }
+                    }}
+                    style={btnLink}
+                  >
+                    Already requested? Check status / play game
+                  </button>
+                </div>
+              )}
               <button type="button" onClick={goAdminLogin} style={btnAdmin}>Admin Dashboard →</button>
             </>
           )}
@@ -307,15 +298,25 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                 {APP_SESSION_HINT}
               </p>
               {error && <ErrBox msg={error} />}
-              {pendingVerifyEmail && (
-                <button type="button" onClick={handleResendVerification} disabled={loading} style={{ ...btnPrimary, background: t.bgElevated, color: t.text, border: t.borderHairline, marginBottom: '0.75rem', opacity: loading ? 0.7 : 1 }}>
-                  Resend verification email
-                </button>
-              )}
               <button onClick={handleLogin} disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.6 : 1 }}>{loading ? 'Signing in...' : 'Sign In →'}</button>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <button onClick={() => setMode('reset')} style={btnLink}>Forgot password?</button>
                 <button onClick={() => setMode('request')} style={btnLink}>Request access</button>
+                {readPendingAccess()?.email && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const pending = readPendingAccess();
+                      if (pending) {
+                        setWaitingMeta(pending);
+                        setMode('waiting');
+                      }
+                    }}
+                    style={btnLink}
+                  >
+                    Waiting room
+                  </button>
+                )}
               </div>
               <button type="button" onClick={goAdminLogin} style={{ ...btnAdmin, marginTop: '1rem' }}>
                 Admin Dashboard →
@@ -337,41 +338,26 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
               <div style={{ textAlign: 'center' }}><button onClick={() => setMode('login')} style={btnLink}>← Back to sign in</button></div>
             </>
           )}
- 
-          {/* REGISTER */}
-          {mode === 'register' && (
+
+          {/* REQUEST ACCESS — full form */}
+          {mode === 'waiting' && waitingMeta && (
             <>
-              <p style={{ fontSize: 13, color: '#888', marginBottom: '1.25rem', lineHeight: 1.6 }}>Create your Global Access account.</p>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={labelStyle}>Username</label>
-                <input value={regForm.username} onChange={e => setReg('username', e.target.value)} placeholder="yourname" style={inputStyle} autoCapitalize="none" />
-              </div>
-              {[['name', 'Full name *'], ['company', 'Company'], ['email', 'Email *'], ['password', 'Password * (6+ chars)']].map(([field, label]) => (
-                <div key={field} className="login-field-full" style={{ marginBottom: '1rem' }}>
-                  <label style={labelStyle}>{label}</label>
-                  <input value={regForm[field]} onChange={e => setReg(field, e.target.value)} type={field === 'password' ? 'password' : 'text'} style={inputStyle} autoCapitalize={field === 'email' ? 'none' : 'words'} />
-                </div>
-              ))}
-              <div style={{ marginBottom: '1.25rem' }}>
-                <label style={labelStyle}>Account type</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {['retailer', 'distributor'].map(t => (
-                    <button key={t} onClick={() => setReg('account_type', t)}
-                      style={{ flex: 1, padding: '10px', border: `0.5px solid ${regForm.account_type === t ? '#1A1A1A' : '#E0DDD8'}`, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, background: regForm.account_type === t ? '#1A1A1A' : '#F8F6F3', color: regForm.account_type === t ? '#FFF' : '#888', textTransform: 'capitalize' }}>
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {error && <ErrBox msg={error} />}
-              {success && <OkBox msg={success} />}
-              {pendingVerifyEmail && mode === 'register' && (
-                <button type="button" onClick={handleResendVerification} disabled={loading} style={{ ...btnPrimary, background: t.bgElevated, color: t.text, border: t.borderHairline, marginBottom: '0.75rem', opacity: loading ? 0.7 : 1 }}>
-                  Resend verification email
-                </button>
-              )}
-              <button onClick={handleRegister} disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.6 : 1 }}>{loading ? 'Creating...' : 'Create Account →'}</button>
-              <div style={{ textAlign: 'center' }}><button onClick={() => setMode('login')} style={btnLink}>← Back to sign in</button></div>
+              <AccessWaitingRoom
+                email={waitingMeta.email}
+                name={waitingMeta.name}
+                theme={t}
+                onApproved={() => setMode('waiting')}
+                onDenied={() => setMode('waiting')}
+                onBack={(nextStatus) => {
+                  if (nextStatus === 'approved') {
+                    setEmail(waitingMeta.email);
+                    setMode('login');
+                    setSuccess('You\'re approved — sign in with the email we sent you.');
+                    return;
+                  }
+                  setMode(nextStatus === 'pending' ? 'gate' : 'gate');
+                }}
+              />
             </>
           )}
 

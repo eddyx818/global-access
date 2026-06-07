@@ -31,3 +31,48 @@ export async function canSubmitAccessRequest(email) {
 
   return { ok: true };
 }
+
+export async function fetchAccessRequestStatus(email) {
+  const normalized = (email || '').trim().toLowerCase();
+  if (!normalized) return { ok: false, error: 'Email required.' };
+
+  try {
+    const { data, error } = await supabase.rpc('get_access_request_status', { p_email: normalized });
+    if (error) return { ok: false, error: error.message };
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return { ok: true, status: null };
+    return { ok: true, status: row.status, createdAt: row.created_at };
+  } catch (err) {
+    return { ok: false, error: err.message || 'Could not check status.' };
+  }
+}
+
+export const PENDING_ACCESS_KEY = 'ga_pending_access';
+
+export function savePendingAccess({ email, name }) {
+  try {
+    localStorage.setItem(PENDING_ACCESS_KEY, JSON.stringify({
+      email: (email || '').trim().toLowerCase(),
+      name: (name || '').trim(),
+      savedAt: Date.now(),
+    }));
+  } catch (_) {}
+}
+
+export function readPendingAccess() {
+  try {
+    const raw = localStorage.getItem(PENDING_ACCESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.email) return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+export function clearPendingAccess() {
+  try {
+    localStorage.removeItem(PENDING_ACCESS_KEY);
+  } catch (_) {}
+}

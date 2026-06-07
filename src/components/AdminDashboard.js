@@ -143,9 +143,9 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
     const waUrl = req.phone ? whatsAppUrl(req.phone, result.whatsAppMessage) : null;
     if (waUrl) window.open(waUrl, '_blank');
     if (result.tempPassword) {
-      setApproveMsg(`Account created for ${result.email}. Temp password: ${result.tempPassword} (also opened WhatsApp if phone was on file).`);
+      setApproveMsg(`Account created for ${result.email}. Temp password: ${result.tempPassword}${result.welcomeEmailSent ? ' — welcome email sent.' : result.welcomeEmailError ? ` (email failed: ${result.welcomeEmailError})` : ''}${req.phone ? ' WhatsApp opened if phone was on file.' : ''}`);
     } else {
-      setApproveMsg(`Linked existing account for ${result.email}.`);
+      setApproveMsg(`Linked existing account for ${result.email}.${result.welcomeEmailSent ? ' Welcome email sent.' : result.welcomeEmailError ? ` Email failed: ${result.welcomeEmailError}` : ''}`);
     }
     loadRequests();
   };
