@@ -10,7 +10,6 @@ import ActivityFeed from './ActivityFeed';
 import CustomerDirectory from './CustomerDirectory';
 import ContactImportPanel from './ContactImportPanel';
 import ReferralTracker from './ReferralTracker';
-import ThemeToggle from './ThemeToggle';
 import QuoteStatusBadge from './QuoteStatusBadge';
 import AdminTabBar from './AdminTabBar';
 import { useTheme } from '../context/ThemeContext';
@@ -242,16 +241,12 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           <span style={{ fontSize: narrowHeader ? 15 : 13, color: t.gold, letterSpacing: '0.14em' }}>Admin</span>
         </div>
         {narrowHeader ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-            <ThemeToggle compact fullWidth />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button type="button" onClick={onViewPortal} style={portalBtnStyle}>Portal</button>
-              <button type="button" onClick={onLogout} style={signOutBtnStyle}>Sign out</button>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%' }}>
+            <button type="button" onClick={onViewPortal} style={portalBtnStyle}>Portal</button>
+            <button type="button" onClick={onLogout} style={signOutBtnStyle}>Sign out</button>
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <ThemeToggle compact />
             <button type="button" onClick={onViewPortal} style={portalBtnStyle}>Portal</button>
             <button type="button" onClick={onLogout} style={signOutBtnStyle}>Sign out</button>
           </div>

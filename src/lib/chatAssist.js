@@ -2,9 +2,9 @@ export const QUICK_REPLIES = [
   'Thanks for your quote request! Our team is reviewing your list and will follow up shortly.',
   'Got it — could you confirm quantities for each line item?',
   'We are preparing pricing for your request and will send details soon.',
-  'Your quote is ready. Please check the details above and let us know if you would like to proceed.',
-  'Thanks for your patience — we will reach out by end of day with next steps.',
 ];
+
+export const MAX_QUICK_REPLIES_SHOWN = 3;
 
 export async function suggestReplyToCustomer({ customerName, messages, inquiryNotes }) {
   const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;

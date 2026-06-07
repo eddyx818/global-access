@@ -92,7 +92,7 @@ export default function MessageInput({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,application/pdf"
           style={{ display: 'none' }}
           onChange={handlePickFile}
         />

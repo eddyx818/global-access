@@ -32,11 +32,12 @@ import {
   readSavedPortalNav,
   saveAppNavigation,
 } from './lib/appNavigation';
-import { isSessionResumable } from './lib/appSession';
+import { isSessionResumable, clearAppSession } from './lib/appSession';
 
 export default function App() {
   const { t, isNight } = useTheme();
   const canResumeNavRef = useRef(isSessionResumable());
+  const homeScrollRef = useRef(0);
   const [authState, setAuthState] = useState('loading');
   const [adminMode, setAdminMode] = useState('dashboard');
   const [user, setUser] = useState(null);
@@ -489,17 +490,22 @@ export default function App() {
   }, []);
 
   const goToBrand = (brandId) => {
+    const scrollEl = document.querySelector('.app-main-content');
+    if (scrollEl) homeScrollRef.current = scrollEl.scrollTop;
     trackEvent('click', 'home', { element: `brand_card:${brandId}`, user_id: user?.id });
     window.history.pushState({ view: 'brand', brandId }, '', `#${brandId}`);
     setActiveBrand(brandId);
     setView('brand');
-    window.scrollTo(0, 0);
   };
 
   const goHome = () => {
     window.history.pushState({ view: 'home' }, '', window.location.pathname);
     setView('home');
     setActiveBrand(null);
+    requestAnimationFrame(() => {
+      const scrollEl = document.querySelector('.app-main-content');
+      if (scrollEl) scrollEl.scrollTop = homeScrollRef.current;
+    });
   };
 
   const handleNavClick = (item) => {
@@ -530,7 +536,7 @@ export default function App() {
     setChatOpen(false);
     setShowProfile(false);
     setProfileGate(null);
-    clearAppNavigation();
+    clearAppSession();
   };
 
   const handleLoggedIn = async (sessionUser) => {
@@ -579,6 +585,13 @@ export default function App() {
       account_type: data.account_type,
       store_type: data.store_type,
       address: data.address,
+      address_line1: data.address_line1 || null,
+      address_line2: data.address_line2 || null,
+      city: data.city || null,
+      state: data.state || null,
+      zip: data.zip || null,
+      lat: data.lat ?? null,
+      lng: data.lng ?? null,
       location_count: data.location_count,
       has_retail: data.has_retail,
       retail_count: data.retail_count,
@@ -745,6 +758,7 @@ export default function App() {
         <HomeView
           onBrandClick={goToBrand}
           isMobile={isMobile}
+          userId={user?.id}
           userType={userType}
           masterPricingQualified={masterPricingQualified}
           isStaff={isPortalAdmin || isSalesRep}

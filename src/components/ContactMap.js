@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
 
+import { formatFullAddress } from '../lib/addressFormat';
+
 const TYPE_COLORS = {
   distributor: '#C9A84C',
   retailer: '#4CAF7D',
@@ -15,17 +17,53 @@ export default function ContactMap() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [filter, setFilter] = useState('all'); // 'all' | 'distributor' | 'retailer'
+  const [stateFilter, setStateFilter] = useState('all');
   const [hovering, setHovering] = useState(null);
 
   useEffect(() => { loadContacts(); }, []);
 
+  const normalizeContact = (c) => {
+    const parts = {
+      address_line1: c.address_line1 || c.address || '',
+      address_line2: c.address_line2 || '',
+      city: c.city || '',
+      state: (c.state || '').toUpperCase(),
+      zip: c.zip || '',
+    };
+    return {
+      ...c,
+      ...parts,
+      displayAddress: formatFullAddress(parts) || c.address || '',
+    };
+  };
+
   const loadContacts = async () => {
-    const { data } = await supabase
-      .from('access_requests')
-      .select('*')
-      .eq('status', 'approved')
-      .order('created_at', { ascending: false });
-    setContacts(data || []);
+    const [{ data: requests }, { data: profiles }] = await Promise.all([
+      supabase.from('access_requests').select('*').eq('status', 'approved').order('created_at', { ascending: false }),
+      supabase.from('user_profiles').select('user_id, name, company, email, phone, user_type, address, address_line2, city, state, zip, lat, lng').not('address', 'is', null),
+    ]);
+
+    const fromProfiles = (profiles || []).map(p => normalizeContact({
+      id: `profile-${p.user_id}`,
+      name: p.name,
+      company: p.company,
+      email: p.email,
+      phone: p.phone,
+      account_type: p.user_type || 'retailer',
+      address: p.address,
+      address_line2: p.address_line2,
+      city: p.city,
+      state: p.state,
+      zip: p.zip,
+      lat: p.lat,
+      lng: p.lng,
+      source: 'profile',
+    }));
+
+    setContacts([
+      ...(requests || []).map(normalizeContact),
+      ...fromProfiles,
+    ]);
     setLoading(false);
   };
 
@@ -42,10 +80,23 @@ export default function ContactMap() {
     return { x, y };
   };
 
-  const filtered = contacts.filter(c => {
-    if (filter === 'all') return true;
-    return c.account_type === filter;
-  });
+  const filtered = contacts
+    .filter(c => {
+      if (filter !== 'all' && c.account_type !== filter) return false;
+      if (stateFilter !== 'all' && (c.state || '').toUpperCase() !== stateFilter) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      const sa = (a.state || 'ZZ').toUpperCase();
+      const sb = (b.state || 'ZZ').toUpperCase();
+      if (sa !== sb) return sa.localeCompare(sb);
+      const ca = (a.city || '').toLowerCase();
+      const cb = (b.city || '').toLowerCase();
+      if (ca !== cb) return ca.localeCompare(cb);
+      return (a.company || '').localeCompare(b.company || '');
+    });
+
+  const stateOptions = [...new Set(contacts.map(c => (c.state || '').toUpperCase()).filter(Boolean))].sort();
 
   // State stats
   const distributors = contacts.filter(c => c.account_type === 'distributor').length;
@@ -70,7 +121,7 @@ export default function ContactMap() {
       </div>
 
       {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: '1rem' }}>
+      <div className="contact-map-filters" style={{ display: 'flex', gap: 8, marginBottom: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
         {['all', 'distributor', 'retailer'].map(f => (
           <button key={f} onClick={() => setFilter(f)}
             style={ui.tabBtn(filter === f)}>
@@ -78,6 +129,18 @@ export default function ContactMap() {
           </button>
         ))}
       </div>
+
+      {stateOptions.length > 0 && (
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Filter by state</div>
+          <div className="contact-map-filters" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button type="button" onClick={() => setStateFilter('all')} style={ui.tabBtn(stateFilter === 'all')}>All states</button>
+            {stateOptions.map(st => (
+              <button key={st} type="button" onClick={() => setStateFilter(st)} style={ui.tabBtn(stateFilter === st)}>{st}</button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Map */}
       <div style={{ ...ui.card, marginBottom: '1.5rem', position: 'relative', padding: 0, overflow: 'hidden' }}>
@@ -156,7 +219,12 @@ export default function ContactMap() {
                 {selected.phone && <a href={`tel:${selected.phone}`} style={{ fontSize: 12, color: t.textSecondary, background: t.bgMuted, padding: '4px 10px', borderRadius: 6, textDecoration: 'none' }}>📱 {selected.phone}</a>}
                 {selected.phone && <a href={`https://wa.me/${selected.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: t.successText, background: t.successBg, padding: '4px 10px', borderRadius: 6, textDecoration: 'none', border: `0.5px solid ${t.successBorder}` }}>💬 WhatsApp</a>}
               </div>
-              {selected.address && <div style={{ fontSize: 12, color: t.textFaint, marginTop: 6 }}>📍 {selected.address}</div>}
+              {selected.displayAddress && <div style={{ fontSize: 12, color: t.textFaint, marginTop: 6 }}>📍 {selected.displayAddress}</div>}
+              {(selected.city || selected.state) && (
+                <div style={{ fontSize: 11, color: t.textDisabled, marginTop: 4 }}>
+                  {[selected.city, selected.state].filter(Boolean).join(', ')}
+                </div>
+              )}
               {selected.store_type && <div style={{ fontSize: 12, color: t.textFaint, marginTop: 4 }}>🏪 {selected.store_type} · {selected.location_count || 1} location{(selected.location_count || 1) > 1 ? 's' : ''}</div>}
             </div>
           </div>
@@ -174,7 +242,12 @@ export default function ContactMap() {
             <div>
               <div style={{ fontWeight: 500, color: t.text }}>{c.name} — {c.company}</div>
               <div style={{ fontSize: 12, color: t.textFaint, marginTop: 2 }}>{c.email} · {c.phone}</div>
-              {c.address && <div style={{ fontSize: 11, color: t.textDisabled, marginTop: 2 }}>📍 {c.address}</div>}
+              {c.displayAddress && <div style={{ fontSize: 11, color: t.textDisabled, marginTop: 2 }}>📍 {c.displayAddress}</div>}
+              {(c.city || c.state) && (
+                <div style={{ fontSize: 10, color: t.textFaint, marginTop: 2 }}>
+                  {[c.city, c.state].filter(Boolean).join(', ')}
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
               <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 20, background: (TYPE_COLORS[c.account_type] || '#888') + '18', color: TYPE_COLORS[c.account_type] || '#888', fontWeight: 600, textTransform: 'capitalize', letterSpacing: '0.06em' }}>{c.account_type || 'unknown'}</span>

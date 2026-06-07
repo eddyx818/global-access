@@ -489,6 +489,14 @@ html.app-mobile {
   .marketing-gen-label-block {
     min-height: 2.5rem;
   }
+
+  .app-login-screen .login-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .address-fields-local {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* iOS zooms inputs below 16px — enforce globally in app mode */

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { saveProfile } from '../lib/community';
 import { useTheme } from '../context/ThemeContext';
+import { validateAppointmentSlot, minAppointmentDateStr } from '../lib/appointments';
 
 export default function ScheduleCallRequest({ user, onSendMessage, isMobile = false, chatLabel = 'Trade Desk' }) {
   const { t } = useTheme();
@@ -26,26 +27,23 @@ export default function ScheduleCallRequest({ user, onSendMessage, isMobile = fa
   };
 
   const handleSend = async () => {
-    if (!date || !time) {
-      setError('Please pick a date and time.');
+    const check = validateAppointmentSlot(date, time);
+    if (!check.ok) {
+      setError(check.error);
       return;
     }
-    const appointmentAt = new Date(`${date}T${time}:00`);
-    if (Number.isNaN(appointmentAt.getTime())) {
-      setError('Invalid date or time.');
-      return;
-    }
+    const appointmentAt = check.date;
+    const formatted = appointmentAt.toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
+    const iso = check.iso;
 
     setBusy(true);
     setError('');
     setFeedback('');
 
-    const formatted = appointmentAt.toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
-    const iso = appointmentAt.toISOString();
-
     const saveResult = await saveProfile(user.id, user.email, {
       preferred_appointment_at: iso,
       appointment_notes: notes.trim() || null,
+      appointment_status: 'pending',
     });
 
     if (!saveResult.ok) {
@@ -106,7 +104,7 @@ export default function ScheduleCallRequest({ user, onSendMessage, isMobile = fa
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
             <div>
               <label style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Date</label>
-              <input type="date" value={date} min={new Date().toISOString().slice(0, 10)} onChange={e => setDate(e.target.value)} style={inputStyle} />
+              <input type="date" value={date} min={minAppointmentDateStr()} onChange={e => setDate(e.target.value)} style={inputStyle} />
             </div>
             <div>
               <label style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Time</label>

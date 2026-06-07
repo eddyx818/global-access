@@ -327,6 +327,51 @@ export async function joinGroupChat(conversationId) {
   return data;
 }
 
+/** Add an admin or sales rep to an existing customer conversation. */
+export async function joinStaffToConversation(conversationId, staffUserId) {
+  const { data: convo, error: fetchErr } = await supabase
+    .from('conversations')
+    .select('*')
+    .eq('id', conversationId)
+    .maybeSingle();
+  if (fetchErr || !convo) throw new Error('Conversation not found');
+
+  const ids = [...new Set([...(convo.participant_user_ids || []), staffUserId])];
+  const { data, error } = await supabase
+    .from('conversations')
+    .update({ participant_user_ids: ids })
+    .eq('id', conversationId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateCustomerAppointment(customerUserId, fields, { sendMessageFn } = {}) {
+  const result = await saveProfile(customerUserId, null, fields);
+  if (!result.ok) return result;
+
+  if (sendMessageFn && fields.appointment_status === 'accepted' && fields.preferred_appointment_at) {
+    const when = new Date(fields.preferred_appointment_at).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
+    await sendMessageFn(`✅ Call confirmed for ${when}`);
+  }
+  if (sendMessageFn && fields.appointment_status === 'countered' && fields.appointment_counter_at) {
+    const when = new Date(fields.appointment_counter_at).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
+    await sendMessageFn(`📅 Counter proposal: ${when}${fields.appointment_notes ? `\n\n${fields.appointment_notes}` : ''}`);
+  }
+  return result;
+}
+
+export async function fetchStaffAvailability() {
+  const { data } = await supabase
+    .from('user_profiles')
+    .select('user_id, name, support_availability, status, is_portal_admin, is_sales_rep')
+    .or('is_portal_admin.eq.true,is_sales_rep.eq.true');
+  const staff = (data || []).filter(p => p.is_portal_admin || p.is_sales_rep);
+  const anyAvailable = staff.some(p => (p.support_availability || 'available') === 'available' && p.status === 'online');
+  return { staff, anyAvailable };
+}
+
 export function getCustomerParticipantId(convo, profiles = {}) {
   return (convo?.participant_user_ids || []).find(id => {
     const p = profiles[id];
@@ -449,6 +494,16 @@ export async function saveProfile(userId, email, fields) {
   if (fields.is_portal_admin !== undefined) payload.is_portal_admin = fields.is_portal_admin;
   if (fields.preferred_appointment_at !== undefined) payload.preferred_appointment_at = fields.preferred_appointment_at;
   if (fields.appointment_notes !== undefined) payload.appointment_notes = fields.appointment_notes;
+  if (fields.appointment_status !== undefined) payload.appointment_status = fields.appointment_status;
+  if (fields.appointment_counter_at !== undefined) payload.appointment_counter_at = fields.appointment_counter_at;
+  if (fields.address !== undefined) payload.address = fields.address;
+  if (fields.address_line2 !== undefined) payload.address_line2 = fields.address_line2;
+  if (fields.city !== undefined) payload.city = fields.city;
+  if (fields.state !== undefined) payload.state = fields.state;
+  if (fields.zip !== undefined) payload.zip = fields.zip;
+  if (fields.lat !== undefined) payload.lat = fields.lat;
+  if (fields.lng !== undefined) payload.lng = fields.lng;
+  if (fields.support_availability !== undefined) payload.support_availability = fields.support_availability;
 
   const tryUpsert = async (body) => {
     const { error } = await supabase.from('user_profiles').upsert(body, { onConflict: 'user_id' });

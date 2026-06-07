@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useBrandContent } from '../lib/content';
 import { getButtonRadius } from '../lib/design';
-import { supabase } from '../lib/supabase';
+import { applyBrandOrder, saveUserBrandOrder } from '../lib/userBrandOrder';
 
 import MasterPricingNotice from './MasterPricingNotice';
 import { useTheme } from '../context/ThemeContext';
 
-export default function HomeView({ onBrandClick, isMobile, userType, masterPricingQualified, isStaff = false, chatLabel = 'Trade Desk' }) {
+export default function HomeView({ onBrandClick, isMobile, userId, userType, masterPricingQualified, isStaff = false, chatLabel = 'Trade Desk' }) {
   const { t, isNight } = useTheme();
   const [slideIdx, setSlideIdx] = useState(0);
   const [galleryIdx, setGalleryIdx] = useState(0); // cycles hero bg image
@@ -16,6 +16,8 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
   const [brandOrder, setBrandOrder] = useState(null);
   const [dragging, setDragging] = useState(null);
   const [dragOver, setDragOver] = useState(null);
+  const [reorderMode, setReorderMode] = useState(false);
+  const longPressTimer = useRef(null);
   const autoTimer = useRef(null);
   const galleryTimer = useRef(null);
   const heroRef = useRef(null);
@@ -23,26 +25,18 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
   const { getMergedBrands, loading, heroConfig, globalStyles } = useBrandContent();
   const allBrands = getMergedBrands();
 
-  // Load saved brand order
+  // Per-user brand order (saved on this device)
   useEffect(() => {
-    const load = async () => {
-      try {
-        const { data } = await supabase.from('brand_content').select('brand_id').order('sort_order', { ascending: true });
-        if (data && data.length > 0) {
-          const ordered = data.map(d => allBrands.find(b => b.id === d.brand_id)).filter(Boolean);
-          const rest = allBrands.filter(b => !ordered.find(o => o.id === b.id));
-          setBrandOrder([...ordered, ...rest]);
-        }
-      } catch (_) {}
-    };
-    if (!loading) load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading]);
+    if (loading) return;
+    setBrandOrder(applyBrandOrder(allBrands, userId));
+  }, [loading, userId, allBrands.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const brands = brandOrder || allBrands;
   const heroBg = heroConfig.background_color || '#0D0D0D';
-  const heroCtaBg = heroConfig.cta_color || 'rgba(255,255,255,0.95)';
-  const heroCtaColor = heroConfig.cta_color ? '#FFF' : globalStyles.primary_color || '#1A1A1A';
+  const heroCtaGlass = heroConfig.cta_color
+    ? `${heroConfig.cta_color}99`
+    : 'rgba(255,255,255,0.14)';
+  const heroCtaColor = '#FFFFFF';
   const ctaRadius = getButtonRadius(globalStyles.button_style);
 
   useEffect(() => {
@@ -128,7 +122,7 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
     setDragOver(idx);
   };
 
-  const handleDrop = async (e, idx) => {
+  const handleDrop = (e, idx) => {
     e.preventDefault();
     if (dragging === null || dragging === idx) { setDragging(null); setDragOver(null); return; }
     const newOrder = [...brands];
@@ -137,10 +131,30 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
     setBrandOrder(newOrder);
     setDragging(null);
     setDragOver(null);
-    // Save order to Supabase
-    await Promise.all(newOrder.map((brand, i) =>
-      supabase.from('brand_content').upsert({ brand_id: brand.id, sort_order: i, updated_at: new Date().toISOString() }, { onConflict: 'brand_id' })
-    ));
+    saveUserBrandOrder(userId, newOrder.map(b => b.id));
+  };
+
+  const startLongPress = () => {
+    longPressTimer.current = window.setTimeout(() => {
+      setReorderMode(true);
+      if (navigator.vibrate) navigator.vibrate(40);
+    }, 3000);
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleBrandCardClick = (e, brandId) => {
+    if (reorderMode) {
+      e.preventDefault();
+      return;
+    }
+    e.preventDefault();
+    onBrandClick(brandId);
   };
 
   if (loading) {
@@ -256,21 +270,20 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
                 flexDirection: 'column',
                 alignItems: 'center',
                 textAlign: 'center',
-                padding: isMobile ? '2rem 3.5rem 1.75rem' : '3rem 8rem 2.5rem',
+                padding: isMobile ? '2rem 3.5rem 2rem' : '3rem 8rem 2.5rem',
                 cursor: 'pointer',
                 transform: isActive ? `perspective(800px) rotateY(${mousePos.x * 0.03}deg) rotateX(${-mousePos.y * 0.03}deg)` : 'none',
                 transition: 'transform 0.35s ease-out',
               }}
             >
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: 520 }}>
-                <div style={{ display: 'inline-block', background: brand.color + '28', border: `1px solid ${brand.color}66`, borderRadius: 20, padding: '5px 16px', fontSize: 10, color: brand.color, letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: 16, fontWeight: 700, backdropFilter: 'blur(6px)' }}>{brand.category}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: 520, gap: 16 }}>
+                <div style={{ display: 'inline-block', background: brand.color + '28', border: `1px solid ${brand.color}66`, borderRadius: 20, padding: '5px 16px', fontSize: 10, color: brand.color, letterSpacing: '0.25em', textTransform: 'uppercase', fontWeight: 700, backdropFilter: 'blur(6px)' }}>{brand.category}</div>
                 <div style={{
                   fontFamily: "'Bebas Neue', sans-serif",
                   fontSize: isMobile ? 54 : 88,
                   letterSpacing: '0.03em',
                   color: '#FFF',
                   lineHeight: 0.9,
-                  marginBottom: 14,
                   textShadow: '0 4px 32px rgba(0,0,0,0.5)',
                   minHeight: isMobile ? '2.6em' : '1.8em',
                   display: 'flex',
@@ -281,10 +294,27 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
                 }}>
                   {slideHeadline}
                 </div>
-                <div style={{ fontSize: isMobile ? 13 : 15, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.04em', maxWidth: 360, minHeight: isMobile ? 40 : 44, lineHeight: 1.5 }}>{slideSubheadline}</div>
-              </div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: heroCtaBg, color: heroCtaColor, borderRadius: ctaRadius, padding: isMobile ? '12px 22px' : '14px 30px', fontSize: isMobile ? 13 : 14, fontWeight: 700, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', letterSpacing: '0.03em', flexShrink: 0 }}>
-                {slideCta} <span style={{ fontSize: 16 }}>→</span>
+                <div style={{ fontSize: isMobile ? 13 : 15, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.04em', maxWidth: 360, minHeight: isMobile ? 36 : 40, lineHeight: 1.5 }}>{slideSubheadline}</div>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  background: heroCtaGlass,
+                  color: heroCtaColor,
+                  borderRadius: ctaRadius,
+                  padding: isMobile ? '12px 22px' : '14px 30px',
+                  fontSize: isMobile ? 13 : 14,
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  flexShrink: 0,
+                  backdropFilter: 'blur(14px)',
+                  WebkitBackdropFilter: 'blur(14px)',
+                  border: '1px solid rgba(255,255,255,0.28)',
+                  boxShadow: '0 8px 28px rgba(0,0,0,0.25)',
+                  marginTop: 4,
+                }}>
+                  {slideCta} <span style={{ fontSize: 16, opacity: 0.9 }}>→</span>
+                </div>
               </div>
             </div>
           );
@@ -307,10 +337,19 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
         {userType === 'distributor' && !isStaff && (
           <MasterPricingNotice qualified={masterPricingQualified} />
         )}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontSize: 10, letterSpacing: '0.2em', color: t.textFaint, textTransform: 'uppercase', fontWeight: 500 }}>Our Brands</div>
-          <div style={{ fontSize: 11, color: t.textDisabled }}>{brands.length} brands · drag to reorder</div>
+          <div style={{ fontSize: 11, color: t.textDisabled }}>
+            {reorderMode ? 'Drag to reorder · ' : ''}
+            {isMobile ? 'Hold 3s to rearrange' : `${brands.length} brands · drag to reorder`}
+          </div>
         </div>
+        {reorderMode && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '8px 12px', background: t.warningBg, border: `0.5px solid ${t.warningBorder}`, borderRadius: 10, fontSize: 12, color: t.warningText }}>
+            <span>Reorder mode — drag brands into place</span>
+            <button type="button" onClick={() => setReorderMode(false)} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 12 : 16 }}>
           {brands.map((brand, idx) => {
             const tilt = cardTilts[brand.id] || { x: 0, y: 0 };
@@ -319,9 +358,12 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
             return (
               <a key={brand.id}
                 href={`#${brand.id}`}
-                onClick={(e) => { e.preventDefault(); onBrandClick(brand.id); }}
-                draggable
-                onDragStart={(e) => handleDragStart(e, idx)}
+                onClick={(e) => handleBrandCardClick(e, brand.id)}
+                draggable={reorderMode || !isMobile}
+                onTouchStart={() => { if (isMobile && !reorderMode) startLongPress(); }}
+                onTouchEnd={cancelLongPress}
+                onTouchMove={cancelLongPress}
+                onDragStart={(e) => { if (!reorderMode && isMobile) { e.preventDefault(); return; } handleDragStart(e, idx); }}
                 onDragOver={(e) => handleDragOver(e, idx)}
                 onDrop={(e) => handleDrop(e, idx)}
                 onDragEnd={() => { setDragging(null); setDragOver(null); }}

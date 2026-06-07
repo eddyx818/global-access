@@ -7,9 +7,13 @@ export function InterestView({ interests, toggleInterest, form, setForm, onSubmi
   const lockedStyle = { ...inputStyle, opacity: 0.75, background: t.bgSubtle };
 
   return (
-    <div style={{ maxWidth: 620, margin: '0 auto', padding: isMobile ? '1rem' : '1.5rem 1.5rem 3rem' }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', fontSize: 13, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6, padding: 0, fontFamily: 'inherit' }}>← Back</button>
-      <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, letterSpacing: '0.04em', color: t.text, marginBottom: 4 }}>Request a Quote</div>
+    <div style={{ maxWidth: 620, margin: '0 auto', padding: isMobile ? 'max(8px, var(--ga-inset-top)) 1rem 2rem' : '1.5rem 1.5rem 3rem' }}>
+      {!isMobile && (
+        <>
+          <button onClick={onBack} style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', fontSize: 13, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6, padding: 0, fontFamily: 'inherit' }}>← Back</button>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, letterSpacing: '0.04em', color: t.text, marginBottom: 4 }}>Request a Quote</div>
+        </>
+      )}
       <div style={{ fontSize: 13, color: t.textMuted, marginBottom: '1.75rem', lineHeight: 1.6 }}>
         {profileSaved
           ? `Your saved details are below. Add notes for this quote — we will follow up in ${chatLabel} with pricing and availability.`

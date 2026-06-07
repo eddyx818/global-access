@@ -7,7 +7,8 @@ import { APP_SESSION_HINT } from '../lib/appSession';
 import { emailVerificationRequired, isEmailVerified, resendSignupConfirmation, canAccessPortal, fetchProfileAccess } from '../lib/authGate';
 import { isValidRequestEmail, isHoneypotClean, canSubmitAccessRequest } from '../lib/accessRequestGate';
 import { useTheme } from '../context/ThemeContext';
-import ThemeToggle from './ThemeToggle';
+import AddressFields, { EMPTY_ADDRESS } from './AddressFields';
+import { formatFullAddress } from '../lib/addressFormat';
  
 const STORE_TYPES = {
   retailer: ['Smoke Shop', 'Convenience Store', 'Liquor Store', 'Vape Shop', 'CBD Shop', 'Dispensary', 'Gas Station', 'Other'],
@@ -23,10 +24,14 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   const [resetEmail, setResetEmail] = useState('');
   const [reqForm, setReqForm] = useState({
     name: '', company: '', email: '', phone: '',
-    account_type: 'retailer', store_type: '', address: '',
+    account_type: 'retailer', store_type: '',
+    addressParts: { ...EMPTY_ADDRESS },
     location_count: '1', has_retail: false, retail_count: '1',
     website: '',
   });
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+  );
   const [pendingVerifyEmail, setPendingVerifyEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -43,8 +48,27 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
       setRememberMe(true);
     }
   }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const onChange = () => setIsMobile(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
  
-  const inputStyle = { width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '11px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
+  const inputStyle = {
+    width: '100%',
+    background: t.inputBg,
+    border: t.borderHairline,
+    borderRadius: 8,
+    padding: isMobile ? '14px 12px' : '11px 12px',
+    color: t.text,
+    fontSize: 16,
+    outline: 'none',
+    boxSizing: 'border-box',
+    fontFamily: 'inherit',
+  };
   const labelStyle = { fontSize: 11, color: t.textFaint, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 };
   const btnPrimary = { width: '100%', background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 8, padding: '13px', fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', cursor: 'pointer', fontFamily: 'inherit', marginBottom: '1rem' };
   const btnAdmin = {
@@ -157,7 +181,11 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
       setError(gate.error);
       return;
     }
-    await onRequestAccess(reqForm);
+    await onRequestAccess({
+      ...reqForm,
+      ...reqForm.addressParts,
+      address: formatFullAddress(reqForm.addressParts),
+    });
     setLoading(false);
     setSuccess("Request sent! We'll reach out within 1 business day.");
     setError('');
@@ -216,17 +244,17 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   const setReq = (field, val) => setReqForm(f => ({ ...f, [field]: val }));
  
   return (
-    <div className="app-login-screen" style={{ background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: '1.5rem', paddingTop: 'max(1.5rem, var(--ga-inset-top))', paddingBottom: 'max(1.5rem, var(--ga-inset-bottom))', transition: 'background 0.35s ease' }}>
+    <div className="app-login-screen" style={{ background: t.bg, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: isMobile ? '1rem' : '1.5rem', paddingTop: 'max(1rem, var(--ga-inset-top))', paddingBottom: 'max(1.5rem, var(--ga-inset-bottom))', transition: 'background 0.35s ease', minHeight: '100dvh', overflowY: 'auto' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
       <div style={{ width: '100%', maxWidth: mode === 'request' ? 480 : 400 }}>
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: isMobile ? '1.5rem' : '2.5rem' }}>
           <div style={{ fontSize: 11, letterSpacing: '0.3em', color: t.textFaint, textTransform: 'uppercase', marginBottom: 10 }}>Trade Portal</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: '0.06em', color: t.text, lineHeight: 1 }}>Global Access</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 44 : 52, letterSpacing: '0.06em', color: t.text, lineHeight: 1 }}>Global Access</div>
           <div style={{ width: 36, height: 2, background: t.gold, margin: '14px auto 0', borderRadius: 1 }} />
         </div>
 
-        <div style={{ background: t.bgElevated, border: t.borderHairline, borderRadius: 14, padding: '2rem', boxShadow: `0 4px 24px ${t.shadow}` }}>
+        <div style={{ background: t.bgElevated, border: t.borderHairline, borderRadius: 14, padding: isMobile ? '1.25rem' : '2rem', boxShadow: `0 4px 24px ${t.shadow}` }}>
  
           {/* GATE */}
           {mode === 'gate' && (
@@ -319,7 +347,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                 <input value={regForm.username} onChange={e => setReg('username', e.target.value)} placeholder="yourname" style={inputStyle} autoCapitalize="none" />
               </div>
               {[['name', 'Full name *'], ['company', 'Company'], ['email', 'Email *'], ['password', 'Password * (6+ chars)']].map(([field, label]) => (
-                <div key={field} style={{ marginBottom: '1rem' }}>
+                <div key={field} className="login-field-full" style={{ marginBottom: '1rem' }}>
                   <label style={labelStyle}>{label}</label>
                   <input value={regForm[field]} onChange={e => setReg(field, e.target.value)} type={field === 'password' ? 'password' : 'text'} style={inputStyle} autoCapitalize={field === 'email' ? 'none' : 'words'} />
                 </div>
@@ -367,8 +395,8 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                 </div>
               </div>
  
-              {/* Basic info */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: '1rem' }}>
+              {/* Basic info — full width on mobile for easier typing */}
+              <div className="login-form-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 12 : 10, marginBottom: '1rem' }}>
                 {[['name', 'Your name *'], ['company', 'Business name *']].map(([field, label]) => (
                   <div key={field}>
                     <label style={labelStyle}>{label}</label>
@@ -376,11 +404,11 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: '1rem' }}>
+              <div className="login-form-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 12 : 10, marginBottom: '1rem' }}>
                 {[['email', 'Email *'], ['phone', 'Phone / WhatsApp']].map(([field, label]) => (
                   <div key={field}>
                     <label style={labelStyle}>{label}</label>
-                    <input value={reqForm[field]} onChange={e => setReq(field, e.target.value)} style={inputStyle} autoCapitalize={field === 'email' ? 'none' : 'words'} />
+                    <input value={reqForm[field]} onChange={e => setReq(field, e.target.value)} style={inputStyle} autoCapitalize={field === 'email' ? 'none' : 'words'} inputMode={field === 'email' ? 'email' : 'tel'} />
                   </div>
                 ))}
               </div>
@@ -396,9 +424,17 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
  
               {/* Address */}
               <div style={{ marginBottom: '1rem' }}>
-                <label style={labelStyle}>Primary Business Address</label>
-                <input value={reqForm.address} onChange={e => setReq('address', e.target.value)} placeholder="123 Main St, City, State, ZIP" style={inputStyle} />
-                <div style={{ fontSize: 11, color: '#CCC', marginTop: 4 }}>Just your main address — we don't need every location</div>
+                <div style={{ fontSize: 11, color: t.textFaint, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Primary business address</div>
+                <AddressFields
+                  value={reqForm.addressParts}
+                  onChange={(parts) => setReqForm(f => ({ ...f, addressParts: parts }))}
+                  inputStyle={inputStyle}
+                  labelStyle={labelStyle}
+                  isMobile={isMobile}
+                />
+                <div style={{ fontSize: 11, color: t.textDisabled, marginTop: 4, lineHeight: 1.45 }}>
+                  Main location only — we use city and state to organize contacts on the map.
+                </div>
               </div>
  
               {/* Location count */}
@@ -453,7 +489,6 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
             </>
           )}
         </div>
-        <ThemeToggle compact />
         <p style={{ textAlign: 'center', fontSize: 12, color: t.textDisabled, marginTop: '1rem' }}>Global Access · Trade portal · Invite only</p>
       </div>
     </div>

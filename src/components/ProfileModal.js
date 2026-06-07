@@ -11,7 +11,10 @@ import { playMessageSound, vibrateDevice } from '../lib/messageAlerts';
 import { subscribeToPushNotifications, isPushSupported } from '../lib/pushNotifications';
 import { useTheme } from '../context/ThemeContext';
 import { APP_SESSION_HINT } from '../lib/appSession';
+import { validateAppointmentSlot, minAppointmentDateStr, SUPPORT_AVAILABILITY } from '../lib/appointments';
 import ThemeToggle from './ThemeToggle';
+import AddressFields, { EMPTY_ADDRESS } from './AddressFields';
+import { normalizeAddressParts } from '../lib/addressFormat';
 
 function splitAppointment(iso) {
   if (!iso) return { date: '', time: '' };
@@ -52,6 +55,8 @@ export default function ProfileModal({
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
   const [appointmentNotes, setAppointmentNotes] = useState('');
+  const [addressParts, setAddressParts] = useState({ ...EMPTY_ADDRESS });
+  const [supportAvailability, setSupportAvailability] = useState('available');
   const [error, setError] = useState('');
   const [notifyPrefs, setNotifyPrefs] = useState(getNotificationPrefs);
   const [notifyPerm, setNotifyPerm] = useState(getNotificationPermission);
@@ -70,12 +75,22 @@ export default function ProfileModal({
     };
 
     supabase.from('user_profiles')
-      .select('username, bio, profile_avatar_url, preferred_appointment_at, appointment_notes')
+      .select('username, bio, profile_avatar_url, preferred_appointment_at, appointment_notes, address, address_line2, city, state, zip, lat, lng, support_availability')
       .eq('user_id', user.id)
       .single()
       .then(async ({ data, error }) => {
         if (data) {
           applyProfileExtras(data);
+          setAddressParts(normalizeAddressParts({
+            address_line1: data.address,
+            address_line2: data.address_line2,
+            city: data.city,
+            state: data.state,
+            zip: data.zip,
+            lat: data.lat,
+            lng: data.lng,
+          }));
+          setSupportAvailability(data.support_availability || 'available');
           return;
         }
         if (!error) return;
@@ -141,7 +156,15 @@ export default function ProfileModal({
       if (!ok) { setError('Username is already taken.'); setSaving(false); return; }
     }
 
-    const appointmentAt = combineAppointment(appointmentDate, appointmentTime);
+    const appointmentCheck = (appointmentDate && appointmentTime)
+      ? validateAppointmentSlot(appointmentDate, appointmentTime)
+      : { ok: true, iso: null };
+    if (!appointmentCheck.ok) {
+      setError(appointmentCheck.error);
+      setSaving(false);
+      return;
+    }
+    const appointmentAt = appointmentCheck.iso;
 
     try {
       const result = await saveProfile(user.id, user.email, {
@@ -151,9 +174,17 @@ export default function ProfileModal({
         phone: form.phone,
         bio: bio.trim() || null,
         profile_avatar_url: avatarUrl.trim() || null,
-        ...(isStaff ? {} : { user_type: userType, role: userType }),
+        ...(isStaff ? { support_availability: supportAvailability } : { user_type: userType, role: userType }),
         preferred_appointment_at: appointmentAt,
         appointment_notes: appointmentNotes.trim() || null,
+        ...(appointmentAt ? { appointment_status: 'pending' } : {}),
+        address: addressParts.address_line1?.trim() || null,
+        address_line2: addressParts.address_line2?.trim() || null,
+        city: addressParts.city?.trim() || null,
+        state: addressParts.state?.trim() || null,
+        zip: addressParts.zip?.trim() || null,
+        lat: addressParts.lat,
+        lng: addressParts.lng,
       });
       if (!result.ok) {
         const hint = result.error?.includes('phone')
@@ -245,6 +276,48 @@ export default function ProfileModal({
         </div>
       ))}
 
+      {!isStaff && (
+        <div style={sectionStyle}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Business address</div>
+          <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: 12 }}>
+            Optional — helps us place you on the partner map. City and state are saved separately for contact lists.
+          </div>
+          <AddressFields
+            value={addressParts}
+            onChange={setAddressParts}
+            inputStyle={inputStyle}
+            labelStyle={labelStyle}
+            isMobile={isPage}
+          />
+        </div>
+      )}
+
+      {isStaff && (
+        <div style={sectionStyle}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Support availability</div>
+          <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: 12 }}>
+            Let customers know if the team is available for live support.
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {Object.entries(SUPPORT_AVAILABILITY).map(([key, meta]) => (
+              <button key={key} type="button" onClick={() => setSupportAvailability(key)}
+                style={{
+                  textAlign: 'left',
+                  background: supportAvailability === key ? t.successBg : t.inputBg,
+                  border: supportAvailability === key ? `0.5px solid ${t.successBorder}` : t.borderHairline,
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{meta.label}</div>
+                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>{meta.hint}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ marginBottom: '1rem' }}>
         <label style={labelStyle}>Notes for our team</label>
         <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Optional notes about your business..."
@@ -259,7 +332,7 @@ export default function ProfileModal({
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
           <div>
             <label style={labelStyle}>Date</label>
-            <input type="date" value={appointmentDate} min={new Date().toISOString().slice(0, 10)}
+            <input type="date" value={appointmentDate} min={minAppointmentDateStr()}
               onChange={e => setAppointmentDate(e.target.value)} style={inputStyle} />
           </div>
           <div>
@@ -369,26 +442,10 @@ export default function ProfileModal({
         overflow: 'hidden',
       }}>
         <div style={{
-          padding: '14px 16px',
-          paddingTop: 'max(14px, var(--ga-inset-top))',
-          borderBottom: t.borderHairlineLight,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          background: t.headerBg,
-          flexShrink: 0,
-        }}>
-          <button type="button" onClick={onClose} aria-label="Back"
-            style={{ background: 'none', border: 'none', color: t.headerText, cursor: 'pointer', fontSize: 22, padding: '4px 8px 4px 0', fontFamily: 'inherit', lineHeight: 1 }}>
-            ‹
-          </button>
-          <div style={{ fontSize: 16, fontWeight: 600, color: t.headerText }}>My Profile</div>
-        </div>
-        <div style={{
           flex: 1,
           overflowY: 'auto',
           WebkitOverflowScrolling: 'touch',
-          padding: '1.25rem 1rem calc(1rem + var(--ga-inset-bottom))',
+          padding: 'max(8px, var(--ga-inset-top)) 1rem calc(1rem + var(--ga-inset-bottom))',
         }}>
           {formBody}
         </div>
