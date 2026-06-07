@@ -396,23 +396,23 @@ function drawConventionCeiling(ctx, w, h) {
   }
 }
 
-/** Lightweight booth for scrolling side columns — no NPCs or heavy patterns. */
-function drawSimpleBoothFacade(ctx, bx, by, bw, bh, style) {
+/** Front-facing booth kiosk for horizontal floor strip (scrolls past the player). */
+function drawSimpleBoothFront(ctx, bx, by, bw, bh, style) {
   ctx.fillStyle = '#252530';
-  ctx.fillRect(bx, by, bw, bh * 0.11);
+  ctx.fillRect(bx, by, bw, bh * 0.18);
   ctx.fillStyle = style.top;
-  ctx.fillRect(bx + 1, by + bh * 0.02, bw - 2, bh * 0.08);
+  ctx.fillRect(bx + 1, by + bh * 0.03, bw - 2, bh * 0.13);
   ctx.fillStyle = '#fff';
-  ctx.font = `700 ${Math.max(7, bw * 0.11)}px "Bebas Neue", sans-serif`;
+  ctx.font = `700 ${Math.max(6, bw * 0.09)}px "Bebas Neue", sans-serif`;
   ctx.textAlign = 'center';
-  const title = style.title.length > 14 ? `${style.title.slice(0, 13)}…` : style.title;
-  ctx.fillText(title, bx + bw / 2, by + bh * 0.085);
+  const title = style.title.length > 11 ? `${style.title.slice(0, 10)}…` : style.title;
+  ctx.fillText(title, bx + bw / 2, by + bh * 0.13);
   ctx.fillStyle = style.mid;
-  ctx.fillRect(bx, by + bh * 0.12, bw, bh * 0.62);
+  ctx.fillRect(bx + 1, by + bh * 0.2, bw - 2, bh * 0.52);
   ctx.fillStyle = style.counter;
-  ctx.fillRect(bx, by + bh * 0.76, bw, bh * 0.24);
+  ctx.fillRect(bx + 1, by + bh * 0.74, bw - 2, bh * 0.26);
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.fillRect(bx + 2, by + bh * 0.8, bw - 4, bh * 0.04);
+  ctx.fillRect(bx + 2, by + bh * 0.78, bw - 4, bh * 0.05);
   ctx.textAlign = 'start';
 }
 
@@ -426,26 +426,26 @@ function boothStylePool(aisleId) {
   return boothPoolCache[aisleId];
 }
 
-const boothStripCache = { key: '', canvas: null, stripH: 0, colW: 0 };
+const boothStripCache = { key: '', canvas: null, stripW: 0, stripH: 0 };
 
-function getBoothStrip(aisleId, colW, segmentH, styles) {
-  const key = `${aisleId}:${Math.round(colW)}:${Math.round(segmentH)}`;
+function getHorizontalBoothStrip(aisleId, boothW, boothH, styles) {
+  const key = `${aisleId}:h:${Math.round(boothW)}:${Math.round(boothH)}`;
   if (boothStripCache.key === key && boothStripCache.canvas) return boothStripCache;
-  const count = 4;
-  const stripH = segmentH * count;
+  const count = 5;
+  const stripW = boothW * count;
   const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.ceil(colW));
-  canvas.height = Math.max(1, Math.ceil(stripH));
+  canvas.width = Math.max(1, Math.ceil(stripW));
+  canvas.height = Math.max(1, Math.ceil(boothH));
   const sctx = canvas.getContext('2d');
   if (sctx) {
     for (let i = 0; i < count; i += 1) {
-      drawSimpleBoothFacade(sctx, 0, i * segmentH, colW, segmentH, styles[i % styles.length]);
+      drawSimpleBoothFront(sctx, i * boothW, 0, boothW, boothH, styles[i % styles.length]);
     }
   }
   boothStripCache.key = key;
   boothStripCache.canvas = canvas;
-  boothStripCache.stripH = stripH;
-  boothStripCache.colW = colW;
+  boothStripCache.stripW = stripW;
+  boothStripCache.stripH = boothH;
   return boothStripCache;
 }
 
@@ -455,22 +455,28 @@ function drawSideVendorBooths(ctx, side, w, h, scroll, aisle) {
   const colW = w * 0.23;
   const topY = h * 0.12;
   const floorY = GROUND * h;
-  const boothH = floorY - topY;
+  const floorBandH = h * 0.26;
+  const bandTop = floorY - floorBandH;
+
+  ctx.fillStyle = '#3a3a44';
+  ctx.fillRect(colX, topY, colW, bandTop - topY);
+  ctx.fillStyle = '#44444e';
+  ctx.fillRect(colX + 2, topY + 4, colW - 4, (bandTop - topY) * 0.35);
+
   const styles = boothStylePool(aisle.id);
-  const segmentH = boothH * 0.9;
-  const stripW = colW - 6;
-  const strip = getBoothStrip(aisle.id, stripW, segmentH, styles);
-  const visibleH = floorY - topY;
-  const offset = strip.stripH > 0 ? (scroll * 0.85) % strip.stripH : 0;
+  const boothW = colW * 0.92;
+  const strip = getHorizontalBoothStrip(aisle.id, boothW, floorBandH, styles);
+  const visibleW = colW - 4;
+  const parallax = scroll * 1.35 + (isLeft ? 0 : 48);
+  const offset = strip.stripW > 0 ? parallax % strip.stripW : 0;
 
   if (strip.canvas) {
-    const sx = 0;
-    const sy = offset;
-    const sh = Math.min(visibleH, strip.stripH - offset);
-    ctx.drawImage(strip.canvas, sx, sy, strip.colW, sh, colX + 3, topY, stripW, sh);
-    const remain = visibleH - sh;
-    if (remain > 0) {
-      ctx.drawImage(strip.canvas, 0, 0, strip.colW, remain, colX + 3, topY + sh, stripW, remain);
+    const sx = offset;
+    const sw = Math.min(visibleW, strip.stripW - offset);
+    ctx.drawImage(strip.canvas, sx, 0, sw, strip.stripH, colX + 2, bandTop, sw, floorBandH);
+    const remain = visibleW - sw;
+    if (remain > 0 && strip.stripW > 0) {
+      ctx.drawImage(strip.canvas, 0, 0, remain, strip.stripH, colX + 2 + sw, bandTop, remain, floorBandH);
     }
   }
 
@@ -493,7 +499,7 @@ function drawShowFloor(ctx, w, h, aisle, scroll) {
   ctx.fillRect(0, py(0.12), w, floorY - py(0.12));
 
   drawSideVendorBooths(ctx, 'left', w, h, scroll, aisle);
-  drawSideVendorBooths(ctx, 'right', w, h, scroll + 90, aisle);
+  drawSideVendorBooths(ctx, 'right', w, h, scroll + 120, aisle);
 
   const aisleGrad = ctx.createLinearGradient(w * 0.23, 0, w * 0.77, 0);
   aisleGrad.addColorStop(0, '#62626c');
@@ -502,8 +508,8 @@ function drawShowFloor(ctx, w, h, aisle, scroll) {
   ctx.fillStyle = aisleGrad;
   ctx.fillRect(w * 0.23, py(0.12), w * 0.54, floorY - py(0.12));
 
-  for (let i = 0; i < 4; i += 1) {
-    const fx = w * 0.23 + (((i * 0.25 - scroll * 0.18) % 1 + 1) % 1) * w * 0.54;
+  for (let i = 0; i < 5; i += 1) {
+    const fx = w * 0.23 + (((i * 0.22 - scroll * 0.28) % 1 + 1) % 1) * w * 0.54;
     ctx.strokeStyle = 'rgba(0,0,0,0.12)';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -596,10 +602,10 @@ function drawSecurityGuard(ctx, e, w, h, walkPhase) {
   const footX = e.x * w;
   const footY = (e.y + e.h) * h;
   const scale = characterScale(h);
-  drawSpeechBubble(ctx, footX, footY - scale * 1.05, e.pitch, 108, '#2c3e50');
   drawHuman(ctx, footX, footY, scale, 'left', walkPhase + e.x * 100, {
     shirt: '#2c3e50', pants: '#1a1a1a', skin: '#c68642', securityVest: true,
   });
+  drawSpeechBubble(ctx, footX, footY - scale * 1.05, e.pitch, 108, '#2c3e50');
   ctx.font = '700 7px sans-serif';
   ctx.fillStyle = '#F1C40F';
   ctx.fillText('CHAMPS SECURITY', footX, footY + 4);
@@ -609,11 +615,11 @@ function drawVendorRep(ctx, e, w, h, walkPhase, aisle) {
   const footX = e.x * w;
   const footY = (e.y + e.h) * h;
   const scale = characterScale(h);
-  drawSpeechBubble(ctx, footX, footY - scale * 1.05, e.pitch, 108, e.chinese ? '#e74c3c' : aisle.neon);
   drawHuman(ctx, footX, footY, scale, 'left', walkPhase + e.x * 100, {
     shirt: e.chinese ? '#c0392b' : aisle.vendorShirt,
     pants: '#222', skin: '#c68642', tie: aisle.neon,
   });
+  drawSpeechBubble(ctx, footX, footY - scale * 1.05, e.pitch, 108, e.chinese ? '#e74c3c' : aisle.neon);
   ctx.font = '700 7px sans-serif';
   ctx.fillStyle = e.chinese ? '#e74c3c' : aisle.neon;
   ctx.fillText(e.chinese ? 'OVERSEAS VENDOR' : 'VENDOR REP', footX, footY + 4);
@@ -660,7 +666,7 @@ function drawKnockoffBooth(ctx, e, w, h, aisle, time) {
     ctx.textAlign = 'start';
   }
 
-  drawSpeechBubble(ctx, bx, cy - signH - 2, e.pitch, 100, '#888');
+  drawSpeechBubble(ctx, bx, cy - 4, e.pitch, 100, '#888');
 }
 
 function drawChasingRep(ctx, footX, footY, scale, walkPhase, line) {
@@ -719,7 +725,10 @@ function drawBrandPickup(ctx, brand, x, y, bob, w, h, time, aisle) {
 
 function obstacleBox(e) {
   if (e.type === 'booth') {
-    return { x: e.x + 0.008, y: e.y + 0.005, w: e.w - 0.016, h: e.h - 0.01 };
+    return { x: e.x + 0.012, y: e.y + e.h * 0.2, w: e.w - 0.024, h: e.h * 0.78 };
+  }
+  if (e.type === 'vendor' || e.type === 'security') {
+    return { x: e.x + 0.02, y: e.y + e.h * 0.58, w: e.w - 0.04, h: e.h * 0.4 };
   }
   return { x: e.x + 0.01, y: e.y + 0.01, w: e.w - 0.02, h: e.h - 0.02 };
 }
@@ -727,7 +736,7 @@ function obstacleBox(e) {
 function isJumpingOver(playerBox, obsBox, grounded) {
   if (grounded) return false;
   const feetY = playerBox.y + playerBox.h;
-  return feetY < obsBox.y + 0.028;
+  return feetY <= obsBox.y + 0.008;
 }
 
 function handleObstacleCollision(s, e, playerBox) {
