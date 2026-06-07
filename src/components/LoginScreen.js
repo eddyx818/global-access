@@ -17,9 +17,9 @@ const STORE_TYPES = {
   distributor: ['Regional Distributor', 'National Distributor', 'Wholesale', 'Broker', 'Other'],
 };
  
-export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAccess, onAdminEntry, showLogin }) {
+export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAccess, onAdminEntry, showLogin, initialMode = null, onInitialModeConsumed = null }) {
   const { t } = useTheme();
-  const [mode, setMode] = useState(showLogin ? 'login' : 'gate');
+  const [mode, setMode] = useState(() => initialMode || (showLogin ? 'login' : 'gate'));
   const [code, setCode] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -181,28 +181,47 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   };
  
   const handleRequest = async () => {
+    if (!code.trim()) {
+      setError('Please enter your access code.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    const codeResult = await validateAccessCode(code);
+    if (!codeResult.valid) {
+      setLoading(false);
+      setError('Invalid access code. Ask your sales rep for their personal code.');
+      return;
+    }
+    if (codeResult.type === 'rep') {
+      await setPortalReferral({ repUserId: codeResult.repUserId, code: codeResult.code });
+    }
+
     if (!reqForm.name || !reqForm.company || !reqForm.email || !reqForm.phone?.trim()) {
+      setLoading(false);
       setError('Please fill in name, company, email, and phone.');
       return;
     }
     const nameCheck = validatePersonName(reqForm.name, { label: 'Name' });
-    if (!nameCheck.ok) { setError(nameCheck.error); return; }
+    if (!nameCheck.ok) { setLoading(false); setError(nameCheck.error); return; }
     const companyCheck = validateCompanyName(reqForm.company);
-    if (!companyCheck.ok) { setError(companyCheck.error); return; }
+    if (!companyCheck.ok) { setLoading(false); setError(companyCheck.error); return; }
     if (!isValidRequestEmail(reqForm.email)) {
+      setLoading(false);
       setError('Please enter a valid email address.');
       return;
     }
     if (!isValidPhone(reqForm.phone)) {
+      setLoading(false);
       setError(getPhoneValidationError(reqForm.phone) || 'Please enter a valid mobile number.');
       return;
     }
     if (!isHoneypotClean(reqForm)) {
+      setLoading(false);
       setSuccess("Request sent! We'll reach out within 1 business day.");
       setError('');
       return;
     }
-    setLoading(true);
     setError('');
     const gate = await canSubmitAccessRequest(reqForm.email);
     if (!gate.ok) {
@@ -240,6 +259,8 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
         company: companyCheck.value,
         ...reqForm.addressParts,
         address: formatFullAddress(reqForm.addressParts),
+        referred_by_user_id: codeResult.type === 'rep' ? codeResult.repUserId : null,
+        referral_code_used: codeResult.code,
       });
     } catch (err) {
       setLoading(false);
@@ -403,7 +424,25 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
           {/* REQUEST ACCESS — full form */}
           {mode === 'request' && (
             <>
-              <p style={{ fontSize: 13, color: '#888', marginBottom: '1.25rem', lineHeight: 1.6 }}>Tell us about your business. We'll review and reach out within 1 business day.</p>
+              <p style={{ fontSize: 13, color: t.textMuted, marginBottom: '1.25rem', lineHeight: 1.6 }}>
+                Global Access is invite only. Enter your access code, then tell us about your business. We review every request within 1 business day.
+              </p>
+
+              <div style={{ background: t.goldBg, border: `0.5px solid ${t.gold}`, borderRadius: 10, padding: '1rem', marginBottom: '1.25rem' }}>
+                <label style={labelStyle}>Access code *</label>
+                <input
+                  value={code}
+                  onChange={e => setCode(e.target.value)}
+                  placeholder="Rep code or invitation"
+                  style={inputStyle}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                />
+                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 8, lineHeight: 1.45 }}>
+                  Your sales rep should have shared a personal code. If you were invited another way, enter the code you were given.
+                </div>
+              </div>
 
               <input type="text" name="website" value={reqForm.website} onChange={e => setReq('website', e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0 }} />
  
@@ -513,7 +552,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                   {loading ? 'Sending...' : 'Request Access →'}
                 </button>
               )}
-              <div style={{ textAlign: 'center' }}><button onClick={() => setMode('gate')} style={btnLink}>← Back</button></div>
+              <div style={{ textAlign: 'center' }}><button onClick={() => { setError(''); onInitialModeConsumed?.(); setMode(showLogin ? 'login' : 'gate'); }} style={btnLink}>← Back</button></div>
             </>
           )}
         </div>

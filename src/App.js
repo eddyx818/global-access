@@ -59,6 +59,7 @@ export default function App() {
   const [form, setForm] = useState({ name: '', company: '', phone: '', email: '', notes: '' });
   const [isMobile, setIsMobile] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
+  const [loginInitialMode, setLoginInitialMode] = useState(null);
   const [signupPromptError, setSignupPromptError] = useState('');
   const [showProfile, setShowProfile] = useState(false);
   const [profileGate, setProfileGate] = useState(null);
@@ -716,6 +717,11 @@ export default function App() {
     setView('thanks');
   };
 
+  const openAccessRequest = () => {
+    setLoginInitialMode('request');
+    setAuthState('login');
+  };
+
   const handleRequestAccess = async (data) => {
     if (!isHoneypotClean(data)) return;
     if (!isValidPhone(data.phone)) return;
@@ -739,8 +745,8 @@ export default function App() {
       location_count: data.location_count,
       has_retail: data.has_retail,
       retail_count: data.retail_count,
-      referred_by_user_id: referral?.referral_rep_id || null,
-      referral_code_used: referral?.referral_code || null,
+      referred_by_user_id: data.referred_by_user_id || referral?.referral_rep_id || null,
+      referral_code_used: data.referral_code_used || referral?.referral_code || null,
       status: 'pending',
       created_at: new Date().toISOString(),
     });
@@ -766,7 +772,9 @@ export default function App() {
       )}
       <LoginScreen
         showLogin={false}
-        onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }}
+        initialMode={loginInitialMode}
+        onInitialModeConsumed={() => setLoginInitialMode(null)}
+        onCodeVerified={async () => { await setPortalCodeVerified(true); setLoginInitialMode(null); setAuthState('browse'); }}
         onLoggedIn={handleLoggedIn}
         onAdminEntry={() => setAuthState('login')}
         onRequestAccess={handleRequestAccess}
@@ -780,8 +788,10 @@ export default function App() {
       )}
       <LoginScreen
         showLogin={true}
-        onCodeVerified={async () => { await setPortalCodeVerified(true); setAuthState('browse'); }}
-        onLoggedIn={handleLoggedIn}
+        initialMode={loginInitialMode}
+        onInitialModeConsumed={() => setLoginInitialMode(null)}
+        onCodeVerified={async () => { await setPortalCodeVerified(true); setLoginInitialMode(null); setAuthState('browse'); }}
+        onLoggedIn={(u) => { setLoginInitialMode(null); handleLoggedIn(u); }}
         onAdminEntry={() => setAuthState('login')}
         onRequestAccess={handleRequestAccess}
       />
@@ -818,7 +828,7 @@ export default function App() {
           <span style={{ fontSize: 13, color: t.browseBannerText }}>Browsing as guest — sign up or log in to submit an inquiry</span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setAuthState('login')} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Sign in</button>
-            <button onClick={() => setShowSignupPrompt(true)} style={{ background: 'none', border: `0.5px solid ${t.browseBannerText}`, borderRadius: 6, padding: '6px 14px', fontSize: 12, color: t.browseBannerText, cursor: 'pointer', fontFamily: 'inherit' }}>Request access</button>
+            <button onClick={openAccessRequest} style={{ background: 'none', border: `0.5px solid ${t.browseBannerText}`, borderRadius: 6, padding: '6px 14px', fontSize: 12, color: t.browseBannerText, cursor: 'pointer', fontFamily: 'inherit' }}>Request access</button>
           </div>
         </div>
       )}
@@ -1000,7 +1010,7 @@ export default function App() {
           masterPricingQualified={masterPricingQualified}
           pricingVisible={authState !== 'browse'}
           onSignIn={authState === 'browse' ? () => setAuthState('login') : null}
-          onRequestAccess={authState === 'browse' ? () => setShowSignupPrompt(true) : null}
+          onRequestAccess={authState === 'browse' ? openAccessRequest : null}
           chatLabel={chatLabel}
         />
       )}
