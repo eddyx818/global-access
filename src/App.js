@@ -21,6 +21,7 @@ export default function App() {
   const [view, setView] = useState('home');
   const [activeBrand, setActiveBrand] = useState(null);
   const [interests, setInterests] = useState([]);
+  const [masterPricingBrands, setMasterPricingBrands] = useState({});
   const [form, setForm] = useState({ name: '', company: '', phone: '', email: '', notes: '' });
   const [isMobile, setIsMobile] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
@@ -119,10 +120,39 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, activeBrand, authState, adminMode]);
 
-  const toggleInterest = (sku, productName, brandName, flavor, qty = 1, orderMode = 'master_case') => {
+  const toggleInterest = (sku, productName, brandName, flavor, qty = 1, orderMode = 'master_case', brandId = null) => {
     const key = `${sku}__${flavor}`;
-    trackEvent('click', activeBrand ? `brand:${activeBrand}` : view, { element: `interest:${sku}:${flavor}`, user_id: user?.id });
-    setInterests(prev => prev.find(i => i.key === key) ? prev.filter(i => i.key !== key) : [...prev, { key, sku, productName, brandName, flavor, qty, orderMode }]);
+    const bid = brandId || activeBrand;
+    trackEvent('click', bid ? `brand:${bid}` : view, { element: `interest:${sku}:${flavor}`, user_id: user?.id });
+    setInterests(prev => {
+      if (prev.find(i => i.key === key)) return prev.filter(i => i.key !== key);
+      return [...prev, {
+        key,
+        sku,
+        productName,
+        brandName,
+        brandId: bid,
+        flavor,
+        qty,
+        orderMode,
+        wantsMasterPricing: !!(bid && masterPricingBrands[bid]),
+      }];
+    });
+  };
+
+  const toggleMasterPricing = (brandId, brandName) => {
+    if (!brandId) return;
+    const enabling = !masterPricingBrands[brandId];
+    trackEvent('click', `brand:${brandId}`, { element: 'master_pricing_toggle', enabled: enabling, user_id: user?.id });
+    setMasterPricingBrands(prev => {
+      const next = { ...prev };
+      if (enabling) next[brandId] = brandName;
+      else delete next[brandId];
+      return next;
+    });
+    setInterests(prev => prev.map(i => (
+      i.brandId === brandId ? { ...i, wantsMasterPricing: enabling } : i
+    )));
   };
 
   const isInterested = (sku, flavor) => interests.some(i => i.key === `${sku}__${flavor}`);
@@ -171,6 +201,7 @@ export default function App() {
     setIsPortalAdmin(false);
     setAuthState('gate');
     setInterests([]);
+    setMasterPricingBrands({});
     setAdminMode('dashboard');
   };
 
@@ -224,12 +255,13 @@ export default function App() {
       email: form.email,
       notes: form.notes,
       interests,
+      master_pricing_brands: Object.entries(masterPricingBrands).map(([brand_id, brand_name]) => ({ brand_id, brand_name })),
       user_type: userType,
       created_at: new Date().toISOString(),
     });
     if (user?.id) {
       try {
-        await submitInterestToSupport(user.id, { form, interests, userType });
+        await submitInterestToSupport(user.id, { form, interests, userType, masterPricingBrands });
       } catch (_) {}
     }
     setShowSignupPrompt(false);
@@ -348,9 +380,22 @@ export default function App() {
           interests={interests}
           onSubmit={handleSubmitAttempt}
           isMobile={isMobile}
+          masterPricingOn={!!masterPricingBrands[activeBrand]}
+          onToggleMasterPricing={toggleMasterPricing}
         />
       )}
-      {view === 'interest' && <InterestView interests={interests} toggleInterest={toggleInterest} form={form} setForm={setForm} onSubmit={handleSubmitAttempt} onBack={() => setView(activeBrand ? 'brand' : 'home')} isMobile={isMobile} />}
+      {view === 'interest' && (
+        <InterestView
+          interests={interests}
+          masterPricingBrands={masterPricingBrands}
+          toggleInterest={toggleInterest}
+          form={form}
+          setForm={setForm}
+          onSubmit={handleSubmitAttempt}
+          onBack={() => setView(activeBrand ? 'brand' : 'home')}
+          isMobile={isMobile}
+        />
+      )}
       {view === 'thanks' && (
         <ThanksView
           onBack={goHome}

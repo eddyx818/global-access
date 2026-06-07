@@ -215,7 +215,17 @@ export default function AdminDashboard({ onLogout, onViewPortal }) {
                   <div><div style={{ fontWeight: 500, fontSize: 15 }}>{inq.name} — {inq.company}</div><div style={{ fontSize: 12, color: '#AAA', marginTop: 2 }}>{inq.phone || '—'} · {inq.email || '—'}</div></div>
                   <div style={{ fontSize: 11, color: '#BBB' }}>{new Date(inq.created_at).toLocaleString()}</div>
                 </div>
-                {(inq.interests || []).map(i => (<div key={i.key} style={{ fontSize: 12, color: '#555', padding: '4px 0', borderBottom: '0.5px solid #F5F2ED' }}>{i.brandName} — {i.productName} · {i.flavor}</div>))}
+                {(inq.interests || []).map(i => (
+                  <div key={i.key} style={{ fontSize: 12, color: '#555', padding: '4px 0', borderBottom: '0.5px solid #F5F2ED' }}>
+                    {i.brandName} — {i.productName} · {i.flavor}
+                    {i.wantsMasterPricing && <span style={{ color: '#A07A20', fontWeight: 600 }}> · Master Distributor</span>}
+                  </div>
+                ))}
+                {(inq.master_pricing_brands || []).map(b => (
+                  <div key={b.brand_id} style={{ fontSize: 12, color: '#A07A20', padding: '4px 0', fontWeight: 600 }}>
+                    ⭐ Master Distributor pricing — {b.brand_name}
+                  </div>
+                ))}
                 {inq.notes && <div style={{ fontSize: 12, color: '#888', background: '#F8F6F3', borderRadius: 6, padding: '8px 10px', marginTop: 8 }}>"{inq.notes}"</div>}
               </div>
             ))}
