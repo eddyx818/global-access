@@ -18,11 +18,12 @@ import { getAdminUi } from '../lib/theme';
 import { approveAccessRequestAndCreateAccount } from '../lib/accessApproval';
 import { whatsAppUrl } from '../lib/whatsapp';
 import { updateInquiryQuoteStatus, QUOTE_STATUSES } from '../lib/inquiries';
+import { loadAppNavigation, saveAppNavigationPartial } from '../lib/appNavigation';
 
 export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const { t } = useTheme();
   const ui = getAdminUi();
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState(() => loadAppNavigation()?.adminTab || 'overview');
   const [brandOverrides, setBrandOverrides] = useState({});
   const [productOverrides, setProductOverrides] = useState({});
 
@@ -47,6 +48,10 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const [statusUpdatingId, setStatusUpdatingId] = useState(null);
 
   useEffect(() => { loadAll(); loadContentOverrides(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (user?.id) saveAppNavigationPartial({ userId: user.id, adminTab: tab });
+  }, [tab, user?.id]);
 
   useEffect(() => {
     let debounceTimer;

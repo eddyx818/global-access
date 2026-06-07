@@ -146,7 +146,7 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
         label: file.name,
         uploading: true,
       }]);
-      const url = await uploadGalleryImage(selectedBrand.id, file);
+      const url = await uploadGalleryImage(selectedBrand.id, file, { products: selectedBrand.products || [] });
       URL.revokeObjectURL(previewUrl);
       setPendingStrip(prev => prev.filter(p => p.id !== tempId));
       if (url) {

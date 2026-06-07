@@ -83,7 +83,27 @@ Return ONLY valid JSON, no markdown:
 
     // Build HTML
     const portalUrl = (Deno.env.get('PORTAL_URL') || 'https://global-access.vercel.app').replace(/\/$/, '');
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;background:#F5F2ED;margin:0}.wrap{max-width:600px;margin:0 auto}.hero{background:#0D0D0D;padding:48px 40px;text-align:center}.pill{display:inline-block;background:${brand.color}28;border:1px solid ${brand.color}66;border-radius:20px;padding:5px 16px;font-size:11px;color:${brand.color};letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px;font-weight:700}.h1{font-size:42px;font-weight:800;color:#FFF;line-height:1;margin-bottom:12px}.sub{font-size:16px;color:rgba(255,255,255,.55);margin-bottom:32px}.btn{display:inline-block;background:${brand.color};color:#FFF;text-decoration:none;padding:16px 36px;border-radius:12px;font-size:15px;font-weight:700}.body{background:#FFF;margin:24px;border-radius:16px;padding:40px}.p{font-size:16px;line-height:1.75;color:#444;margin-bottom:20px}.box{background:${brand.color}0D;border:1px solid ${brand.color}33;border-radius:12px;padding:20px 24px;margin:24px 0}.footer{text-align:center;padding:32px 24px;font-size:12px;color:#BBB}</style></head><body><div class="wrap"><div class="hero"><div class="pill">${brand.category}</div><div class="h1">${copy.headline||brand.name}</div><div class="sub">${copy.subheadline||''}</div><a href="${portalUrl}/#${brand.id}" class="btn">${copy.cta_text||'View Products'} →</a></div><div class="body"><p class="p">${copy.body_paragraph_1||''}</p><div class="box"><div style="font-size:10px;color:${brand.color};font-weight:700;text-transform:uppercase;letter-spacing:.15em;margin-bottom:8px">Featured — ${brand.name}</div><div style="font-size:15px;color:#333">${brand.highlight}</div></div><p class="p">${copy.body_paragraph_2||''}</p><p class="p" style="font-weight:600;color:#1A1A1A">${copy.body_paragraph_3||''}</p><div style="text-align:center;margin-top:24px"><a href="${portalUrl}/#${brand.id}" class="btn">${copy.cta_text||'View Products'} →</a></div>${copy.ps_line?`<p style="font-size:14px;color:#888;font-style:italic;margin-top:28px">P.S. ${copy.ps_line}</p>`:''}</div><div class="footer"><div style="font-size:20px;font-weight:800;letter-spacing:.1em;color:#1A1A1A;margin-bottom:8px">GLOBAL ACCESS</div>Trade portal · Invite only<br><a href="https://wa.me/18183199888" style="color:#C9A84C">+1 (818) 319-9888</a> · <a href="mailto:edward@churroslocos.shop" style="color:#C9A84C">edward@churroslocos.shop</a></div></div></body></html>`;
+    const ctaText = copy.cta_text || 'View Products';
+    const emailStyles = `body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F5F2ED;margin:0;padding:0}
+.wrap{max-width:600px;margin:0 auto}
+.hero{background:#0D0D0D;padding:48px 40px;text-align:center}
+.pill{display:inline-block;background:${brand.color}28;border:1px solid ${brand.color}66;border-radius:20px;padding:5px 16px;font-size:11px;color:${brand.color};letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px;font-weight:700}
+.h1{font-size:42px;font-weight:800;color:#FFF;line-height:1.1;margin:0 0 12px}
+.sub{font-size:16px;color:rgba(255,255,255,.55);margin:0 0 32px;line-height:1.5}
+.btn-wrap{text-align:center;margin:0}
+.btn{display:inline-block;background:${brand.color};color:#FFF!important;text-decoration:none;padding:16px 28px;border-radius:12px;font-size:15px;font-weight:700;line-height:1.3;max-width:100%;box-sizing:border-box;word-break:break-word}
+.body{background:#FFF;margin:24px;border-radius:16px;padding:40px}
+.p{font-size:16px;line-height:1.75;color:#444;margin:0 0 20px}
+.box{background:${brand.color}0D;border:1px solid ${brand.color}33;border-radius:12px;padding:20px 24px;margin:24px 0}
+.footer{text-align:center;padding:32px 24px;font-size:12px;color:#BBB}
+@media only screen and (max-width:480px){
+.hero{padding:32px 20px}
+.h1{font-size:30px}
+.sub{font-size:15px;margin-bottom:24px}
+.body{margin:16px;padding:24px 20px}
+.btn{display:block;width:100%;padding:14px 18px;font-size:14px;text-align:center}
+}`;
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${emailStyles}</style></head><body><div class="wrap"><div class="hero"><div class="pill">${brand.category}</div><div class="h1">${copy.headline||brand.name}</div><div class="sub">${copy.subheadline||''}</div><div class="btn-wrap"><a href="${portalUrl}/#${brand.id}" class="btn">${ctaText} →</a></div></div><div class="body"><p class="p">${copy.body_paragraph_1||''}</p><div class="box"><div style="font-size:10px;color:${brand.color};font-weight:700;text-transform:uppercase;letter-spacing:.15em;margin-bottom:8px">Featured — ${brand.name}</div><div style="font-size:15px;color:#333;line-height:1.55">${brand.highlight}</div></div><p class="p">${copy.body_paragraph_2||''}</p><p class="p" style="font-weight:600;color:#1A1A1A">${copy.body_paragraph_3||''}</p><div class="btn-wrap" style="margin-top:24px"><a href="${portalUrl}/#${brand.id}" class="btn">${ctaText} →</a></div>${copy.ps_line?`<p style="font-size:14px;color:#888;font-style:italic;margin-top:28px">P.S. ${copy.ps_line}</p>`:''}</div><div class="footer"><div style="font-size:20px;font-weight:800;letter-spacing:.1em;color:#1A1A1A;margin-bottom:8px">GLOBAL ACCESS</div>Trade portal · Invite only<br><a href="https://wa.me/18183199888" style="color:#C9A84C">+1 (818) 319-9888</a> · <a href="mailto:edward@churroslocos.shop" style="color:#C9A84C">edward@churroslocos.shop</a></div></div></body></html>`;
 
     // Save draft
     const { data: draft, error } = await supabase.from('email_drafts').insert({

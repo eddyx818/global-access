@@ -71,10 +71,10 @@ export default function ContactMap() {
 
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: '1rem' }}>
-        {['all','distributor','retailer'].map(f => (
+        {['all', 'distributor', 'retailer'].map(f => (
           <button key={f} onClick={() => setFilter(f)}
             style={ui.tabBtn(filter === f)}>
-            {f === 'all' ? 'All Contacts' : f + 's'}
+            {f === 'all' ? 'All Contacts' : f === 'distributor' ? 'Distributors' : 'Retailers'}
           </button>
         ))}
       </div>

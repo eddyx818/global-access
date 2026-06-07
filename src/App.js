@@ -26,6 +26,12 @@ import { subscribeToPushNotifications } from './lib/pushNotifications';
 import { canAccessPortal, fetchProfileAccess } from './lib/authGate';
 import { isHoneypotClean } from './lib/accessRequestGate';
 import { useTheme } from './context/ThemeContext';
+import {
+  clearAppNavigation,
+  loadAppNavigation,
+  readSavedPortalNav,
+  saveAppNavigation,
+} from './lib/appNavigation';
 
 export default function App() {
   const { t, isNight } = useTheme();
@@ -222,13 +228,43 @@ export default function App() {
   // Handle direct hash URL links (e.g. global-access.vercel.app/#goldwhip)
   useEffect(() => {
     const hash = window.location.hash.replace('#', '');
-    if (hash && hash.length > 0) {
-      setActiveBrand(hash);
-      setView('brand');
-    }
+    if (!hash || hash === 'admin') return;
+    const saved = loadAppNavigation();
+    if (saved?.view === 'brand' && saved?.activeBrand) return;
+    setActiveBrand(hash);
+    setView('brand');
   }, []);
 
-  const applySessionUser = async (sessionUser) => {
+  // Persist navigation so returning from calls / background resumes where you left off
+  useEffect(() => {
+    if (!user?.id || authState === 'loading' || authState === 'gate' || authState === 'login') return;
+    saveAppNavigation({
+      userId: user.id,
+      authState,
+      adminMode,
+      view,
+      activeBrand,
+    });
+  }, [user?.id, authState, adminMode, view, activeBrand]);
+
+  useEffect(() => {
+    const onPageShow = (event) => {
+      if (!user?.id) return;
+      const saved = readSavedPortalNav(user.id);
+      if (!saved) return;
+      if (isPortalAdmin) setAdminMode(saved.adminMode);
+      const inPortal = authState === 'portal' || authState === 'browse'
+        || (isPortalAdmin && saved.adminMode === 'portal');
+      if (inPortal && saved.view) {
+        setView(saved.view);
+        setActiveBrand(saved.activeBrand || null);
+      }
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, [user?.id, authState, isPortalAdmin]);
+
+  const applySessionUser = async (sessionUser, { restoreNav = true } = {}) => {
     const accessProfile = await fetchProfileAccess(sessionUser.id);
     if (!canAccessPortal(sessionUser, accessProfile)) {
       await supabase.auth.signOut();
@@ -236,12 +272,15 @@ export default function App() {
       return;
     }
     const { isAdmin, isSalesRep: salesRep, authState: nextAuth } = await resolveAuthRole(sessionUser);
+    const savedNav = restoreNav ? readSavedPortalNav(sessionUser.id) : null;
+
     setUser(sessionUser);
     setIsPortalAdmin(isAdmin);
     setIsSalesRep(salesRep);
     setAuthState(nextAuth);
+
     if (isAdmin) {
-      setAdminMode('dashboard');
+      setAdminMode(savedNav?.adminMode || 'dashboard');
       setForm(f => ({
         ...f,
         name: f.name || 'Global Access',
@@ -249,6 +288,26 @@ export default function App() {
         email: sessionUser.email,
       }));
       await ensurePortalAdminFlag(sessionUser.id, sessionUser.email);
+    }
+
+    const inPortalShell = nextAuth === 'portal' || nextAuth === 'browse'
+      || (isAdmin && (savedNav?.adminMode === 'portal'));
+
+    if (savedNav && inPortalShell) {
+      const nextView = savedNav.view || 'home';
+      setView(nextView);
+      if (savedNav.activeBrand && (nextView === 'brand' || savedNav.activeBrand)) {
+        setActiveBrand(savedNav.activeBrand);
+        if (nextView === 'brand') {
+          window.history.replaceState(
+            { view: 'brand', brandId: savedNav.activeBrand },
+            '',
+            `#${savedNav.activeBrand}`,
+          );
+        }
+      } else if (nextView === 'home') {
+        setActiveBrand(null);
+      }
     }
     try {
       const { data: profile } = await supabase.from('user_profiles')
@@ -429,6 +488,7 @@ export default function App() {
     setChatOpen(false);
     setShowProfile(false);
     setProfileGate(null);
+    clearAppNavigation();
   };
 
   const handleLoggedIn = async (sessionUser) => {
