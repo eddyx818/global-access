@@ -8,12 +8,14 @@ import {
 
 const ROTATE_MS = 9000;
 const REFRESH_MS = 180000;
+const FADE_MS = 520;
 
 export default function AccessWaitingFacts({ theme }) {
   const [facts, setFacts] = useState([]);
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [progressKey, setProgressKey] = useState(0);
   const mountedRef = useRef(true);
   const fadeTimerRef = useRef(null);
 
@@ -24,6 +26,7 @@ export default function AccessWaitingFacts({ theme }) {
     setFacts(rows);
     setIdx((prev) => (rows.length ? Math.min(prev, rows.length - 1) : 0));
     setVisible(true);
+    setProgressKey((k) => k + 1);
     setLoading(false);
   }, []);
 
@@ -46,8 +49,9 @@ export default function AccessWaitingFacts({ theme }) {
       fadeTimerRef.current = window.setTimeout(() => {
         if (!mountedRef.current) return;
         setIdx((i) => (facts.length ? (i + 1) % facts.length : 0));
+        setProgressKey((k) => k + 1);
         setVisible(true);
-      }, 420);
+      }, FADE_MS);
     }, ROTATE_MS);
     return () => {
       clearInterval(id);
@@ -66,7 +70,7 @@ export default function AccessWaitingFacts({ theme }) {
     return (
       <div style={{
         padding: '20px 16px',
-        borderRadius: 12,
+        borderRadius: 14,
         background: mutedBg,
         border: `0.5px solid ${border}`,
         fontSize: 13,
@@ -82,20 +86,25 @@ export default function AccessWaitingFacts({ theme }) {
 
   return (
     <div style={{
-      borderRadius: 12,
+      borderRadius: 14,
       overflow: 'hidden',
       border: `0.5px solid ${border}`,
       background: mutedBg,
+      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
     }}>
       <style>{`
-        @keyframes waitingFactIn {
-          from { opacity: 0; transform: translateY(6px); }
-          to { opacity: 1; transform: translateY(0); }
+        @keyframes waitingFactProgress {
+          from { transform: scaleX(0); }
+          to { transform: scaleX(1); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .waiting-fact-content { transition: none !important; }
+          .waiting-fact-progress-fill { animation: none !important; transform: scaleX(1) !important; }
         }
       `}</style>
+
       <div style={{
-        padding: '14px 16px 10px',
-        borderBottom: `0.5px solid ${border}`,
+        padding: '14px 16px 12px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -111,112 +120,119 @@ export default function AccessWaitingFacts({ theme }) {
           Industry brief · while you wait
         </div>
         {facts.length > 1 && (
-          <div style={{ fontSize: 10, color: textFaint }}>
+          <div style={{ fontSize: 10, color: textFaint, fontVariantNumeric: 'tabular-nums' }}>
             {idx + 1} / {facts.length}
           </div>
         )}
       </div>
-      <div
-        key={fact.id || idx}
-        style={{
-          padding: '16px 16px 18px',
-          opacity: visible ? 1 : 0,
-          transition: 'opacity 0.4s ease',
-          animation: visible ? 'waitingFactIn 0.45s ease' : 'none',
-          minHeight: 120,
-        }}
-      >
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-          <span style={{
-            fontSize: 9,
-            letterSpacing: '0.14em',
-            textTransform: 'uppercase',
-            fontWeight: 700,
-            color: gold,
-            background: `${gold}18`,
-            border: `1px solid ${gold}44`,
-            borderRadius: 20,
-            padding: '4px 10px',
-          }}>
-            {categoryLabel(fact.category)}
-          </span>
-          {fact.state_code && (
+
+      {facts.length > 1 && (
+        <div style={{
+          margin: '0 16px 4px',
+          height: 2,
+          borderRadius: 99,
+          background: `${gold}20`,
+          overflow: 'hidden',
+        }}>
+          <div
+            key={progressKey}
+            className="waiting-fact-progress-fill"
+            style={{
+              height: '100%',
+              width: '100%',
+              borderRadius: 99,
+              background: `linear-gradient(90deg, ${gold}99, ${gold})`,
+              transformOrigin: 'left center',
+              animation: `waitingFactProgress ${ROTATE_MS}ms linear forwards`,
+            }}
+          />
+        </div>
+      )}
+
+      <div style={{ minHeight: 132, position: 'relative' }}>
+        <div
+          className="waiting-fact-content"
+          key={fact.id || idx}
+          style={{
+            padding: '14px 16px 16px',
+            opacity: visible ? 1 : 0,
+            transform: visible ? 'translateY(0)' : 'translateY(8px)',
+            transition: `opacity ${FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1), transform ${FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+            willChange: 'opacity, transform',
+          }}
+        >
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
             <span style={{
               fontSize: 9,
-              letterSpacing: '0.1em',
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
               fontWeight: 700,
-              color: textSecondary,
-              background: 'rgba(0,0,0,0.04)',
-              border: `0.5px solid ${border}`,
+              color: gold,
+              background: `${gold}14`,
+              border: `1px solid ${gold}33`,
               borderRadius: 20,
               padding: '4px 10px',
             }}>
-              {fact.state_code}
+              {categoryLabel(fact.category)}
             </span>
+            {fact.state_code && (
+              <span style={{
+                fontSize: 9,
+                letterSpacing: '0.1em',
+                fontWeight: 700,
+                color: textSecondary,
+                background: 'rgba(0,0,0,0.03)',
+                border: `0.5px solid ${border}`,
+                borderRadius: 20,
+                padding: '4px 10px',
+              }}>
+                {fact.state_code}
+              </span>
+            )}
+          </div>
+          {fact.title && (
+            <div style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: theme?.text || '#1A1A1A',
+              marginBottom: 8,
+              lineHeight: 1.35,
+            }}>
+              {fact.title}
+            </div>
+          )}
+          <p style={{
+            margin: 0,
+            fontSize: 13,
+            lineHeight: 1.65,
+            color: textSecondary,
+          }}>
+            {fact.body}
+          </p>
+          {fact.source_url && /^https?:\/\//i.test(fact.source_url) && (
+            <a
+              href={fact.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                display: 'inline-block',
+                marginTop: 12,
+                fontSize: 11,
+                color: gold,
+                fontWeight: 600,
+                textDecoration: 'none',
+              }}
+            >
+              Source →
+            </a>
           )}
         </div>
-        {fact.title && (
-          <div style={{
-            fontSize: 15,
-            fontWeight: 600,
-            color: theme?.text || '#1A1A1A',
-            marginBottom: 8,
-            lineHeight: 1.35,
-          }}>
-            {fact.title}
-          </div>
-        )}
-        <p style={{
-          margin: 0,
-          fontSize: 13,
-          lineHeight: 1.65,
-          color: textSecondary,
-        }}>
-          {fact.body}
-        </p>
-        {fact.source_url && /^https?:\/\//i.test(fact.source_url) && (
-          <a
-            href={fact.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              display: 'inline-block',
-              marginTop: 12,
-              fontSize: 11,
-              color: gold,
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
-          >
-            Source →
-          </a>
-        )}
       </div>
-      {facts.length > 1 && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: 5,
-          paddingBottom: 12,
-        }}>
-          {facts.map((f, i) => (
-            <span
-              key={f.id || i}
-              style={{
-                width: i === idx ? 16 : 5,
-                height: 5,
-                borderRadius: 99,
-                background: i === idx ? gold : `${gold}44`,
-                transition: 'width 0.25s ease, background 0.25s ease',
-              }}
-            />
-          ))}
-        </div>
-      )}
+
       <p style={{
         margin: 0,
-        padding: '0 16px 12px',
+        padding: '0 16px 14px',
         fontSize: 10,
         color: textFaint,
         lineHeight: 1.45,
