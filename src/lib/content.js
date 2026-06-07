@@ -192,59 +192,96 @@ export async function deleteGalleryImage(id) {
   await supabase.from('brand_gallery').delete().eq('id', id);
 }
 
+/** Resolve /images/... paths for admin preview on the same origin. */
+export function resolveBrandImageUrl(url) {
+  if (!url) return '';
+  if (/^https?:\/\//.test(url)) return url;
+  if (url.startsWith('/') && typeof window !== 'undefined') {
+    return `${window.location.origin}${url}`;
+  }
+  return url;
+}
+
+export function imageBasename(url) {
+  if (!url) return 'Photo';
+  const file = url.split('?')[0].split('/').pop() || 'Photo';
+  return file.replace(/\.(jpe?g|png|webp|gif)$/i, '').replace(/[-_]+/g, ' ');
+}
+
 /** Same merge order as customer-facing BrandView gallery strip. */
 export function buildVisibleBrandPhotos(brand, { galleryRecords = [], productImageBySku = {}, pendingBySku = {}, productForms = {} } = {}) {
-  if (!brand) return { strip: [], skuCards: [] };
+  if (!brand) return { uploadStrip: [], defaultStrip: [], skuCards: [] };
 
   const galleryUrls = (galleryRecords || [])
     .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
     .map(g => g.image_url)
     .filter(url => url && /^https?:\/\//.test(url));
 
-  const uploadedProductImages = (brand.products || [])
-    .map(p => productImageBySku[p.sku])
-    .filter(url => url && /^https?:\/\//.test(url));
-
   const builtInGallery = (brand.gallery || []).filter(Boolean);
 
-  const stripUrls = [...new Set([...galleryUrls, ...uploadedProductImages, ...builtInGallery])].filter(Boolean);
+  const skuCards = (brand.products || []).map(p => {
+    const rawUrl = pendingBySku[p.sku] || productImageBySku[p.sku] || p.image || null;
+    const url = rawUrl ? resolveBrandImageUrl(rawUrl) : null;
+    const hasUploaded = !!(productImageBySku[p.sku] && /^https?:\/\//.test(productImageBySku[p.sku]));
+    const isPending = !!pendingBySku[p.sku];
+    const isDefault = !hasUploaded && !isPending && !!p.image;
+    return {
+      sku: p.sku,
+      name: productForms[p.sku]?.name || p.name,
+      url,
+      rawUrl: rawUrl || null,
+      isUploaded: hasUploaded,
+      isDefault,
+      isEmpty: !url,
+      pending: isPending,
+    };
+  });
 
-  const sourceByUrl = {};
-  galleryUrls.forEach(url => { sourceByUrl[url] = { source: 'placard', label: 'Placard upload' }; });
-  (brand.products || []).forEach(p => {
-    const url = productImageBySku[p.sku];
-    if (url) sourceByUrl[url] = { source: 'sku', label: p.sku, sku: p.sku };
-  });
-  builtInGallery.forEach(url => {
-    if (!sourceByUrl[url]) sourceByUrl[url] = { source: 'default', label: 'Built-in' };
-  });
+  // Product hero images (default or uploaded) — shown on SKU cards, not repeated in gallery strip.
+  const skuImagePaths = new Set(
+    skuCards.map(c => c.rawUrl).filter(Boolean)
+  );
 
   const galleryIdByUrl = {};
   (galleryRecords || []).forEach(g => {
     if (g?.image_url) galleryIdByUrl[g.image_url] = g.id;
   });
 
-  const strip = stripUrls.map((url, index) => ({
-    id: `strip-${index}-${url}`,
-    url,
-    galleryId: galleryIdByUrl[url] || null,
-    ...(sourceByUrl[url] || { source: 'unknown', label: 'Photo' }),
-  }));
-
-  const skuCards = (brand.products || []).map(p => {
-    const url = pendingBySku[p.sku] || productImageBySku[p.sku] || p.image || null;
-    const hasUploaded = !!productImageBySku[p.sku];
-    const isPending = !!pendingBySku[p.sku];
-    return {
-      sku: p.sku,
-      name: productForms[p.sku]?.name || p.name,
-      url,
-      isUploaded: hasUploaded,
-      isDefault: !hasUploaded && !isPending && !!p.image,
-      isEmpty: !url,
-      pending: isPending,
-    };
+  const uploadStrip = [];
+  galleryUrls.forEach((url, index) => {
+    uploadStrip.push({
+      id: `placard-${index}-${url}`,
+      url: resolveBrandImageUrl(url),
+      galleryId: galleryIdByUrl[url] || null,
+      source: 'placard',
+      label: 'Placard upload',
+    });
   });
 
-  return { strip, skuCards };
+  (brand.products || []).forEach(p => {
+    const url = productImageBySku[p.sku];
+    if (!url || !/^https?:\/\//.test(url)) return;
+    if (uploadStrip.some(item => item.url === resolveBrandImageUrl(url))) return;
+    uploadStrip.push({
+      id: `sku-upload-${p.sku}`,
+      url: resolveBrandImageUrl(url),
+      galleryId: null,
+      source: 'sku',
+      label: `${p.sku} upload`,
+      sku: p.sku,
+    });
+  });
+
+  // Built-in gallery photos that are not already the hero on a product card.
+  const defaultStrip = builtInGallery
+    .filter(url => !skuImagePaths.has(url))
+    .map((url, index) => ({
+      id: `default-${index}-${url}`,
+      url: resolveBrandImageUrl(url),
+      galleryId: null,
+      source: 'default',
+      label: imageBasename(url),
+    }));
+
+  return { uploadStrip, defaultStrip, skuCards, legacyStrip: [...uploadStrip, ...defaultStrip] };
 }

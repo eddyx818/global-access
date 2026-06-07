@@ -82,7 +82,7 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
     Object.entries(productForms).map(([sku, form]) => [sku, form?.image_url || '']).filter(([, url]) => url)
   );
 
-  const { strip, skuCards } = buildVisibleBrandPhotos(selectedBrand, {
+  const { uploadStrip, defaultStrip, skuCards } = buildVisibleBrandPhotos(selectedBrand, {
     galleryRecords: galleryItems,
     productImageBySku,
     pendingBySku: pendingSkuPreview,
@@ -217,7 +217,8 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
 
       <BrandPhotoPreviewGrid
         brand={selectedBrand}
-        strip={strip}
+        uploadStrip={uploadStrip}
+        defaultStrip={defaultStrip}
         skuCards={skuCards}
         pendingStrip={pendingStrip}
         onDeletePlacard={handleDeletePlacard}

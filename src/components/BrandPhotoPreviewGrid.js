@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
 function SourceBadge({ source, label }) {
@@ -8,6 +8,7 @@ function SourceBadge({ source, label }) {
     sku: { bg: t.successBg, color: t.successText, border: t.successBorder },
     default: { bg: t.bgMuted, color: t.textMuted, border: t.border },
     pending: { bg: t.warningBg, color: t.warningText, border: t.warningBorder },
+    missing: { bg: t.errorBg, color: t.errorText, border: t.errorBorder },
   };
   const s = styles[source] || styles.default;
   return (
@@ -27,16 +28,82 @@ function SourceBadge({ source, label }) {
   );
 }
 
+function PreviewTile({ item, onDeletePlacard, brandColor }) {
+  const { t } = useTheme();
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: t.borderHairlineLight, background: t.bgElevated }}>
+      <div style={{ aspectRatio: '4/3', background: failed ? t.bgSubtle : '#111', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {!failed ? (
+          <img
+            src={item.url}
+            alt={item.label || 'Preview'}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: item.uploading ? 0.65 : 1 }}
+            onError={() => setFailed(true)}
+          />
+        ) : (
+          <div style={{ padding: '0.75rem', textAlign: 'center', fontSize: 11, color: t.textMuted, lineHeight: 1.45 }}>
+            Image not found on server
+            <div style={{ fontSize: 10, color: t.textDisabled, marginTop: 4 }}>Upload a replacement below</div>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: '6px 8px', display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', justifyContent: 'space-between' }}>
+        <SourceBadge
+          source={item.uploading ? 'pending' : failed ? 'missing' : item.source}
+          label={item.uploading ? 'Uploading…' : failed ? 'Missing' : item.label}
+        />
+        {item.galleryId && onDeletePlacard && !item.uploading && !failed && (
+          <button
+            type="button"
+            onClick={() => onDeletePlacard(item.galleryId)}
+            style={{ background: 'none', border: 'none', color: t.errorText, fontSize: 10, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+          >
+            Remove
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PhotoGrid({ items, onDeletePlacard, emptyMessage }) {
+  const { t } = useTheme();
+  if (!items.length) {
+    return (
+      <div style={{ padding: '1rem', textAlign: 'center', fontSize: 12, color: t.textDisabled, background: t.bgElevated, borderRadius: 10, border: `1.5px dashed ${t.border}`, marginBottom: 12 }}>
+        {emptyMessage}
+      </div>
+    );
+  }
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+      gap: 10,
+      marginBottom: 12,
+    }}>
+      {items.map(item => (
+        <PreviewTile key={item.id} item={item} onDeletePlacard={onDeletePlacard} />
+      ))}
+    </div>
+  );
+}
+
 export default function BrandPhotoPreviewGrid({
   brand,
-  strip = [],
+  uploadStrip = [],
+  defaultStrip = [],
   skuCards = [],
   pendingStrip = [],
   onDeletePlacard,
   brandColor = '#C9A84C',
 }) {
   const { t } = useTheme();
-  const allStrip = [...pendingStrip, ...strip];
+  const allUploads = [...pendingStrip, ...uploadStrip];
+  const defaultCount = defaultStrip.length;
+  const skuDefaultCount = skuCards.filter(c => c.isDefault).length;
 
   return (
     <div style={{
@@ -50,50 +117,37 @@ export default function BrandPhotoPreviewGrid({
         Customer preview — {brand?.name}
       </div>
       <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.5, marginBottom: 14 }}>
-        This is what buyers see on the brand page after you save and upload. Placard photos appear first in the gallery strip, then SKU product images, then built-in photos.
+        Placard uploads appear first on the live gallery strip. Product photos show on each SKU card.
+        {defaultCount > 0 && ` ${defaultCount} extra site photo${defaultCount !== 1 ? 's' : ''} in the gallery.`}
+        {skuDefaultCount > 0 && ` ${skuDefaultCount} SKU${skuDefaultCount !== 1 ? 's' : ''} use default images until you upload replacements.`}
       </div>
 
       <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>
-        Gallery strip (horizontal scroll on site)
+        Your uploads (gallery strip)
       </div>
-      {allStrip.length === 0 ? (
-        <div style={{ padding: '1.5rem', textAlign: 'center', fontSize: 12, color: t.textDisabled, background: t.bgElevated, borderRadius: 10, border: `1.5px dashed ${t.border}`, marginBottom: 16 }}>
-          No photos visible yet — upload placard photos or SKU images below.
-        </div>
-      ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-          gap: 10,
-          marginBottom: 16,
-        }}>
-          {allStrip.map((item) => (
-            <div key={item.id} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: t.borderHairlineLight, background: t.bgElevated }}>
-              <div style={{ aspectRatio: '4/3', background: '#111' }}>
-                <img
-                  src={item.url}
-                  alt={item.label || 'Preview'}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: item.uploading ? 0.65 : 1 }}
-                />
-              </div>
-              <div style={{ padding: '6px 8px', display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', justifyContent: 'space-between' }}>
-                <SourceBadge source={item.uploading ? 'pending' : item.source} label={item.uploading ? 'Uploading…' : item.label} />
-                {item.galleryId && onDeletePlacard && !item.uploading && (
-                  <button
-                    type="button"
-                    onClick={() => onDeletePlacard(item.galleryId)}
-                    style={{ background: 'none', border: 'none', color: t.errorText, fontSize: 10, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+      <PhotoGrid
+        items={allUploads}
+        onDeletePlacard={onDeletePlacard}
+        emptyMessage="No uploads yet — add placard photos below or upload SKU images in each product section."
+      />
+
+      {defaultCount > 0 && (
+        <>
+          <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>
+            Extra site gallery photos ({defaultCount})
+          </div>
+          <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 8, lineHeight: 1.45 }}>
+            These ship with the brand and scroll in the gallery — they are not tied to a single SKU card.
+          </div>
+          <PhotoGrid
+            items={defaultStrip}
+            onDeletePlacard={null}
+            emptyMessage=""
+          />
+        </>
       )}
 
-      <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>
+      <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8, marginTop: 4 }}>
         Product cards (per SKU)
       </div>
       <div style={{
@@ -102,29 +156,56 @@ export default function BrandPhotoPreviewGrid({
         gap: 12,
       }}>
         {skuCards.map(card => (
-          <div key={card.sku} style={{ borderRadius: 12, overflow: 'hidden', border: t.borderHairlineLight, background: t.bgElevated, boxShadow: `0 2px 8px ${t.shadow}` }}>
-            <div style={{ height: 120, background: card.url ? '#111' : t.bgSubtle, position: 'relative' }}>
-              {card.url ? (
-                <img src={card.url} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, opacity: 0.35 }}>📷</div>
-              )}
-              {card.pending && (
-                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: 11, fontWeight: 600 }}>
-                  Uploading…
-                </div>
-              )}
-            </div>
-            <div style={{ padding: '8px 10px' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: t.text, lineHeight: 1.3, marginBottom: 4 }}>{card.name}</div>
-              <div style={{ fontSize: 10, color: brandColor, fontWeight: 600, marginBottom: 6 }}>{card.sku}</div>
-              <SourceBadge
-                source={card.pending ? 'pending' : card.isUploaded ? 'sku' : card.isDefault ? 'default' : 'default'}
-                label={card.pending ? 'Uploading…' : card.isUploaded ? 'Your upload' : card.isDefault ? 'Default image' : 'No image'}
-              />
-            </div>
-          </div>
+          <SkuCard key={card.sku} card={card} brandColor={brandColor} />
         ))}
+      </div>
+    </div>
+  );
+}
+
+function SkuCard({ card, brandColor }) {
+  const { t } = useTheme();
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <div style={{ borderRadius: 12, overflow: 'hidden', border: t.borderHairlineLight, background: t.bgElevated, boxShadow: `0 2px 8px ${t.shadow}` }}>
+      <div style={{ height: 120, background: card.url && !failed ? '#111' : t.bgSubtle, position: 'relative' }}>
+        {card.url && !failed ? (
+          <img
+            src={card.url}
+            alt={card.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={() => setFailed(true)}
+          />
+        ) : (
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', textAlign: 'center', fontSize: 11, color: t.textMuted, lineHeight: 1.4 }}>
+            {card.isEmpty || failed ? (
+              <>
+                <span style={{ fontSize: 22, opacity: 0.35, marginBottom: 4 }}>📷</span>
+                {failed ? 'Default file missing — upload below' : 'No image — upload below'}
+              </>
+            ) : null}
+          </div>
+        )}
+        {card.pending && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: 11, fontWeight: 600 }}>
+            Uploading…
+          </div>
+        )}
+      </div>
+      <div style={{ padding: '8px 10px' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, lineHeight: 1.3, marginBottom: 4 }}>{card.name}</div>
+        <div style={{ fontSize: 10, color: brandColor, fontWeight: 600, marginBottom: 6 }}>{card.sku}</div>
+        <SourceBadge
+          source={card.pending ? 'pending' : card.isUploaded ? 'sku' : failed ? 'missing' : card.isDefault ? 'default' : 'default'}
+          label={
+            card.pending ? 'Uploading…'
+              : card.isUploaded ? 'Your upload'
+                : failed ? 'Missing file'
+                  : card.isDefault ? 'Default image'
+                    : 'No image'
+          }
+        />
       </div>
     </div>
   );
