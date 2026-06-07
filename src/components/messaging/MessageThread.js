@@ -213,7 +213,7 @@ export default function MessageThread({
                 )}
                 {renderAttachment(msg, mine, hiddenFromCustomer)}
                 {body && (
-                  <span style={{ opacity: hiddenFromCustomer ? 0.85 : 1, whiteSpace: 'pre-wrap' }}>
+                  <span className="allow-text-select" style={{ opacity: hiddenFromCustomer ? 0.85 : 1, whiteSpace: 'pre-wrap' }}>
                     {body}
                   </span>
                 )}

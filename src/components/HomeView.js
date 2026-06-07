@@ -16,10 +16,21 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
   const [dragging, setDragging] = useState(null);
   const [dragOver, setDragOver] = useState(null);
   const [reorderMode, setReorderMode] = useState(false);
-  const longPressTimer = useRef(null);
+  const [arrowPressed, setArrowPressed] = useState(null);
   const autoTimer = useRef(null);
   const galleryTimer = useRef(null);
   const heroRef = useRef(null);
+  const heroTouchRef = useRef({ startX: 0, startY: 0, startTime: 0, moved: false, suppressTap: false });
+  const brandTouchRef = useRef({
+    idx: null,
+    startX: 0,
+    startY: 0,
+    startTime: 0,
+    moved: false,
+    dragging: false,
+    dragFromIdx: null,
+    dropIdx: null,
+  });
   const preloadedHeroImages = useRef(new Set());
   const { getMergedBrands, loading, heroConfig } = useBrandContent();
   const allBrands = getMergedBrands();
@@ -77,11 +88,73 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
     clearInterval(autoTimer.current);
     setAnimating(true);
     setSlideIdx(newIdx);
+    setGalleryIdx(0);
     setTimeout(() => setAnimating(false), 600);
     if (brands.length) {
       autoTimer.current = setInterval(() => setSlideIdx(i => (i + 1) % brands.length), 4500);
     }
   };
+
+  const TAP_MAX_MS = 380;
+  const HOLD_MIN_MS = 420;
+  const SWIPE_MIN_PX = 44;
+  const DRAG_START_PX = 12;
+
+  const releaseArrowPress = (side) => {
+    setArrowPressed(prev => (prev === side ? null : prev));
+  };
+
+  const handleHeroTouchStart = (e) => {
+    if (!isMobile || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    heroTouchRef.current = {
+      startX: t.clientX,
+      startY: t.clientY,
+      startTime: Date.now(),
+      moved: false,
+      suppressTap: false,
+    };
+  };
+
+  const handleHeroTouchMove = (e) => {
+    if (!isMobile || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const st = heroTouchRef.current;
+    const dx = t.clientX - st.startX;
+    const dy = t.clientY - st.startY;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) st.moved = true;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > DRAG_START_PX) {
+      e.preventDefault();
+    }
+  };
+
+  const handleHeroTouchEnd = (e) => {
+    if (!isMobile) return;
+    const st = heroTouchRef.current;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - st.startX;
+    const dy = t.clientY - st.startY;
+    const elapsed = Date.now() - st.startTime;
+
+    if (Math.abs(dx) >= SWIPE_MIN_PX && Math.abs(dx) > Math.abs(dy)) {
+      if (dx < 0) changeSlide((slideIdx + 1) % brands.length);
+      else changeSlide((slideIdx - 1 + brands.length) % brands.length);
+      st.suppressTap = true;
+      window.setTimeout(() => { st.suppressTap = false; }, 350);
+      return;
+    }
+
+    if (!st.moved && !st.suppressTap && elapsed < TAP_MAX_MS) {
+      onBrandClick(brands[slideIdx]?.id);
+    }
+  };
+
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el || !isMobile) return undefined;
+    el.addEventListener('touchmove', handleHeroTouchMove, { passive: false });
+    return () => el.removeEventListener('touchmove', handleHeroTouchMove);
+  }, [isMobile, slideIdx, brands.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleHeroMouseMove = (e) => {
     if (isMobile || !heroRef.current) return;
@@ -118,36 +191,110 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
 
   const handleDrop = (e, idx) => {
     e.preventDefault();
-    if (dragging === null || dragging === idx) { setDragging(null); setDragOver(null); return; }
-    const newOrder = [...brands];
-    const [moved] = newOrder.splice(dragging, 1);
-    newOrder.splice(idx, 0, moved);
-    setBrandOrder(newOrder);
+    applyBrandReorder(dragging, idx);
     setDragging(null);
     setDragOver(null);
+  };
+
+  const applyBrandReorder = (fromIdx, toIdx) => {
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return;
+    const newOrder = [...brands];
+    const [moved] = newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, moved);
+    setBrandOrder(newOrder);
     saveUserBrandOrder(userId, newOrder.map(b => b.id));
   };
 
-  const startLongPress = () => {
-    longPressTimer.current = window.setTimeout(() => {
-      setReorderMode(true);
-      if (navigator.vibrate) navigator.vibrate(40);
-    }, 3000);
+  const findBrandIndexAtPoint = (x, y) => {
+    const el = document.elementFromPoint(x, y);
+    const card = el?.closest?.('[data-brand-idx]');
+    if (!card) return null;
+    const idx = Number(card.dataset.brandIdx);
+    return Number.isNaN(idx) ? null : idx;
   };
 
-  const cancelLongPress = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+  const handleBrandTouchStart = (e, idx) => {
+    if (!isMobile) return;
+    const t = e.touches[0];
+    brandTouchRef.current = {
+      idx,
+      startX: t.clientX,
+      startY: t.clientY,
+      startTime: Date.now(),
+      moved: false,
+      dragging: false,
+      dragFromIdx: null,
+      dropIdx: null,
+    };
+  };
+
+  const handleBrandTouchMove = (e, idx) => {
+    if (!isMobile) return;
+    const st = brandTouchRef.current;
+    if (st.idx !== idx) return;
+    const t = e.touches[0];
+    const dx = t.clientX - st.startX;
+    const dy = t.clientY - st.startY;
+    if (Math.abs(dx) < DRAG_START_PX && Math.abs(dy) < DRAG_START_PX) return;
+
+    st.moved = true;
+    if (!st.dragging) {
+      st.dragging = true;
+      st.dragFromIdx = idx;
+      setReorderMode(true);
+      setDragging(idx);
+      if (navigator.vibrate) navigator.vibrate(20);
+    }
+    e.preventDefault();
+    const overIdx = findBrandIndexAtPoint(t.clientX, t.clientY);
+    if (overIdx != null) {
+      st.dropIdx = overIdx;
+      setDragOver(overIdx);
     }
   };
 
+  const handleBrandTouchEnd = (e, idx, brandId) => {
+    if (!isMobile) return;
+    const st = brandTouchRef.current;
+    if (st.idx !== idx) return;
+
+    const elapsed = Date.now() - st.startTime;
+    const fromIdx = st.dragFromIdx ?? idx;
+    const toIdx = st.dropIdx ?? fromIdx;
+
+    if (st.dragging || st.moved) {
+      applyBrandReorder(fromIdx, toIdx);
+      setDragging(null);
+      setDragOver(null);
+      setReorderMode(false);
+      brandTouchRef.current = {
+        idx: null, startX: 0, startY: 0, startTime: 0, moved: false, dragging: false, dragFromIdx: null, dropIdx: null,
+      };
+      return;
+    }
+
+    setDragging(null);
+    setDragOver(null);
+    brandTouchRef.current = {
+      idx: null, startX: 0, startY: 0, startTime: 0, moved: false, dragging: false, dragFromIdx: null, dropIdx: null,
+    };
+
+    if (reorderMode) return;
+    if (elapsed >= HOLD_MIN_MS) return;
+    if (elapsed <= TAP_MAX_MS) onBrandClick(brandId);
+  };
+
   const handleBrandCardClick = (e, brandId) => {
-    if (reorderMode) {
+    if (isMobile || reorderMode) {
       e.preventDefault();
       return;
     }
     e.preventDefault();
+    onBrandClick(brandId);
+  };
+
+  const handleHeroCopyClick = (brandId) => {
+    if (isMobile) return;
     onBrandClick(brandId);
   };
 
@@ -172,8 +319,35 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
     <div>
       <style>{`
         @keyframes cardEntrance { from{opacity:0;transform:translateY(24px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
-        .hero-arrow-zone:hover > .arrow-inner { background: rgba(255,255,255,0.28) !important; transform: scale(1.12) !important; }
-        .arrow-inner { transition: all 0.2s ease !important; }
+        @media (hover: hover) and (pointer: fine) {
+          .hero-arrow-zone:hover > .arrow-inner {
+            background: rgba(255,255,255,0.28) !important;
+            transform: scale(1.12) !important;
+          }
+        }
+        .hero-arrow-zone:active > .arrow-inner,
+        .hero-arrow-zone.hero-arrow-zone--pressed > .arrow-inner {
+          background: rgba(255,255,255,0.28) !important;
+          transform: scale(1.08) !important;
+        }
+        .hero-arrow-zone:focus { outline: none; }
+        .hero-arrow-zone:focus-visible > .arrow-inner {
+          box-shadow: 0 0 0 2px rgba(255,255,255,0.45);
+        }
+        .arrow-inner { transition: background 0.2s ease, transform 0.2s ease !important; }
+        .brand-card {
+          -webkit-user-select: none;
+          user-select: none;
+          -webkit-touch-callout: none;
+        }
+        .brand-card--dragging {
+          opacity: 0.45;
+          z-index: 5;
+        }
+        .brand-card--reorder {
+          cursor: grab;
+          touch-action: none;
+        }
         .hero-gallery-photo {
           transition: opacity 1.6s ease-in-out;
           backface-visibility: hidden;
@@ -196,8 +370,25 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
       `}</style>
 
       {/* HERO */}
-      <div ref={heroRef} onMouseMove={handleHeroMouseMove} onMouseLeave={() => setMousePos({ x: 0, y: 0 })}
-        style={{ margin: isMobile ? '0.75rem' : '1.25rem', borderRadius: 24, overflow: 'hidden', position: 'relative', height: isMobile ? 300 : 500, background: heroBg, userSelect: 'none' }}>
+      <div
+        ref={heroRef}
+        className="hero-carousel app-no-select"
+        onMouseMove={handleHeroMouseMove}
+        onMouseLeave={() => setMousePos({ x: 0, y: 0 })}
+        onTouchStart={handleHeroTouchStart}
+        onTouchEnd={handleHeroTouchEnd}
+        style={{
+          margin: isMobile ? '0.75rem' : '1.25rem',
+          borderRadius: 24,
+          overflow: 'hidden',
+          position: 'relative',
+          height: isMobile ? 300 : 500,
+          background: heroBg,
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          touchAction: isMobile ? 'pan-y' : 'auto',
+        }}
+      >
         {brands.map((brand, i) => (
           <div key={brand.id} style={{ position: 'absolute', inset: 0, transition: 'opacity 0.7s ease', opacity: i === slideIdx ? 1 : 0, pointerEvents: 'none' }}>
             <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 60%, ${brand.color}65 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, ${brand.color}30 0%, transparent 50%), ${heroBg}` }} />
@@ -261,15 +452,16 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
             <div
               key={`copy-${brand.id}`}
               className={`hero-slide-copy ${isActive ? 'hero-slide-copy--active' : 'hero-slide-copy--inactive'}`}
-              role="button"
-              tabIndex={isActive ? 0 : -1}
+              role={isMobile ? undefined : 'button'}
+              tabIndex={isMobile ? -1 : (isActive ? 0 : -1)}
               aria-hidden={!isActive}
-              aria-label={`View ${brand.name}`}
-              onClick={() => onBrandClick(brand.id)}
+              aria-label={isMobile ? undefined : `View ${brand.name}`}
+              onClick={() => handleHeroCopyClick(brand.id)}
               onKeyDown={(e) => {
+                if (isMobile) return;
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  onBrandClick(brand.id);
+                  handleHeroCopyClick(brand.id);
                 }
               }}
               style={{
@@ -281,7 +473,8 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
                 alignItems: 'center',
                 textAlign: 'center',
                 padding: isMobile ? '2rem 3.5rem 2rem' : '3rem 8rem 2.5rem',
-                cursor: 'pointer',
+                cursor: isMobile ? 'default' : 'pointer',
+                pointerEvents: isActive ? (isMobile ? 'none' : 'auto') : 'none',
                 transform: isActive ? `perspective(800px) rotateY(${mousePos.x * 0.03}deg) rotateX(${-mousePos.y * 0.03}deg)` : 'none',
                 transition: 'transform 0.35s ease-out',
               }}
@@ -322,40 +515,72 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
             </div>
           );
         })}
-        <div
-          className="hero-arrow-zone"
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
+          className={`hero-arrow-zone app-no-select${arrowPressed === 'prev' ? ' hero-arrow-zone--pressed' : ''}`}
           aria-label="Previous brand"
-          onClick={(e) => { e.stopPropagation(); changeSlide((slideIdx - 1 + brands.length) % brands.length); }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              e.stopPropagation();
-              changeSlide((slideIdx - 1 + brands.length) % brands.length);
-            }
+          onClick={(e) => {
+            e.stopPropagation();
+            changeSlide((slideIdx - 1 + brands.length) % brands.length);
           }}
-          style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: isMobile ? 56 : 72, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          onPointerDown={() => setArrowPressed('prev')}
+          onPointerUp={() => releaseArrowPress('prev')}
+          onPointerLeave={() => releaseArrowPress('prev')}
+          onPointerCancel={() => releaseArrowPress('prev')}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => { e.stopPropagation(); releaseArrowPress('prev'); e.currentTarget.blur(); }}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: isMobile ? 56 : 72,
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            WebkitTapHighlightColor: 'transparent',
+          }}
         >
           <div className="arrow-inner" style={{ width: 38, height: 38, background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: 18 }}>‹</div>
-        </div>
-        <div
-          className="hero-arrow-zone"
-          role="button"
-          tabIndex={0}
+        </button>
+        <button
+          type="button"
+          className={`hero-arrow-zone app-no-select${arrowPressed === 'next' ? ' hero-arrow-zone--pressed' : ''}`}
           aria-label="Next brand"
-          onClick={(e) => { e.stopPropagation(); changeSlide((slideIdx + 1) % brands.length); }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              e.stopPropagation();
-              changeSlide((slideIdx + 1) % brands.length);
-            }
+          onClick={(e) => {
+            e.stopPropagation();
+            changeSlide((slideIdx + 1) % brands.length);
           }}
-          style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: isMobile ? 56 : 72, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          onPointerDown={() => setArrowPressed('next')}
+          onPointerUp={() => releaseArrowPress('next')}
+          onPointerLeave={() => releaseArrowPress('next')}
+          onPointerCancel={() => releaseArrowPress('next')}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => { e.stopPropagation(); releaseArrowPress('next'); e.currentTarget.blur(); }}
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: isMobile ? 56 : 72,
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            WebkitTapHighlightColor: 'transparent',
+          }}
         >
           <div className="arrow-inner" style={{ width: 38, height: 38, background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: 18 }}>›</div>
-        </div>
+        </button>
         <div style={{ position: 'absolute', top: 14, right: 14, zIndex: 10, background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)', borderRadius: 20, padding: '3px 10px', fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.08em' }}>
           {slideIdx + 1} / {brands.length}
         </div>
@@ -370,7 +595,7 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
           <div style={{ fontSize: 10, letterSpacing: '0.2em', color: t.textFaint, textTransform: 'uppercase', fontWeight: 500 }}>Our Brands</div>
           <div style={{ fontSize: 11, color: t.textDisabled }}>
             {reorderMode ? 'Drag to reorder · ' : ''}
-            {isMobile ? 'Hold 3s to rearrange' : `${brands.length} brands · drag to reorder`}
+            {isMobile ? 'Tap to open · drag to reorder' : `${brands.length} brands · drag to reorder`}
           </div>
         </div>
         {reorderMode && (
@@ -385,42 +610,63 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
             const isDraggingThis = dragging === idx;
             const isDragTarget = dragOver === idx;
             return (
-              <a key={brand.id}
-                href={`#${brand.id}`}
+              <div
+                key={brand.id}
+                role="button"
+                tabIndex={0}
+                data-brand-idx={idx}
+                className={`brand-card app-no-select${isDraggingThis ? ' brand-card--dragging' : ''}${reorderMode ? ' brand-card--reorder' : ''}`}
                 onClick={(e) => handleBrandCardClick(e, brand.id)}
-                draggable={reorderMode || !isMobile}
-                onTouchStart={() => { if (isMobile && !reorderMode) startLongPress(); }}
-                onTouchEnd={cancelLongPress}
-                onTouchMove={cancelLongPress}
-                onDragStart={(e) => { if (!reorderMode && isMobile) { e.preventDefault(); return; } handleDragStart(e, idx); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (!reorderMode && !isMobile) onBrandClick(brand.id);
+                  }
+                }}
+                draggable={!isMobile}
+                onTouchStart={(e) => handleBrandTouchStart(e, idx)}
+                onTouchMove={(e) => handleBrandTouchMove(e, idx)}
+                onTouchEnd={(e) => handleBrandTouchEnd(e, idx, brand.id)}
+                onTouchCancel={() => {
+                  setDragging(null);
+                  setDragOver(null);
+                  brandTouchRef.current = {
+                    idx: null, startX: 0, startY: 0, startTime: 0, moved: false, dragging: false, dragFromIdx: null, dropIdx: null,
+                  };
+                }}
+                onDragStart={(e) => { if (isMobile) { e.preventDefault(); return; } handleDragStart(e, idx); }}
                 onDragOver={(e) => handleDragOver(e, idx)}
                 onDrop={(e) => handleDrop(e, idx)}
                 onDragEnd={() => { setDragging(null); setDragOver(null); }}
                 onMouseMove={(e) => handleCardMouseMove(e, brand.id)}
                 onMouseLeave={() => handleCardMouseLeave(brand.id)}
                 style={{
-                  display: 'block', textDecoration: 'none', color: 'inherit',
+                  display: 'block',
+                  textDecoration: 'none',
+                  color: 'inherit',
                   background: t.bgElevated,
                   border: `0.5px solid ${isDragTarget ? brand.color : t.borderLight}`,
                   borderRadius: 18,
                   padding: 0,
-                  cursor: 'grab',
+                  cursor: reorderMode || !isMobile ? 'grab' : 'pointer',
                   outline: 'none',
                   overflow: 'visible',
                   opacity: isDraggingThis ? 0.4 : 1,
+                  position: 'relative',
                   animation: `cardEntrance 0.4s ease-out ${idx * 0.06}s both`,
-                  // 3D transform
                   transform: isMobile
                     ? 'none'
                     : `perspective(600px) rotateY(${tilt.x * 0.6}deg) rotateX(${-tilt.y * 0.6}deg) translateZ(0) scale(${tilt.x !== 0 || tilt.y !== 0 ? 1.04 : 1})`,
-                  transition: isMobile ? 'box-shadow 0.2s ease' : 'transform 0.15s ease-out, box-shadow 0.2s ease, border-color 0.2s',
+                  transition: isMobile ? 'box-shadow 0.2s ease, border-color 0.2s' : 'transform 0.15s ease-out, box-shadow 0.2s ease, border-color 0.2s',
                   boxShadow: isMobile
                     ? `0 4px 16px ${t.shadow}`
                     : (tilt.x !== 0 || tilt.y !== 0
                       ? `${-tilt.x * 0.5}px ${tilt.y * 0.5}px 32px ${t.shadow}, 0 8px 24px ${brand.color}22, inset 0 1px 0 ${isNight ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.8)'}`
                       : `0 4px 16px ${t.shadow}, inset 0 1px 0 ${isNight ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.8)'}`),
                   transformStyle: 'preserve-3d',
-                }}>
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
 
                 {/* Card shine layer */}
                 <div style={{
@@ -455,11 +701,13 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
                   <div style={{ fontSize: 10, color: t.textFaint, marginTop: 4, lineHeight: 1.5 }}>{brand.tagline}</div>
                   <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: brand.color, fontWeight: 600, background: brand.color + '12', borderRadius: 6, padding: '4px 8px' }}>View →</div>
                 </div>
-              </a>
+              </div>
             );
           })}
         </div>
-        <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: t.textDisabled }}>Drag cards to reorder · Order saves automatically</div>
+        <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: t.textDisabled }}>
+          {isMobile ? 'Swipe the hero to change brands · Tap a card to open' : 'Drag cards to reorder · Order saves automatically'}
+        </div>
       </div>
 
       {/* Footer */}

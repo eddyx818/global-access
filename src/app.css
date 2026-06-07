@@ -592,3 +592,17 @@ html.app-native .app-no-select {
   -webkit-user-select: none;
   user-select: none;
 }
+
+html.app-native .allow-text-select,
+html.app-native input,
+html.app-native textarea,
+html.app-native select,
+html.app-native [contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+html.app-native .hero-carousel,
+html.app-native .brand-card {
+  -webkit-touch-callout: none;
+}
