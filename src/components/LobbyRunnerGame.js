@@ -382,99 +382,71 @@ const AISLE_BOOTH_STYLE_KEYS = {
   home: ['seven_oh', 'preroll_lab'],
 };
 
-function drawConventionCeiling(ctx, w, h, scroll) {
+function drawConventionCeiling(ctx, w, h) {
   ctx.fillStyle = '#2a2a30';
   ctx.fillRect(0, 0, w, h * 0.12);
   ctx.fillStyle = '#383840';
-  const trussOffset = (scroll * 0.4) % (w / 5.5);
-  for (let i = -1; i < 7; i += 1) {
-    ctx.fillRect(i * (w / 5.5) - trussOffset, 0, w * 0.04, h * 0.12);
+  for (let i = 0; i < 6; i += 1) {
+    ctx.fillRect(i * (w / 5.5), 0, w * 0.04, h * 0.12);
   }
-  for (let i = 0; i < 5; i += 1) {
-    const lx = ((i + 0.55) * (w / 4) - scroll * 0.25) % w;
+  for (let i = 0; i < 4; i += 1) {
+    const lx = (i + 0.55) * (w / 4);
     ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fillRect(lx - 20, 10, 40, 5);
-    ctx.fillStyle = 'rgba(255,220,120,0.15)';
-    ctx.fillRect(lx - 8, 16, 16, h * 0.55);
+    ctx.fillRect(lx - 18, 10, 36, 4);
   }
 }
 
-function drawTradeShowBooth(ctx, bx, by, bw, bh, style) {
-  const floorY = by + bh;
-
-  ctx.fillStyle = 'rgba(0,0,0,0.22)';
-  ctx.fillRect(bx + 3, floorY - 2, bw, 4);
-
+/** Lightweight booth for scrolling side columns — no NPCs or heavy patterns. */
+function drawSimpleBoothFacade(ctx, bx, by, bw, bh, style) {
   ctx.fillStyle = '#252530';
-  ctx.fillRect(bx, by, bw, bh * 0.1);
-
+  ctx.fillRect(bx, by, bw, bh * 0.11);
   ctx.fillStyle = style.top;
-  ctx.fillRect(bx + 2, by + bh * 0.025, bw - 4, bh * 0.075);
-  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(bx + 2, by + bh * 0.025, bw - 4, bh * 0.075);
-
-  ctx.fillStyle = style.led?.[0] || style.mid;
-  ctx.globalAlpha = 0.85;
-  ctx.fillRect(bx + 2, by + bh * 0.102, bw - 4, 2);
-  ctx.globalAlpha = 1;
-
+  ctx.fillRect(bx + 1, by + bh * 0.02, bw - 2, bh * 0.08);
   ctx.fillStyle = '#fff';
-  ctx.font = `700 ${Math.max(8, bw * 0.12)}px "Bebas Neue", sans-serif`;
+  ctx.font = `700 ${Math.max(7, bw * 0.11)}px "Bebas Neue", sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText(style.title, bx + bw / 2, by + bh * 0.085);
-
-  const wallY = by + bh * 0.11;
-  const wallH = bh * 0.58;
-  const grad = ctx.createLinearGradient(bx, wallY, bx, wallY + wallH);
-  grad.addColorStop(0, style.top);
-  grad.addColorStop(0.5, style.mid);
-  grad.addColorStop(1, style.bottom);
-  ctx.fillStyle = grad;
-  ctx.fillRect(bx, wallY, bw, wallH);
-  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(bx, wallY, bw, wallH);
-
-  if (style.id === 'smiley_wall') drawSmileyPattern(ctx, bx, wallY, bw, wallH * 0.85);
-  if (style.id === 'neon_beast') drawNeonSilhouette(ctx, bx, wallY, bw, wallH * 0.55);
-  if (style.id === 'mushroom_psyche') drawMushroomIcon(ctx, bx + bw * 0.5, wallY + wallH * 0.42, bw * 0.28);
-
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(bx + 2, wallY + wallH * 0.72, bw - 4, bh * 0.07);
-  ctx.font = `600 ${Math.max(5, bw * 0.06)}px sans-serif`;
-  ctx.fillStyle = '#fff';
-  const sub = style.subtitle.length > 22 ? `${style.subtitle.slice(0, 21)}…` : style.subtitle;
-  ctx.fillText(sub, bx + bw / 2, wallY + wallH * 0.78);
-
-  const counterY = floorY - bh * 0.16;
+  const title = style.title.length > 14 ? `${style.title.slice(0, 13)}…` : style.title;
+  ctx.fillText(title, bx + bw / 2, by + bh * 0.085);
+  ctx.fillStyle = style.mid;
+  ctx.fillRect(bx, by + bh * 0.12, bw, bh * 0.62);
   ctx.fillStyle = style.counter;
-  ctx.fillRect(bx + 1, counterY, bw - 2, bh * 0.16);
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(bx + 1, counterY, bw - 2, bh * 0.16);
-
-  ctx.fillStyle = 'rgba(255,255,255,0.25)';
-  ctx.fillRect(bx + bw * 0.08, counterY + 2, bw * 0.84, bh * 0.025);
-  ctx.fillStyle = '#555';
-  ctx.fillRect(bx + bw * 0.08, counterY + bh * 0.04, bw * 0.84, bh * 0.03);
-
-  const repScale = bh * 0.11;
-  drawHuman(ctx, bx + bw * 0.55, floorY - 2, repScale, 'left', 0, {
-    shirt: style.mid, pants: '#222', skin: '#c68642', alpha: 0.9,
-  });
-
-  ctx.font = '700 5px sans-serif';
-  ctx.fillStyle = '#666';
-  ctx.fillText('VENDOR', bx + bw / 2, floorY - 1);
+  ctx.fillRect(bx, by + bh * 0.76, bw, bh * 0.24);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillRect(bx + 2, by + bh * 0.8, bw - 4, bh * 0.04);
   ctx.textAlign = 'start';
 }
 
+const boothPoolCache = {};
 function boothStylePool(aisleId) {
+  if (boothPoolCache[aisleId]) return boothPoolCache[aisleId];
   const keys = AISLE_BOOTH_STYLE_KEYS[aisleId] || ['sunset_tower'];
-  const extra = ['preroll_lab', 'smiley_wall', 'seven_oh', 'euphoric_blend', 'mushroom_psyche', 'neon_beast'];
+  const extra = ['preroll_lab', 'smiley_wall', 'seven_oh', 'neon_beast'];
   const merged = [...new Set([...keys, ...extra])];
-  return merged.map((k) => BOOTH_STYLES[k]).filter(Boolean);
+  boothPoolCache[aisleId] = merged.map((k) => BOOTH_STYLES[k]).filter(Boolean);
+  return boothPoolCache[aisleId];
+}
+
+const boothStripCache = { key: '', canvas: null, stripH: 0, colW: 0 };
+
+function getBoothStrip(aisleId, colW, segmentH, styles) {
+  const key = `${aisleId}:${Math.round(colW)}:${Math.round(segmentH)}`;
+  if (boothStripCache.key === key && boothStripCache.canvas) return boothStripCache;
+  const count = 4;
+  const stripH = segmentH * count;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(colW));
+  canvas.height = Math.max(1, Math.ceil(stripH));
+  const sctx = canvas.getContext('2d');
+  if (sctx) {
+    for (let i = 0; i < count; i += 1) {
+      drawSimpleBoothFacade(sctx, 0, i * segmentH, colW, segmentH, styles[i % styles.length]);
+    }
+  }
+  boothStripCache.key = key;
+  boothStripCache.canvas = canvas;
+  boothStripCache.stripH = stripH;
+  boothStripCache.colW = colW;
+  return boothStripCache;
 }
 
 function drawSideVendorBooths(ctx, side, w, h, scroll, aisle) {
@@ -485,15 +457,21 @@ function drawSideVendorBooths(ctx, side, w, h, scroll, aisle) {
   const floorY = GROUND * h;
   const boothH = floorY - topY;
   const styles = boothStylePool(aisle.id);
-  const segmentH = boothH * 0.88;
-  const offset = (scroll * 2.4) % segmentH;
-  const styleOffset = Math.floor(scroll / segmentH);
+  const segmentH = boothH * 0.9;
+  const stripW = colW - 6;
+  const strip = getBoothStrip(aisle.id, stripW, segmentH, styles);
+  const visibleH = floorY - topY;
+  const offset = strip.stripH > 0 ? (scroll * 0.85) % strip.stripH : 0;
 
-  for (let i = -2; i < 4; i += 1) {
-    const by = topY + i * segmentH - offset;
-    if (by + segmentH * 0.35 < topY || by > floorY + 4) continue;
-    const style = styles[(i + styleOffset + (isLeft ? 0 : 2)) % styles.length];
-    drawTradeShowBooth(ctx, colX + 3, by, colW - 6, Math.min(segmentH, floorY - by), style);
+  if (strip.canvas) {
+    const sx = 0;
+    const sy = offset;
+    const sh = Math.min(visibleH, strip.stripH - offset);
+    ctx.drawImage(strip.canvas, sx, sy, strip.colW, sh, colX + 3, topY, stripW, sh);
+    const remain = visibleH - sh;
+    if (remain > 0) {
+      ctx.drawImage(strip.canvas, 0, 0, strip.colW, remain, colX + 3, topY + sh, stripW, remain);
+    }
   }
 
   ctx.strokeStyle = '#b8962e';
@@ -509,13 +487,13 @@ function drawShowFloor(ctx, w, h, aisle, scroll) {
   const py = (n) => n * h;
   const floorY = py(GROUND);
 
-  drawConventionCeiling(ctx, w, h, scroll);
+  drawConventionCeiling(ctx, w, h);
 
   ctx.fillStyle = '#35353c';
   ctx.fillRect(0, py(0.12), w, floorY - py(0.12));
 
   drawSideVendorBooths(ctx, 'left', w, h, scroll, aisle);
-  drawSideVendorBooths(ctx, 'right', w, h, scroll + 140, aisle);
+  drawSideVendorBooths(ctx, 'right', w, h, scroll + 90, aisle);
 
   const aisleGrad = ctx.createLinearGradient(w * 0.23, 0, w * 0.77, 0);
   aisleGrad.addColorStop(0, '#62626c');
@@ -524,13 +502,13 @@ function drawShowFloor(ctx, w, h, aisle, scroll) {
   ctx.fillStyle = aisleGrad;
   ctx.fillRect(w * 0.23, py(0.12), w * 0.54, floorY - py(0.12));
 
-  for (let i = 0; i < 7; i += 1) {
-    const fx = w * 0.23 + (((i * 0.16 - scroll * 0.42) % 1 + 1) % 1) * w * 0.54;
-    ctx.strokeStyle = i % 2 === 0 ? 'rgba(0,0,0,0.14)' : 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = i % 2 === 0 ? 1.5 : 1;
+  for (let i = 0; i < 4; i += 1) {
+    const fx = w * 0.23 + (((i * 0.25 - scroll * 0.18) % 1 + 1) % 1) * w * 0.54;
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(fx, floorY);
-    ctx.lineTo(fx - w * 0.028, h);
+    ctx.lineTo(fx - w * 0.024, h);
     ctx.stroke();
   }
 
@@ -546,11 +524,10 @@ function drawShowFloor(ctx, w, h, aisle, scroll) {
   ctx.fillStyle = '#3a3a42';
   ctx.fillRect(0, floorY, w, h - floorY);
 
-  const bannerShift = (scroll * 0.15) % (w * 0.5);
   ctx.fillStyle = '#2e2e34';
-  ctx.fillRect(w * 0.28 - bannerShift * 0.02, py(0.125), w * 0.44, py(0.028));
+  ctx.fillRect(w * 0.28, py(0.125), w * 0.44, py(0.028));
   ctx.fillStyle = aisle.neon;
-  ctx.globalAlpha = 0.25;
+  ctx.globalAlpha = 0.22;
   ctx.fillRect(w * 0.28, py(0.125), w * 0.44, py(0.028));
   ctx.globalAlpha = 1;
   ctx.fillStyle = '#eee';
@@ -560,9 +537,9 @@ function drawShowFloor(ctx, w, h, aisle, scroll) {
   ctx.textAlign = 'start';
 }
 
-/** Scroll distance tied to forward progress — drives parallax booths & floor. */
+/** Scroll distance — kept moderate for smooth mobile performance. */
 function aisleScrollDistance(s) {
-  return s.registerProgress * 0.72 + s.walkPhase * 4.5;
+  return s.registerProgress * 0.4 + s.walkPhase * 1.6;
 }
 
 function playerCollisionBox(s) {

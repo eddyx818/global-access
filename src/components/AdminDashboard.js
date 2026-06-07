@@ -14,7 +14,7 @@ import QuoteStatusBadge from './QuoteStatusBadge';
 import AdminTabBar from './AdminTabBar';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
-import { approveAccessRequestAndCreateAccount } from '../lib/accessApproval';
+import { approveAccessRequestAndCreateAccount, denyAccessRequest, setAccessRequestDismissed } from '../lib/accessApproval';
 import { whatsAppUrl } from '../lib/whatsapp';
 import { updateInquiryQuoteStatus, QUOTE_STATUSES } from '../lib/inquiries';
 import { loadAppNavigation, saveAppNavigationPartial } from '../lib/appNavigation';
@@ -43,10 +43,18 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
   const [approvingId, setApprovingId] = useState(null);
+  const [denyingId, setDenyingId] = useState(null);
+  const [dismissingId, setDismissingId] = useState(null);
   const [approveMsg, setApproveMsg] = useState('');
+  const [requestActionMsg, setRequestActionMsg] = useState('');
+  const [showDismissedRequests, setShowDismissedRequests] = useState(false);
   const [statusUpdatingId, setStatusUpdatingId] = useState(null);
 
   useEffect(() => { loadAll(); loadContentOverrides(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (tab === 'requests') loadRequests();
+  }, [showDismissedRequests, tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (user?.id) saveAppNavigationPartial({ userId: user.id, adminTab: tab });
@@ -122,7 +130,24 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   };
 
   const loadRequests = async () => {
-    const { data } = await supabase.from('access_requests').select('*').order('created_at', { ascending: false }).limit(50);
+    let query = supabase
+      .from('access_requests')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (!showDismissedRequests) {
+      query = query.is('dismissed_at', null);
+    }
+    const { data, error } = await query;
+    if (error && error.message?.includes('dismissed_at')) {
+      const { data: fallback } = await supabase
+        .from('access_requests')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      setRequests(fallback || []);
+      return;
+    }
     setRequests(data || []);
   };
 
@@ -160,11 +185,33 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   };
 
   const handleDeny = async (req) => {
-    await supabase.from('access_requests').update({ status: 'denied' }).eq('id', req.id);
+    setDenyingId(req.id);
+    setRequestActionMsg('');
+    const result = await denyAccessRequest(req);
+    setDenyingId(null);
+    if (!result.ok) {
+      setRequestActionMsg(result.error || 'Could not deny request.');
+      return;
+    }
+    setRequestActionMsg(req.linked_user_id
+      ? `Denied ${req.email} and revoked portal access.`
+      : `Denied ${req.email}.`);
     loadRequests();
   };
 
-  const pending = requests.filter(r => r.status === 'pending');
+  const handleDismiss = async (req) => {
+    setDismissingId(req.id);
+    setRequestActionMsg('');
+    const result = await setAccessRequestDismissed(req.id, !req.dismissed_at);
+    setDismissingId(null);
+    if (!result.ok) {
+      setRequestActionMsg(result.error || 'Could not update request.');
+      return;
+    }
+    loadRequests();
+  };
+
+  const pending = requests.filter(r => r.status === 'pending' && !r.dismissed_at);
   const [narrowHeader, setNarrowHeader] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches
   );
@@ -212,6 +259,18 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
     textTransform: 'uppercase',
     background: status === 'pending' ? t.warningBg : status === 'approved' ? t.successBg : t.errorBg,
     color: status === 'pending' ? t.warningText : status === 'approved' ? t.successText : t.errorText,
+  });
+
+  const actionBtn = (bg, color = '#FFF') => ({
+    background: bg,
+    color,
+    border: 'none',
+    borderRadius: 8,
+    padding: '8px 14px',
+    fontSize: 12,
+    cursor: 'pointer',
+    fontWeight: 600,
+    fontFamily: 'inherit',
   });
 
   return (
@@ -262,6 +321,12 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
         <div style={{ background: t.successBg, borderBottom: `0.5px solid ${t.successBorder}`, padding: '12px 1.5rem', fontSize: 13, color: t.successText, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
           {approveMsg}
           <button onClick={() => setApproveMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: t.successText }}>×</button>
+        </div>
+      )}
+      {requestActionMsg && (
+        <div style={{ background: t.warningBg, borderBottom: `0.5px solid ${t.warningBorder}`, padding: '12px 1.5rem', fontSize: 13, color: t.warningText, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+          {requestActionMsg}
+          <button type="button" onClick={() => setRequestActionMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: t.warningText }}>×</button>
         </div>
       )}
       <div style={{ padding: narrowHeader ? '1rem' : '1.5rem', maxWidth: 960, margin: '0 auto', paddingBottom: narrowHeader ? 'max(1rem, var(--ga-inset-bottom))' : '1.5rem' }}>
@@ -352,23 +417,94 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
         )}
         {!loading && tab === 'requests' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {requests.length === 0 && <div style={{ fontSize: 13, color: t.textFaint }}>No access requests yet.</div>}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ fontSize: 12, color: t.textFaint }}>
+                {pending.length} pending · {requests.length} shown
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.textMuted, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={showDismissedRequests}
+                  onChange={(e) => setShowDismissedRequests(e.target.checked)}
+                />
+                Show dismissed
+              </label>
+            </div>
+            {requests.length === 0 && (
+              <div style={{ fontSize: 13, color: t.textFaint }}>
+                {showDismissedRequests ? 'No dismissed requests.' : 'No active access requests.'}
+              </div>
+            )}
             {requests.map(req => (
-              <div key={req.id} style={{ ...ui.card, borderLeft: `3px solid ${req.status === 'pending' ? t.gold : req.status === 'approved' ? t.accent : t.errorText}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <div
+                key={req.id}
+                style={{
+                  ...ui.card,
+                  position: 'relative',
+                  opacity: req.dismissed_at ? 0.7 : 1,
+                  borderLeft: `3px solid ${req.status === 'pending' ? t.gold : req.status === 'approved' ? t.accent : t.errorText}`,
+                }}
+              >
+                <button
+                  type="button"
+                  aria-label={req.dismissed_at ? 'Restore request' : 'Dismiss request'}
+                  title={req.dismissed_at ? 'Restore to list' : 'Dismiss from list'}
+                  disabled={dismissingId === req.id}
+                  onClick={() => handleDismiss(req)}
+                  style={{
+                    position: 'absolute',
+                    top: 10,
+                    right: 10,
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    border: t.borderHairline,
+                    background: t.bgMuted,
+                    color: t.textMuted,
+                    fontSize: 18,
+                    lineHeight: 1,
+                    cursor: dismissingId === req.id ? 'wait' : 'pointer',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0,
+                  }}
+                >
+                  {req.dismissed_at ? '↩' : '×'}
+                </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, paddingRight: 36 }}>
                   <div>
                     <div style={{ fontWeight: 500, fontSize: 15 }}>{req.name} — {req.company}</div>
                     <div style={{ fontSize: 12, color: t.textFaint, marginTop: 2 }}>{req.email} · {req.phone}</div>
+                    <div style={{ fontSize: 11, color: t.textDisabled, marginTop: 4 }}>
+                      {new Date(req.created_at).toLocaleString()}
+                      {req.dismissed_at ? ' · dismissed' : ''}
+                    </div>
                     {req.referral_code_used && <div style={{ fontSize: 11, color: t.gold, marginTop: 4 }}>Rep code: {req.referral_code_used}</div>}
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={statusStyle(req.status)}>{req.status}</span>
-                    {req.status === 'pending' && <>
-                      <button onClick={() => handleApprove(req)} disabled={approvingId === req.id} style={{ background: t.accent, color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: approvingId === req.id ? 'wait' : 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>
+                    {(req.status === 'pending' || req.status === 'denied') && (
+                      <button
+                        type="button"
+                        onClick={() => handleApprove(req)}
+                        disabled={approvingId === req.id}
+                        style={{ ...actionBtn(t.accent), cursor: approvingId === req.id ? 'wait' : 'pointer' }}
+                      >
                         {approvingId === req.id ? 'Creating…' : 'Approve & create account'}
                       </button>
-                      <button onClick={() => handleDeny(req)} style={{ background: t.errorText, color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>Deny</button>
-                    </>}
+                    )}
+                    {(req.status === 'pending' || req.status === 'approved') && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeny(req)}
+                        disabled={denyingId === req.id}
+                        style={{ ...actionBtn(t.errorText), cursor: denyingId === req.id ? 'wait' : 'pointer' }}
+                      >
+                        {denyingId === req.id ? 'Denying…' : req.status === 'approved' ? 'Revoke & deny' : 'Deny'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

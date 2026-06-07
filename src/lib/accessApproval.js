@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabase';
+import { revokePortalAuthorization } from './authGate';
 
 function randomPassword() {
   return `${Math.random().toString(36).slice(2, 8)}${Math.random().toString(36).slice(2, 4).toUpperCase()}!`;
@@ -116,4 +117,45 @@ export async function approveAccessRequestAndCreateAccount(req) {
     welcomeEmailError: emailResult.error || null,
     whatsAppMessage: `Hi ${req.name || 'there'}! Your Global Access account is ready.\n\nPortal: ${portalUrl}\nEmail: ${email}${tempPassword ? `\nTemp password: ${tempPassword}\n\nPlease log in and update your profile.` : '\n\nLog in with your existing password.'}`,
   };
+}
+
+export async function denyAccessRequest(req) {
+  if (!supabaseAdmin) {
+    return { ok: false, error: 'Admin service key not configured (REACT_APP_SUPABASE_SERVICE_KEY).' };
+  }
+  if (!req?.id) {
+    return { ok: false, error: 'Request not found.' };
+  }
+
+  if (req.linked_user_id) {
+    const revoked = await revokePortalAuthorization(req.linked_user_id);
+    if (!revoked.ok) {
+      return { ok: false, error: revoked.error || 'Could not revoke portal access.' };
+    }
+  }
+
+  const { error } = await supabaseAdmin
+    .from('access_requests')
+    .update({ status: 'denied' })
+    .eq('id', req.id);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
+}
+
+export async function setAccessRequestDismissed(id, dismissed) {
+  if (!supabaseAdmin) {
+    return { ok: false, error: 'Admin service key not configured (REACT_APP_SUPABASE_SERVICE_KEY).' };
+  }
+  const { error } = await supabaseAdmin
+    .from('access_requests')
+    .update({ dismissed_at: dismissed ? new Date().toISOString() : null })
+    .eq('id', id);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }
