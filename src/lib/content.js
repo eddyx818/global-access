@@ -1,18 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from './supabase';
 import { BRANDS } from './data';
 import { DEFAULT_GLOBAL_STYLES, parseJsonField } from './design';
 import { mergeProductCommerce, commercePayloadFromForm, packPayloadFromForm } from './pricing';
+
+const CONTENT_SYNC_CHANNEL = 'ga-content-sync';
+
+/** Tell every open tab + in-app listeners to reload CMS content from Supabase. */
+export function notifyContentUpdated(detail = {}) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('ga-content-updated', { detail }));
+  try {
+    const bc = new BroadcastChannel(CONTENT_SYNC_CHANNEL);
+    bc.postMessage({ type: 'content-updated', ...detail });
+    bc.close();
+  } catch (_) {}
+}
 
 export function useBrandContent() {
   const [brandOverrides, setBrandOverrides] = useState({});
   const [productOverrides, setProductOverrides] = useState({});
   const [galleryOverrides, setGalleryOverrides] = useState({});
   const [loading, setLoading] = useState(true);
+  const [hiddenBrands, setHiddenBrands] = useState([]);
+  const [customBrands, setCustomBrands] = useState([]);
+  const [bgColor, setBgColor] = useState('#F5F2ED');
+  const [heroConfig, setHeroConfig] = useState({});
+  const [globalStyles, setGlobalStyles] = useState(DEFAULT_GLOBAL_STYLES);
+  const [navigation, setNavigation] = useState([]);
+  const [customerChatLabel, setCustomerChatLabel] = useState('');
+  const initialLoadDone = useRef(false);
 
-  useEffect(() => { loadContent(); }, []);
-
-  const loadContent = async () => {
+  const loadContentData = useCallback(async () => {
     try {
       const [{ data: brands }, { data: products }, { data: galleries }] = await Promise.all([
         supabase.from('brand_content').select('*'),
@@ -38,39 +57,68 @@ export function useBrandContent() {
         setGalleryOverrides(m);
       }
     } catch (_) {}
-    setLoading(false);
-  };
+  }, []);
 
-  const [hiddenBrands, setHiddenBrands] = useState([]);
-  const [customBrands, setCustomBrands] = useState([]);
-  const [bgColor, setBgColor] = useState('#F5F2ED');
-  const [heroConfig, setHeroConfig] = useState({});
-  const [globalStyles, setGlobalStyles] = useState(DEFAULT_GLOBAL_STYLES);
-  const [navigation, setNavigation] = useState([]);
-  const [customerChatLabel, setCustomerChatLabel] = useState('');
+  const loadSettingsData = useCallback(async () => {
+    try {
+      const { data } = await supabase.from('site_settings').select('*');
+      if (data) {
+        data.forEach(s => {
+          if (s.key === 'hidden_brands') setHiddenBrands(JSON.parse(s.value || '[]'));
+          if (s.key === 'custom_brands') setCustomBrands(JSON.parse(s.value || '[]'));
+          if (s.key === 'bg_color') setBgColor(s.value || '#F5F2ED');
+          if (s.key === 'hero_config') setHeroConfig(parseJsonField(s.value, {}));
+          if (s.key === 'global_styles') setGlobalStyles({ ...DEFAULT_GLOBAL_STYLES, ...parseJsonField(s.value, {}) });
+          if (s.key === 'navigation') setNavigation(parseJsonField(s.value, []));
+          if (s.key === 'customer_chat_label') setCustomerChatLabel(s.value || '');
+        });
+      }
+    } catch (_) {}
+  }, []);
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([loadContentData(), loadSettingsData()]);
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      setLoading(false);
+    }
+  }, [loadContentData, loadSettingsData]);
+
+  useEffect(() => { refreshAll(); }, [refreshAll]);
 
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const { data } = await supabase.from('site_settings').select('*');
-        if (data) {
-          data.forEach(s => {
-            if (s.key === 'hidden_brands') setHiddenBrands(JSON.parse(s.value || '[]'));
-            if (s.key === 'custom_brands') setCustomBrands(JSON.parse(s.value || '[]'));
-            if (s.key === 'bg_color') setBgColor(s.value || '#F5F2ED');
-            if (s.key === 'hero_config') setHeroConfig(parseJsonField(s.value, {}));
-            if (s.key === 'global_styles') setGlobalStyles({ ...DEFAULT_GLOBAL_STYLES, ...parseJsonField(s.value, {}) });
-            if (s.key === 'navigation') setNavigation(parseJsonField(s.value, []));
-            if (s.key === 'customer_chat_label') setCustomerChatLabel(s.value || '');
-          });
-        }
-      } catch (_) {}
+    let debounceTimer;
+    const onUpdate = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => { refreshAll(); }, 250);
     };
-    loadSettings();
-    const onUpdate = () => { loadContent(); loadSettings(); };
+
     window.addEventListener('ga-content-updated', onUpdate);
-    return () => window.removeEventListener('ga-content-updated', onUpdate);
-  }, []);
+    let bc;
+    try {
+      bc = new BroadcastChannel(CONTENT_SYNC_CHANNEL);
+      bc.onmessage = (ev) => {
+        if (ev.data?.type === 'content-updated') onUpdate();
+      };
+    } catch (_) {}
+
+    const channel = supabase
+      .channel('ga-content-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'brand_content' }, onUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_content' }, onUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'brand_gallery' }, onUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, onUpdate)
+      .subscribe();
+
+    return () => {
+      clearTimeout(debounceTimer);
+      window.removeEventListener('ga-content-updated', onUpdate);
+      bc?.close();
+      supabase.removeChannel(channel);
+    };
+  }, [refreshAll]);
+
+  const loadContent = refreshAll;
 
   const getMergedBrands = () => {
     const allBrands = [...BRANDS, ...customBrands].filter(b => !hiddenBrands.includes(b.id));
@@ -87,10 +135,20 @@ export function useBrandContent() {
         .map(p => (productOverrides[p.sku] || {}).image_url)
         .filter(url => url && /^https?:\/\//.test(url));
 
+      // Drop built-in gallery paths replaced by a SKU upload (avoids duplicate/broken slots).
+      const supersededGalleryPaths = new Set(
+        brand.products
+          .filter(p => {
+            const url = (productOverrides[p.sku] || {}).image_url;
+            return p.image && url && /^https?:\/\//.test(url);
+          })
+          .map(p => p.image)
+      );
+
       const finalGallery = [...new Set([
         ...galleryItems,
         ...uploadedProductImages,
-        ...(brand.gallery || []),
+        ...(brand.gallery || []).filter(url => !supersededGalleryPaths.has(url)),
       ])].filter(Boolean);
 
       return {
@@ -137,6 +195,7 @@ export async function saveBrandContent(brandId, data) {
     master_pricing_mode: data.masterPricingMode || null,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'brand_id' });
+  if (!error) notifyContentUpdated();
   return !error;
 }
 
@@ -165,6 +224,7 @@ export async function saveProductContent(brandId, sku, data) {
 
   const { error } = await supabase.from('product_content').upsert(payload, { onConflict: 'sku' });
   if (error) console.error('saveProductContent error:', error);
+  else notifyContentUpdated();
   return !error;
 }
 
@@ -185,11 +245,13 @@ export async function uploadGalleryImage(brandId, file) {
   const { data } = supabase.storage.from('brand-images').getPublicUrl(path);
   const url = data.publicUrl;
   await supabase.from('brand_gallery').insert({ brand_id: brandId, image_url: url, sort_order: Date.now() });
+  notifyContentUpdated();
   return url;
 }
 
 export async function deleteGalleryImage(id) {
   await supabase.from('brand_gallery').delete().eq('id', id);
+  notifyContentUpdated();
 }
 
 /** Resolve /images/... paths for admin preview on the same origin. */
@@ -237,9 +299,9 @@ export function buildVisibleBrandPhotos(brand, { galleryRecords = [], productIma
     };
   });
 
-  // Product hero images (default or uploaded) — shown on SKU cards, not repeated in gallery strip.
-  const skuImagePaths = new Set(
-    skuCards.map(c => c.rawUrl).filter(Boolean)
+  // Built-in paths used as product hero images belong on SKU cards only — not "extra gallery".
+  const productDefaultPaths = new Set(
+    (brand.products || []).map(p => p.image).filter(Boolean)
   );
 
   const galleryIdByUrl = {};
@@ -272,9 +334,9 @@ export function buildVisibleBrandPhotos(brand, { galleryRecords = [], productIma
     });
   });
 
-  // Built-in gallery photos that are not already the hero on a product card.
+  // Built-in gallery photos not tied to any product card (e.g. lifestyle shots on Gold Whip).
   const defaultStrip = builtInGallery
-    .filter(url => !skuImagePaths.has(url))
+    .filter(url => !productDefaultPaths.has(url))
     .map((url, index) => ({
       id: `default-${index}-${url}`,
       url: resolveBrandImageUrl(url),

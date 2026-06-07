@@ -39,12 +39,23 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
   const [activeProductTab, setActiveProductTab] = useState('details'); // 'details' | 'flavors' | 'pricing'
   const fileRefs = React.useRef({});
   const galleryFileRef = React.useRef(null);
+  const skipEditorReloadRef = React.useRef(false);
 
   const loadBrand = async (brand) => {
     setSelectedBrand(brand);
     setPendingStrip([]);
     setPendingSkuPreview({});
-    const override = brandOverrides[brand.id] || {};
+
+    const [{ data: brandRow }, { data: productRows }, { data: gallery }] = await Promise.all([
+      supabase.from('brand_content').select('*').eq('brand_id', brand.id).maybeSingle(),
+      supabase.from('product_content').select('*').eq('brand_id', brand.id),
+      supabase.from('brand_gallery').select('*').eq('brand_id', brand.id).order('sort_order', { ascending: true }),
+    ]);
+
+    const override = brandRow || brandOverrides[brand.id] || {};
+    const poBySku = {};
+    (productRows || []).forEach(p => { poBySku[p.sku] = p; });
+
     setBrandForm({
       tagline: override.tagline || brand.tagline,
       description: override.description || brand.description,
@@ -52,9 +63,10 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
       fontStyle: override.font_style || 'modern',
       masterPricingMode: override.master_pricing_mode || brand.masterPricingMode || 'auto',
     });
+
     const pf = {};
     brand.products.forEach(p => {
-      const po = productOverrides[p.sku] || {};
+      const po = poBySku[p.sku] || productOverrides[p.sku] || {};
       pf[p.sku] = {
         name: po.name || p.name,
         detail: po.detail || p.detail,
@@ -67,16 +79,24 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
       };
     });
     setProductForms(pf);
-
-    const { data: gallery } = await supabase
-      .from('brand_gallery')
-      .select('*')
-      .eq('brand_id', brand.id)
-      .order('sort_order', { ascending: true });
     setGalleryItems(gallery || []);
   };
 
   React.useEffect(() => { loadBrand(BRANDS[0]); }, []); // eslint-disable-line
+
+  React.useEffect(() => {
+    let debounceTimer;
+    const onExternalUpdate = () => {
+      if (skipEditorReloadRef.current || !selectedBrand?.id) return;
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => { loadBrand(selectedBrand); }, 300);
+    };
+    window.addEventListener('ga-content-updated', onExternalUpdate);
+    return () => {
+      clearTimeout(debounceTimer);
+      window.removeEventListener('ga-content-updated', onExternalUpdate);
+    };
+  }, [selectedBrand]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const productImageBySku = Object.fromEntries(
     Object.entries(productForms).map(([sku, form]) => [sku, form?.image_url || '']).filter(([, url]) => url)
@@ -103,9 +123,10 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
     });
     if (url) {
       setProductForms(pf => ({ ...pf, [sku]: { ...pf[sku], image_url: url } }));
+      skipEditorReloadRef.current = true;
       await saveProductContent(brandId, sku, { ...productForms[sku], image_url: url });
+      skipEditorReloadRef.current = false;
       setSaved('Image uploaded!'); setTimeout(() => setSaved(''), 2000);
-      window.dispatchEvent(new CustomEvent('ga-content-updated'));
       onSaved && onSaved();
     }
     setUploading(u => ({ ...u, [sku]: false }));
@@ -139,7 +160,6 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
     }
     setUploadingGallery(false);
     setSaved('Placard photo(s) uploaded!'); setTimeout(() => setSaved(''), 2000);
-    window.dispatchEvent(new CustomEvent('ga-content-updated'));
     onSaved && onSaved();
     const { data: gallery } = await supabase
       .from('brand_gallery')
@@ -153,7 +173,6 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
     if (!window.confirm('Remove this placard photo from the customer gallery?')) return;
     await deleteGalleryImage(galleryId);
     setGalleryItems(prev => prev.filter(g => g.id !== galleryId));
-    window.dispatchEvent(new CustomEvent('ga-content-updated'));
     onSaved && onSaved();
   };
 
@@ -189,11 +208,12 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
 
   const handleSaveAll = async () => {
     setSaving(true);
+    skipEditorReloadRef.current = true;
     await saveBrandContent(selectedBrand.id, brandForm);
     await Promise.all(selectedBrand.products.map(p => saveProductContent(selectedBrand.id, p.sku, productForms[p.sku] || {})));
+    skipEditorReloadRef.current = false;
     setSaving(false);
     setSaved('All changes saved!'); setTimeout(() => setSaved(''), 2500);
-    window.dispatchEvent(new CustomEvent('ga-content-updated'));
     onSaved && onSaved();
   };
 

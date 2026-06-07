@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { BRANDS } from './data';
 import { validateHexColor, parseJsonField } from './design';
+import { notifyContentUpdated } from './content';
 
 const VALID_FONT_FAMILIES = ['modern', 'bold', 'elegant', 'playful'];
 const VALID_BUTTON_STYLES = ['rounded', 'pill', 'square'];
@@ -181,6 +182,7 @@ export async function executeAdminAction(action, data) {
     default:
       throw new Error(`Unknown design action: ${action}`);
   }
+  notifyContentUpdated();
 }
 
 export const DESIGN_ACTIONS = [

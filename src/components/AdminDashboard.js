@@ -47,6 +47,25 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
 
   useEffect(() => { loadAll(); loadContentOverrides(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    let debounceTimer;
+    const refresh = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => { loadContentOverrides(); }, 250);
+    };
+    window.addEventListener('ga-content-updated', refresh);
+    let bc;
+    try {
+      bc = new BroadcastChannel('ga-content-sync');
+      bc.onmessage = (ev) => { if (ev.data?.type === 'content-updated') refresh(); };
+    } catch (_) {}
+    return () => {
+      clearTimeout(debounceTimer);
+      window.removeEventListener('ga-content-updated', refresh);
+      bc?.close();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadAll = async () => {
     setLoading(true);
     await Promise.all([loadStats(), loadRequests(), loadInquiries(), loadTopPages(), loadTopClicks(), loadAvgTimes()]);

@@ -48,7 +48,13 @@ export default function App() {
   const [isPortalAdmin, setIsPortalAdmin] = useState(false);
   const [isSalesRep, setIsSalesRep] = useState(false);
   const [staffProfile, setStaffProfile] = useState(null);
-  const { getMergedBrands, bgColor, globalStyles, navigation, customerChatLabel } = useBrandContent();
+  const { getMergedBrands, loadContent, bgColor, globalStyles, navigation, customerChatLabel } = useBrandContent();
+  useEffect(() => {
+    if (authState === 'admin' && adminMode === 'portal') {
+      loadContent();
+    }
+  }, [authState, adminMode, loadContent]);
+
   const { unread: chatUnread, refresh: refreshUnread } = useUnreadCount(user?.id, {
     isAdmin: isPortalAdmin,
     isSalesRep,

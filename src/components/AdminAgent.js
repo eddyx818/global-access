@@ -12,7 +12,7 @@ import {
   readFileAsText,
   callAdminAnalyze,
 } from '../lib/adminUpload';
-import { saveProductContent } from '../lib/content';
+import { saveProductContent, notifyContentUpdated } from '../lib/content';
 import { commercePayloadFromForm } from '../lib/pricing';
 import DesignPreview from './DesignPreview';
 import { useTheme } from '../context/ThemeContext';
@@ -395,7 +395,7 @@ export default function AdminAgent() {
       }
 
       const result = await executeAction(action, data);
-      window.dispatchEvent(new CustomEvent('ga-content-updated'));
+      notifyContentUpdated();
 
       if (action === 'bulk_import' && result) {
         addMessage('assistant', `✅ Done! Created ${result.created} product(s)${result.skipped ? `, skipped ${result.skipped}` : ''}.`);

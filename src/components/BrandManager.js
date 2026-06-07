@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { notifyContentUpdated } from '../lib/content';
 import { BRANDS } from '../lib/data';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
@@ -60,6 +61,7 @@ export default function BrandManager({ onSaved }) {
     setHiddenBrands(newHidden);
     await saveSetting('hidden_brands', newHidden);
     setSaved('Saved!'); setTimeout(() => setSaved(''), 2000);
+    notifyContentUpdated();
     onSaved && onSaved();
   };
 
@@ -67,6 +69,7 @@ export default function BrandManager({ onSaved }) {
     setBgColor(color);
     await saveSetting('bg_color', color);
     setSaved('Background updated!'); setTimeout(() => setSaved(''), 2000);
+    notifyContentUpdated();
     onSaved && onSaved();
   };
 
@@ -75,8 +78,8 @@ export default function BrandManager({ onSaved }) {
     setCustomerChatLabel(label);
     await saveSetting('customer_chat_label', label);
     setSaved('Chat label updated!'); setTimeout(() => setSaved(''), 2000);
+    notifyContentUpdated();
     onSaved && onSaved();
-    window.dispatchEvent(new Event('ga-content-updated'));
   };
 
   const handleAddBrand = async () => {
@@ -107,6 +110,7 @@ export default function BrandManager({ onSaved }) {
     setNewBrand({ name: '', category: 'Tablets', tagline: '', description: '', color: '#4CAF7D', orderUnit: 'master_case', product_name: '', product_detail: '', product_sku: '', flavors_retail: '', flavors_distro: '' });
     setSaving(false);
     setSaved('Brand added!'); setTimeout(() => setSaved(''), 2000);
+    notifyContentUpdated();
     onSaved && onSaved();
   };
 
@@ -116,6 +120,7 @@ export default function BrandManager({ onSaved }) {
     setCustomBrands(updated);
     await saveSetting('custom_brands', updated);
     setSaved('Brand deleted.'); setTimeout(() => setSaved(''), 2000);
+    notifyContentUpdated();
     onSaved && onSaved();
   };
 
