@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { getButtonRadius } from '../lib/design';
-import { getButtonRadius } from '../lib/design';
 
 export default function Nav({
   interests,
