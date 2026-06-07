@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { fetchLobbyLeaderboard, submitLobbyScore } from '../lib/lobbyGameScores';
 import {
   BOOTH_STYLES,
@@ -17,7 +17,7 @@ import {
 
 const LIVES = 3;
 const GRAVITY = 0.38;
-const JUMP_V = -7.4;
+const JUMP_V = -7.9;
 const GROUND = 0.86;
 const PLAYER_X = 0.2;
 const PLAYER_H = 0.21;
@@ -27,6 +27,41 @@ const CHAR_SCALE = 0.19;
 /** Low counter / table obstacles in the aisle — jumpable. */
 const LANE_OBSTACLE_H = 0.11;
 const LANE_OBSTACLE_Y = GROUND - LANE_OBSTACLE_H;
+const CANVAS_W = 360;
+const CANVAS_H = 320;
+
+/** Block iOS/Android copy-paste highlight & callout on the play surface. */
+const GAME_SURFACE_STYLE = {
+  width: '100%',
+  padding: 0,
+  borderRadius: 12,
+  overflow: 'hidden',
+  cursor: 'pointer',
+  background: '#0a0a10',
+  touchAction: 'none',
+  outline: 'none',
+  userSelect: 'none',
+  WebkitUserSelect: 'none',
+  MozUserSelect: 'none',
+  msUserSelect: 'none',
+  WebkitTouchCallout: 'none',
+  WebkitTapHighlightColor: 'transparent',
+};
+
+const CANVAS_STYLE = {
+  display: 'block',
+  width: '100%',
+  height: 'auto',
+  aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
+  minHeight: 200,
+  maxHeight: 420,
+  userSelect: 'none',
+  WebkitUserSelect: 'none',
+  WebkitTouchCallout: 'none',
+  WebkitTapHighlightColor: 'transparent',
+  touchAction: 'none',
+  pointerEvents: 'none',
+};
 
 function characterScale(canvasH, mult = 1) {
   return canvasH * CHAR_SCALE * mult;
@@ -155,28 +190,58 @@ function drawHuman(ctx, footX, footY, scale, facing, walkPhase, opts = {}) {
   ctx.globalAlpha = 1;
 }
 
-function drawCart(ctx, x, footY, scale, alpha) {
+function drawCart(ctx, handleX, footY, scale, alpha) {
   ctx.globalAlpha = alpha;
-  ctx.fillStyle = '#888';
-  ctx.fillRect(x - scale * 0.02, footY - scale * 0.78, scale * 0.04, scale * 0.06);
-  ctx.strokeStyle = '#555';
-  ctx.lineWidth = 3;
+  const basketLeft = handleX + scale * 0.02;
+  const basketW = scale * 0.42;
+  const basketTop = footY - scale * 0.42;
+
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.moveTo(x - scale * 0.06, footY - scale * 0.82);
-  ctx.lineTo(x + scale * 0.22, footY - scale * 0.82);
+  ctx.moveTo(handleX - scale * 0.02, footY - scale * 0.78);
+  ctx.lineTo(handleX + scale * 0.14, footY - scale * 0.78);
   ctx.stroke();
+
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.beginPath();
+  ctx.moveTo(basketLeft, basketTop + scale * 0.08);
+  ctx.lineTo(basketLeft + basketW, basketTop + scale * 0.08);
+  ctx.lineTo(basketLeft + basketW * 0.92, footY - scale * 0.06);
+  ctx.lineTo(basketLeft + basketW * 0.08, footY - scale * 0.06);
+  ctx.closePath();
+  ctx.fill();
+
   ctx.strokeStyle = '#C9A84C';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.moveTo(x + scale * 0.04, footY - scale * 0.72);
-  ctx.lineTo(x + scale * 0.1, footY - scale * 0.38);
-  ctx.lineTo(x + scale * 0.58, footY - scale * 0.38);
-  ctx.lineTo(x + scale * 0.65, footY - scale * 0.72);
+  ctx.moveTo(basketLeft, basketTop);
+  ctx.lineTo(basketLeft + basketW * 0.08, footY - scale * 0.06);
+  ctx.lineTo(basketLeft + basketW * 0.92, footY - scale * 0.06);
+  ctx.lineTo(basketLeft + basketW, basketTop);
   ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(201,168,76,0.45)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i += 1) {
+    const t = i / 4;
+    ctx.beginPath();
+    ctx.moveTo(basketLeft + basketW * t, basketTop + scale * 0.04);
+    ctx.lineTo(basketLeft + basketW * (0.08 + t * 0.84), footY - scale * 0.08);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(basketLeft + scale * 0.06, basketTop + scale * 0.12, scale * 0.1, scale * 0.08);
+  ctx.fillStyle = '#7B68EE';
+  ctx.fillRect(basketLeft + scale * 0.18, basketTop + scale * 0.14, scale * 0.09, scale * 0.07);
+  ctx.fillStyle = '#FF6B35';
+  ctx.fillRect(basketLeft + scale * 0.29, basketTop + scale * 0.11, scale * 0.08, scale * 0.09);
+
   ctx.fillStyle = '#222';
   ctx.beginPath();
-  ctx.arc(x + scale * 0.2, footY - 5, 5, 0, Math.PI * 2);
-  ctx.arc(x + scale * 0.52, footY - 5, 5, 0, Math.PI * 2);
+  ctx.arc(basketLeft + scale * 0.12, footY - 4, 4, 0, Math.PI * 2);
+  ctx.arc(basketLeft + basketW * 0.78, footY - 4, 4, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
 }
@@ -185,10 +250,11 @@ function drawBuyer(ctx, xNorm, yNorm, w, h, walkPhase, alpha) {
   const footY = yNorm * h + PLAYER_H * h;
   const scale = characterScale(h, 1.05);
   const footX = xNorm * w;
-  drawCart(ctx, footX + scale * 0.95, footY, scale, alpha);
+  const cartHandleX = footX + scale * 0.24;
   drawHuman(ctx, footX, footY, scale, 'right', walkPhase, {
     shirt: '#2563eb', pants: '#1e3a5f', skin: '#d4a574', hair: '#3d2314', badge: true, alpha,
   });
+  drawCart(ctx, cartHandleX, footY, scale, alpha);
 }
 
 function drawSpeechBubble(ctx, x, y, text, maxW, accent = '#C9A84C') {
@@ -316,31 +382,42 @@ const AISLE_BOOTH_STYLE_KEYS = {
   home: ['seven_oh', 'preroll_lab'],
 };
 
-function drawConventionCeiling(ctx, w, h) {
+function drawConventionCeiling(ctx, w, h, scroll) {
   ctx.fillStyle = '#2a2a30';
   ctx.fillRect(0, 0, w, h * 0.12);
   ctx.fillStyle = '#383840';
-  for (let i = 0; i < 6; i += 1) {
-    ctx.fillRect(i * (w / 5.5), 0, w * 0.04, h * 0.12);
+  const trussOffset = (scroll * 0.4) % (w / 5.5);
+  for (let i = -1; i < 7; i += 1) {
+    ctx.fillRect(i * (w / 5.5) - trussOffset, 0, w * 0.04, h * 0.12);
   }
-  for (let i = 0; i < 4; i += 1) {
-    const lx = (i + 0.55) * (w / 4);
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.fillRect(lx - 18, 10, 36, 4);
+  for (let i = 0; i < 5; i += 1) {
+    const lx = ((i + 0.55) * (w / 4) - scroll * 0.25) % w;
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(lx - 20, 10, 40, 5);
+    ctx.fillStyle = 'rgba(255,220,120,0.15)';
+    ctx.fillRect(lx - 8, 16, 16, h * 0.55);
   }
 }
 
 function drawTradeShowBooth(ctx, bx, by, bw, bh, style) {
   const floorY = by + bh;
 
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.fillRect(bx + 3, floorY - 2, bw, 4);
+
   ctx.fillStyle = '#252530';
   ctx.fillRect(bx, by, bw, bh * 0.1);
 
   ctx.fillStyle = style.top;
   ctx.fillRect(bx + 2, by + bh * 0.025, bw - 4, bh * 0.075);
-  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+  ctx.lineWidth = 1.5;
   ctx.strokeRect(bx + 2, by + bh * 0.025, bw - 4, bh * 0.075);
+
+  ctx.fillStyle = style.led?.[0] || style.mid;
+  ctx.globalAlpha = 0.85;
+  ctx.fillRect(bx + 2, by + bh * 0.102, bw - 4, 2);
+  ctx.globalAlpha = 1;
 
   ctx.fillStyle = '#fff';
   ctx.font = `700 ${Math.max(8, bw * 0.12)}px "Bebas Neue", sans-serif`;
@@ -355,14 +432,15 @@ function drawTradeShowBooth(ctx, bx, by, bw, bh, style) {
   grad.addColorStop(1, style.bottom);
   ctx.fillStyle = grad;
   ctx.fillRect(bx, wallY, bw, wallH);
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1.5;
   ctx.strokeRect(bx, wallY, bw, wallH);
 
   if (style.id === 'smiley_wall') drawSmileyPattern(ctx, bx, wallY, bw, wallH * 0.85);
   if (style.id === 'neon_beast') drawNeonSilhouette(ctx, bx, wallY, bw, wallH * 0.55);
   if (style.id === 'mushroom_psyche') drawMushroomIcon(ctx, bx + bw * 0.5, wallY + wallH * 0.42, bw * 0.28);
 
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fillRect(bx + 2, wallY + wallH * 0.72, bw - 4, bh * 0.07);
   ctx.font = `600 ${Math.max(5, bw * 0.06)}px sans-serif`;
   ctx.fillStyle = '#fff';
@@ -372,20 +450,22 @@ function drawTradeShowBooth(ctx, bx, by, bw, bh, style) {
   const counterY = floorY - bh * 0.16;
   ctx.fillStyle = style.counter;
   ctx.fillRect(bx + 1, counterY, bw - 2, bh * 0.16);
-  ctx.strokeStyle = '#444';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1.5;
   ctx.strokeRect(bx + 1, counterY, bw - 2, bh * 0.16);
 
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillRect(bx + bw * 0.08, counterY + 2, bw * 0.84, bh * 0.025);
   ctx.fillStyle = '#555';
   ctx.fillRect(bx + bw * 0.08, counterY + bh * 0.04, bw * 0.84, bh * 0.03);
 
   const repScale = bh * 0.11;
   drawHuman(ctx, bx + bw * 0.55, floorY - 2, repScale, 'left', 0, {
-    shirt: style.mid, pants: '#222', skin: '#c68642', alpha: 0.85,
+    shirt: style.mid, pants: '#222', skin: '#c68642', alpha: 0.9,
   });
 
   ctx.font = '700 5px sans-serif';
-  ctx.fillStyle = '#888';
+  ctx.fillStyle = '#666';
   ctx.fillText('VENDOR', bx + bw / 2, floorY - 1);
   ctx.textAlign = 'start';
 }
@@ -405,19 +485,19 @@ function drawSideVendorBooths(ctx, side, w, h, scroll, aisle) {
   const floorY = GROUND * h;
   const boothH = floorY - topY;
   const styles = boothStylePool(aisle.id);
-  const segmentH = boothH * 0.92;
-  const offset = (scroll * 0.000045) % segmentH;
-  const styleOffset = Math.floor(scroll * 0.000008);
+  const segmentH = boothH * 0.88;
+  const offset = (scroll * 2.4) % segmentH;
+  const styleOffset = Math.floor(scroll / segmentH);
 
-  for (let i = -1; i < 3; i += 1) {
+  for (let i = -2; i < 4; i += 1) {
     const by = topY + i * segmentH - offset;
-    if (by + segmentH * 0.5 < topY || by > floorY) continue;
+    if (by + segmentH * 0.35 < topY || by > floorY + 4) continue;
     const style = styles[(i + styleOffset + (isLeft ? 0 : 2)) % styles.length];
     drawTradeShowBooth(ctx, colX + 3, by, colW - 6, Math.min(segmentH, floorY - by), style);
   }
 
-  ctx.strokeStyle = '#999';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#b8962e';
+  ctx.lineWidth = 2.5;
   const edgeX = isLeft ? colX + colW : colX;
   ctx.beginPath();
   ctx.moveTo(edgeX, topY);
@@ -429,33 +509,33 @@ function drawShowFloor(ctx, w, h, aisle, scroll) {
   const py = (n) => n * h;
   const floorY = py(GROUND);
 
-  drawConventionCeiling(ctx, w, h);
+  drawConventionCeiling(ctx, w, h, scroll);
 
   ctx.fillStyle = '#35353c';
   ctx.fillRect(0, py(0.12), w, floorY - py(0.12));
 
   drawSideVendorBooths(ctx, 'left', w, h, scroll, aisle);
-  drawSideVendorBooths(ctx, 'right', w, h, scroll + 600, aisle);
+  drawSideVendorBooths(ctx, 'right', w, h, scroll + 140, aisle);
 
   const aisleGrad = ctx.createLinearGradient(w * 0.23, 0, w * 0.77, 0);
-  aisleGrad.addColorStop(0, '#5c5c66');
-  aisleGrad.addColorStop(0.5, '#787882');
-  aisleGrad.addColorStop(1, '#5c5c66');
+  aisleGrad.addColorStop(0, '#62626c');
+  aisleGrad.addColorStop(0.5, '#848490');
+  aisleGrad.addColorStop(1, '#62626c');
   ctx.fillStyle = aisleGrad;
   ctx.fillRect(w * 0.23, py(0.12), w * 0.54, floorY - py(0.12));
 
-  for (let i = 0; i < 5; i += 1) {
-    const fx = w * 0.23 + (((i * 0.2 - scroll * 0.0001) % 1) / 1) * w * 0.54;
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-    ctx.lineWidth = 1;
+  for (let i = 0; i < 7; i += 1) {
+    const fx = w * 0.23 + (((i * 0.16 - scroll * 0.42) % 1 + 1) % 1) * w * 0.54;
+    ctx.strokeStyle = i % 2 === 0 ? 'rgba(0,0,0,0.14)' : 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = i % 2 === 0 ? 1.5 : 1;
     ctx.beginPath();
     ctx.moveTo(fx, floorY);
-    ctx.lineTo(fx - w * 0.02, h);
+    ctx.lineTo(fx - w * 0.028, h);
     ctx.stroke();
   }
 
-  ctx.strokeStyle = '#c9a227';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#d4af37';
+  ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(w * 0.23, floorY);
   ctx.lineTo(w * 0.23, h);
@@ -466,13 +546,32 @@ function drawShowFloor(ctx, w, h, aisle, scroll) {
   ctx.fillStyle = '#3a3a42';
   ctx.fillRect(0, floorY, w, h - floorY);
 
+  const bannerShift = (scroll * 0.15) % (w * 0.5);
   ctx.fillStyle = '#2e2e34';
+  ctx.fillRect(w * 0.28 - bannerShift * 0.02, py(0.125), w * 0.44, py(0.028));
+  ctx.fillStyle = aisle.neon;
+  ctx.globalAlpha = 0.25;
   ctx.fillRect(w * 0.28, py(0.125), w * 0.44, py(0.028));
-  ctx.fillStyle = '#bbb';
-  ctx.font = '600 8px "Bebas Neue", sans-serif';
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#eee';
+  ctx.font = '600 9px "Bebas Neue", sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(aisle.bannerText, w / 2, py(0.145));
+  ctx.fillText(aisle.bannerText, w / 2, py(0.146));
   ctx.textAlign = 'start';
+}
+
+/** Scroll distance tied to forward progress — drives parallax booths & floor. */
+function aisleScrollDistance(s) {
+  return s.registerProgress * 0.72 + s.walkPhase * 4.5;
+}
+
+function playerCollisionBox(s) {
+  return {
+    x: PLAYER_X + 0.012,
+    y: s.playerY + 0.06,
+    w: 0.072,
+    h: PLAYER_H - 0.12,
+  };
 }
 
 function drawGlobalAccessBooth(ctx, xNorm, w, h, glow, progress) {
@@ -648,16 +747,17 @@ function obstacleBox(e) {
   return { x: e.x + 0.01, y: e.y + 0.01, w: e.w - 0.02, h: e.h - 0.02 };
 }
 
-function isJumpingOver(playerY, playerH, obsTop, grounded) {
+function isJumpingOver(playerBox, obsBox, grounded) {
   if (grounded) return false;
-  return (playerY + playerH * 0.9) < obsTop + 0.055;
+  const feetY = playerBox.y + playerBox.h;
+  return feetY < obsBox.y + 0.028;
 }
 
 function handleObstacleCollision(s, e, playerBox) {
   if (s.invuln > 0) return false;
   const box = obstacleBox(e);
   if (!hit(playerBox, box)) return false;
-  if (isJumpingOver(playerBox.y, playerBox.h, box.y, s.grounded)) return false;
+  if (isJumpingOver(playerBox, box, s.grounded)) return false;
 
   s.lives -= 1;
   s.invuln = 2000;
@@ -710,11 +810,13 @@ function LivesDisplay({ lives, max = LIVES, color = '#C9A84C', emptyColor = '#55
 
 export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, theme }) {
   const canvasRef = useRef(null);
-  const [canvasReady, setCanvasReady] = useState(false);
+  const gameSurfaceRef = useRef(null);
+  const touchTapRef = useRef(false);
   const stateRef = useRef(null);
   const rafRef = useRef(null);
   const hudSnapshotRef = useRef({ score: -1, lives: -1, products: -1, aisle: 0 });
   const endedRef = useRef(false);
+  const endGameRef = useRef(null);
 
   const [hud, setHud] = useState({ score: 0, lives: LIVES, products: 0, aisle: 0, phase: 'ready' });
   const [leaderboard, setLeaderboard] = useState([]);
@@ -771,40 +873,83 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
     loadBoard();
   }, [loadBoard, onGameOver, playerName]);
 
+  endGameRef.current = endGame;
+
   const jump = useCallback(() => {
     const s = stateRef.current;
     if (!s?.running) { resetGame(); return; }
     if (s.grounded) { s.vy = JUMP_V; s.grounded = false; }
   }, [resetGame]);
 
-  const attachCanvas = useCallback((node) => {
-    canvasRef.current = node;
-    setCanvasReady(!!node);
-  }, []);
+  const handleGameTouchStart = useCallback((e) => {
+    e.preventDefault();
+    touchTapRef.current = true;
+    jump();
+  }, [jump]);
+
+  const handleGameClick = useCallback((e) => {
+    if (touchTapRef.current) {
+      touchTapRef.current = false;
+      e.preventDefault();
+      return;
+    }
+    jump();
+  }, [jump]);
 
   useEffect(() => {
-    if (!canvasReady) return undefined;
-    resetGame();
+    const el = gameSurfaceRef.current;
+    if (!el) return undefined;
+    const blockTouchMove = (e) => e.preventDefault();
+    const blockContextMenu = (e) => e.preventDefault();
+    const blockSelectStart = (e) => e.preventDefault();
+    el.addEventListener('touchmove', blockTouchMove, { passive: false });
+    el.addEventListener('contextmenu', blockContextMenu);
+    el.addEventListener('selectstart', blockSelectStart);
+    return () => {
+      el.removeEventListener('touchmove', blockTouchMove);
+      el.removeEventListener('contextmenu', blockContextMenu);
+      el.removeEventListener('selectstart', blockSelectStart);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
-    const ctx = canvas.getContext('2d');
+
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return undefined;
+
+    canvas.width = CANVAS_W;
+    canvas.height = CANVAS_H;
+
+    resetGame();
     let last = performance.now();
+    let alive = true;
 
     const draw = (now) => {
+      if (!alive) return;
+      rafRef.current = requestAnimationFrame(draw);
+
       const dt = Math.min(22, now - last);
       last = now;
       const s = stateRef.current;
-      if (!s || !ctx) return;
+      if (!s) return;
 
-      const w = canvas.width;
-      const h = canvas.height;
+      const w = CANVAS_W;
+      const h = CANVAS_H;
       const px = (n) => n * w;
       const py = (n) => n * h;
       const aisle = SHOW_AISLES[s.aisleIdx] || SHOW_AISLES[0];
 
+      if (s.running) {
+        s.walkPhase += dt * (s.grounded ? 0.32 : 0.08);
+        s.registerProgress += dt * 0.021;
+        s.distance += s.speed * dt;
+      }
+
+      const scroll = aisleScrollDistance(s);
       ctx.clearRect(0, 0, w, h);
-      drawShowFloor(ctx, w, h, aisle, s.distance);
+      drawShowFloor(ctx, w, h, aisle, scroll);
 
       const progRatio = Math.min(1, s.registerProgress / CHECKOUT_GOAL);
       const boothX = 0.62 + (1 - progRatio) * 0.42;
@@ -818,7 +963,6 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
       ctx.textAlign = 'start';
 
       if (s.running) {
-        s.walkPhase += dt * (s.grounded ? 0.32 : 0.08);
         s.spawnTimer += dt;
         const progressRatio = s.registerProgress / CHECKOUT_GOAL;
         const spawnGap = Math.max(1300, 2800 - progressRatio * 1100 - s.aisleIdx * 45);
@@ -836,10 +980,8 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
         const floorY = GROUND - PLAYER_H;
         if (s.playerY >= floorY) { s.playerY = floorY; s.vy = 0; s.grounded = true; }
 
-        s.distance += s.speed * dt;
         s.speed = Math.min(0.00105, 0.00062 + s.aisleIdx * 0.000035 + progressRatio * 0.0002);
         s.score += dt * 0.022;
-        s.registerProgress += dt * 0.021;
         if (s.invuln > 0) s.invuln -= dt;
         if (s.flash > 0) s.flash -= dt;
 
@@ -866,7 +1008,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
         const targetChaser = 0.008 + (LIVES - s.lives) * 0.02 + (s.invuln > 0 ? 0.03 : 0);
         s.chaserOffset += (targetChaser - s.chaserOffset) * 0.016;
 
-        const playerBox = { x: PLAYER_X + 0.05, y: s.playerY + 0.04, w: PLAYER_W - 0.06, h: PLAYER_H - 0.05 };
+        const playerBox = playerCollisionBox(s);
 
         s.entities = s.entities.filter((e) => {
           e.x -= s.speed * dt * 0.82;
@@ -880,14 +1022,14 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
             return false;
           }
           if ((e.type === 'vendor' || e.type === 'booth' || e.type === 'security') && handleObstacleCollision(s, e, playerBox)) {
-            endGame(s, 'caught');
+            endGameRef.current?.(s, 'caught');
           }
           return true;
         });
 
         if (s.registerProgress >= CHECKOUT_GOAL) {
           s.score += 600;
-          endGame(s, 'checkout');
+          endGameRef.current?.(s, 'checkout');
         }
 
         const scoreInt = Math.floor(s.score);
@@ -937,13 +1079,16 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
       ctx.textAlign = 'center';
       ctx.fillText(`${aisle.name}  ·  → GA Booth ${prog}%`, w / 2, py(0.054));
       ctx.textAlign = 'start';
-
-      rafRef.current = requestAnimationFrame(draw);
     };
 
     rafRef.current = requestAnimationFrame(draw);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [canvasReady, endGame, resetGame]);
+
+    return () => {
+      alive = false;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [resetGame]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -969,20 +1114,33 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
         <LivesDisplay lives={hud.lives} color={aisleColor} />
       </div>
 
-      <button
-        type="button"
-        onClick={jump}
+      <div
+        ref={gameSurfaceRef}
+        role="button"
+        tabIndex={0}
+        onTouchStart={handleGameTouchStart}
+        onClick={handleGameClick}
+        onContextMenu={(e) => e.preventDefault()}
+        onKeyDown={(e) => {
+          if (e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowUp') {
+            e.preventDefault();
+            jump();
+          }
+        }}
         style={{
-          width: '100%', padding: 0,
+          ...GAME_SURFACE_STYLE,
           border: `2px solid ${aisleColor}`,
-          borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
-          background: '#0a0a10', touchAction: 'manipulation',
           boxShadow: `0 4px 20px ${aisleColor}33`,
         }}
-        aria-label="Champs trade show runner — dodge vendors, reach Global Access booth"
+        aria-label="Champs trade show runner — tap to jump"
       >
-        <canvas ref={attachCanvas} width={360} height={320} style={{ display: 'block', width: '100%', height: 'auto', minHeight: 220 }} />
-      </button>
+        <canvas
+          ref={canvasRef}
+          width={CANVAS_W}
+          height={CANVAS_H}
+          style={CANVAS_STYLE}
+        />
+      </div>
 
       <p style={{ fontSize: 11, color: theme?.textFaint || '#AAA', margin: '8px 0 0', lineHeight: 1.45, textAlign: 'center' }}>
         Walk the expo aisle · Jump counters, vendors & security · Reach Global Access on the right
