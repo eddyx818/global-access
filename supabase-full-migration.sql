@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   email TEXT NOT NULL,
   name TEXT,
   company TEXT,
+  phone TEXT,
   role TEXT DEFAULT 'retailer',
   temp_password TEXT,
   disabled BOOLEAN DEFAULT false,

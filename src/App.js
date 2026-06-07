@@ -226,16 +226,17 @@ export default function App() {
       const { data: profile } = await supabase.from('user_profiles')
         .select('user_type, name, company, phone, username, bio, profile_avatar_url, master_pricing_qualified, master_pricing_interest, rep_code, is_sales_rep')
         .eq('user_id', sessionUser.id)
-        .single();
+        .maybeSingle();
       if (profile?.user_type) setUserType(profile.user_type);
       if (salesRep) setStaffProfile(profile);
       else setStaffProfile(null);
-      if (profile?.name && !salesRep && !isAdmin) {
+      if (profile && !salesRep && !isAdmin) {
         setForm(f => ({
           ...f,
-          name: profile.name,
+          name: profile.name || f.name,
           company: profile.company || f.company,
           phone: profile.phone || f.phone,
+          email: sessionUser.email || f.email,
         }));
       }
       setMasterPricingQualified(!!profile?.master_pricing_qualified);

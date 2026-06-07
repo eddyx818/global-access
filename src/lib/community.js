@@ -435,7 +435,7 @@ export function isProfileComplete(fields = {}) {
 export async function saveProfile(userId, email, fields) {
   const payload = {
     user_id: userId,
-    email,
+    email: email || null,
     updated_at: new Date().toISOString(),
   };
   if (fields.username !== undefined) payload.username = fields.username;
@@ -450,8 +450,34 @@ export async function saveProfile(userId, email, fields) {
   if (fields.preferred_appointment_at !== undefined) payload.preferred_appointment_at = fields.preferred_appointment_at;
   if (fields.appointment_notes !== undefined) payload.appointment_notes = fields.appointment_notes;
 
-  const { error } = await supabase.from('user_profiles').upsert(payload, { onConflict: 'user_id' });
-  return !error;
+  const tryUpsert = async (body) => {
+    const { error } = await supabase.from('user_profiles').upsert(body, { onConflict: 'user_id' });
+    return error;
+  };
+
+  let error = await tryUpsert(payload);
+  if (error && isMissingColumnError(error)) {
+    const fallback = { ...payload };
+    delete fallback.preferred_appointment_at;
+    delete fallback.appointment_notes;
+    error = await tryUpsert(fallback);
+  }
+  if (error && isMissingColumnError(error, 'phone')) {
+    const fallback = { ...payload };
+    delete fallback.phone;
+    delete fallback.preferred_appointment_at;
+    delete fallback.appointment_notes;
+    error = await tryUpsert(fallback);
+  }
+
+  return { ok: !error, error: error?.message || null };
+}
+
+function isMissingColumnError(error, column) {
+  const msg = (error?.message || '').toLowerCase();
+  if (!msg.includes('column') || !msg.includes('does not exist')) return false;
+  if (!column) return true;
+  return msg.includes(column.toLowerCase());
 }
 
 export async function checkUsernameAvailable(username, currentUserId) {

@@ -52,6 +52,7 @@ export default function ChatSidebar({
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [supportError, setSupportError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const subRef = useRef(null);
 
   const mergeProfiles = async (convos, msgs = []) => {
@@ -64,16 +65,21 @@ export default function ChatSidebar({
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
-    const [convos, contacts, count] = await Promise.all([
-      fetchConversations(user.id, { isAdmin, isSalesRep }),
-      fetchContactableUsers(user.id, { isAdmin, isSalesRep }),
-      getUnreadCount(user.id, { isAdmin, isSalesRep }),
-    ]);
-    setConversations(convos);
-    setContactableUsers(contacts);
-    setUnread(count);
-    onUnreadChange?.(count);
-    await mergeProfiles(convos);
+    try {
+      setLoadError('');
+      const [convos, contacts, count] = await Promise.all([
+        fetchConversations(user.id, { isAdmin, isSalesRep }),
+        fetchContactableUsers(user.id, { isAdmin, isSalesRep }),
+        getUnreadCount(user.id, { isAdmin, isSalesRep }),
+      ]);
+      setConversations(convos);
+      setContactableUsers(contacts);
+      setUnread(count);
+      onUnreadChange?.(count);
+      await mergeProfiles(convos);
+    } catch (err) {
+      setLoadError(err?.message || 'Could not load messages. Pull down to refresh or try again.');
+    }
   }, [user?.id, isAdmin, isSalesRep, onUnreadChange]);
 
   useEffect(() => {
@@ -155,7 +161,7 @@ export default function ChatSidebar({
   useEffect(() => {
     if (!openSupportOnLoad || !user?.id || isStaff) return;
     if (!(open || isPage) || !profileComplete) return;
-    openSupportChat();
+    openSupportChat().catch(() => {});
   }, [openSupportOnLoad]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSend = async (text, attachment = null) => {
@@ -287,6 +293,13 @@ export default function ChatSidebar({
         <div style={{ padding: '10px 14px', background: t.errorBg, borderBottom: `0.5px solid ${t.errorBorder}`, fontSize: 12, color: t.errorText, lineHeight: 1.5, flexShrink: 0 }}>
           {supportError}
           <button type="button" onClick={() => setSupportError('')} style={{ background: 'none', border: 'none', color: t.errorText, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, marginLeft: 8 }}>×</button>
+        </div>
+      )}
+
+      {loadError && (
+        <div style={{ padding: '10px 14px', background: t.errorBg, borderBottom: `0.5px solid ${t.errorBorder}`, fontSize: 12, color: t.errorText, lineHeight: 1.5, flexShrink: 0 }}>
+          {loadError}
+          <button type="button" onClick={() => refresh()} style={{ background: 'none', border: 'none', color: t.errorText, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, marginLeft: 8, textDecoration: 'underline' }}>Retry</button>
         </div>
       )}
 

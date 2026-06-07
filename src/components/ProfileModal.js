@@ -130,7 +130,7 @@ export default function ProfileModal({
     const appointmentAt = combineAppointment(appointmentDate, appointmentTime);
 
     try {
-      const ok = await saveProfile(user.id, user.email, {
+      const result = await saveProfile(user.id, user.email, {
         username: cleanUsername || null,
         name: form.name,
         company: form.company,
@@ -142,8 +142,11 @@ export default function ProfileModal({
         preferred_appointment_at: appointmentAt,
         appointment_notes: appointmentNotes.trim() || null,
       });
-      if (!ok) {
-        setError('Could not save profile.');
+      if (!result.ok) {
+        const hint = result.error?.includes('phone')
+          ? ' Run supabase-update-22-profile-phone.sql in Supabase, then try again.'
+          : '';
+        setError(`Could not save profile.${hint ? ` ${hint}` : result.error ? ` (${result.error})` : ''}`);
         setSaving(false);
         return;
       }
@@ -153,8 +156,8 @@ export default function ProfileModal({
         onSaved?.({ profileComplete: isProfileComplete(form) });
         if (!isPage) onClose();
       }, isPage ? 800 : 1500);
-    } catch (_) {
-      setError('Could not save profile.');
+    } catch (err) {
+      setError(err?.message || 'Could not save profile.');
     }
     setSaving(false);
   };
