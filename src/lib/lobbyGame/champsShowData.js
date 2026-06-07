@@ -383,7 +383,6 @@ export function repLinesForTier(tier) {
   return pool.length ? pool : CHASE_LINES[0];
 }
 
-/** Rare casual aisle greetings — mixed floor slang, not tied to any one vendor type (~12% of lines). */
 export const FLOOR_CASUAL_GREETINGS = [
   'Hey bhai, how are you? Quick look at my line!',
   'Assalamualaikum — good show? Got a minute?',
@@ -394,6 +393,22 @@ export const FLOOR_CASUAL_GREETINGS = [
   'Hey neighbor booth sent you — want a carton price?',
   'What\'s up — you look like a serious buyer!',
 ];
+
+/** Champs show security — no smoking / no vaping on the floor. */
+export const SECURITY_PITCHES = [
+  'No smoking on the show floor!',
+  'Sir — no vaping in the aisle!',
+  'Put that out — Champs security!',
+  'This is a non-smoking convention hall!',
+  'Clouds belong outside — move along!',
+  'Extinguish that or I write you up!',
+  'No lit products in the building!',
+  'Vape stays outside — badge or not!',
+];
+
+export function randomSecurityPitch() {
+  return SECURITY_PITCHES[Math.floor(Math.random() * SECURITY_PITCHES.length)];
+}
 
 export function randomVendorPitch(aisleId) {
   const list = VENDOR_PITCHES[aisleId] || VENDOR_PITCHES.tobacco;

@@ -11,6 +11,7 @@ import {
   randomBoothStyle,
   randomKnockoffBrand,
   randomObstaclePitch,
+  randomSecurityPitch,
   repLinesForTier,
 } from '../lib/lobbyGame/champsShowData';
 
@@ -31,7 +32,7 @@ function spawnEntity(aisleId) {
   const boothStyle = randomBoothStyle(aisleId);
   const chineseHeavy = aisleId === 'vape' || boothStyle.id === 'knockoff_import';
 
-  if (roll < 0.2) {
+  if (roll < 0.18) {
     return {
       type: 'brand',
       brand: GLOBAL_ACCESS_BRANDS[Math.floor(Math.random() * GLOBAL_ACCESS_BRANDS.length)],
@@ -42,7 +43,7 @@ function spawnEntity(aisleId) {
       bob: Math.random() * Math.PI * 2,
     };
   }
-  if (roll < 0.55) {
+  if (roll < 0.48) {
     const chinese = Math.random() < (chineseHeavy ? 0.5 : 0.25);
     return {
       type: 'booth',
@@ -54,6 +55,16 @@ function spawnEntity(aisleId) {
       y: LANE_OBSTACLE_Y,
       w: 0.13,
       h: LANE_OBSTACLE_H,
+    };
+  }
+  if (roll < 0.6) {
+    return {
+      type: 'security',
+      pitch: randomSecurityPitch(),
+      x: 1.04,
+      y: GROUND - 0.12,
+      w: 0.1,
+      h: 0.12,
     };
   }
   const chinese = Math.random() < (chineseHeavy ? 0.45 : 0.22);
@@ -73,7 +84,7 @@ function spawnEntity(aisleId) {
 function drawHuman(ctx, footX, footY, scale, facing, walkPhase, opts = {}) {
   const {
     shirt = '#444', pants = '#222', skin = '#c68642', hair = '#222',
-    alpha = 1, tie = null, badge = false,
+    alpha = 1, tie = null, badge = false, securityVest = false,
   } = opts;
   const dir = facing === 'left' ? -1 : 1;
   const legSwing = Math.sin(walkPhase * 0.011) * scale * 0.07;
@@ -92,6 +103,13 @@ function drawHuman(ctx, footX, footY, scale, facing, walkPhase, opts = {}) {
   ctx.fillRect(footX + scale * 0.18, footY - 4, scale * 0.1, 4);
   ctx.fillStyle = shirt;
   ctx.fillRect(footX + scale * 0.06, footY - scale * 0.52, scale * 0.22, scale * 0.32);
+  if (securityVest) {
+    ctx.fillStyle = '#F1C40F';
+    ctx.fillRect(footX + scale * 0.04, footY - scale * 0.5, scale * 0.26, scale * 0.24);
+    ctx.fillStyle = '#111';
+    ctx.font = `700 ${Math.max(5, scale * 0.055)}px sans-serif`;
+    ctx.fillText('SEC', footX + scale * 0.1, footY - scale * 0.34);
+  }
   if (tie) {
     ctx.fillStyle = tie;
     ctx.beginPath();
@@ -423,6 +441,19 @@ function drawGlobalAccessBooth(ctx, xNorm, w, h, glow, progress) {
   }
 }
 
+function drawSecurityGuard(ctx, e, w, h, walkPhase) {
+  const footX = e.x * w;
+  const footY = (e.y + e.h) * h;
+  const scale = e.h * h * 0.82;
+  drawSpeechBubble(ctx, footX, footY - scale * 1.05, e.pitch, 108, '#2c3e50');
+  drawHuman(ctx, footX, footY, scale, 'left', walkPhase + e.x * 100, {
+    shirt: '#2c3e50', pants: '#1a1a1a', skin: '#c68642', securityVest: true,
+  });
+  ctx.font = '700 7px sans-serif';
+  ctx.fillStyle = '#F1C40F';
+  ctx.fillText('CHAMPS SECURITY', footX, footY + 4);
+}
+
 function drawVendorRep(ctx, e, w, h, walkPhase, aisle) {
   const footX = e.x * w;
   const footY = (e.y + e.h) * h;
@@ -557,6 +588,8 @@ function handleObstacleCollision(s, e, playerBox) {
     s.flashText = e.knockoff
       ? `Fake ${e.knockoff.name} booth!`
       : `${e.boothStyle?.title || 'Vendor'} — jump!`;
+  } else if (e.type === 'security') {
+    s.flashText = 'Security caught you — no vaping!';
   } else if (e.chinese) {
     s.flashText = 'Import vendor blocked you!';
   } else {
@@ -765,7 +798,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
             s.chaserOffset = Math.max(0, s.chaserOffset - 0.02);
             return false;
           }
-          if ((e.type === 'vendor' || e.type === 'booth') && handleObstacleCollision(s, e, playerBox)) {
+          if ((e.type === 'vendor' || e.type === 'booth' || e.type === 'security') && handleObstacleCollision(s, e, playerBox)) {
             endGame(s, 'caught');
           }
           return true;
@@ -787,6 +820,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
       s.entities.forEach((e) => {
         if (e.type === 'brand') drawBrandPickup(ctx, e.brand, e.x, e.y, e.bob, w, h, now, aisle);
         else if (e.type === 'booth') drawKnockoffBooth(ctx, e, w, h, aisle, now);
+        else if (e.type === 'security') drawSecurityGuard(ctx, e, w, h, s.walkPhase);
         else drawVendorRep(ctx, e, w, h, s.walkPhase, aisle);
       });
 
@@ -870,7 +904,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
       </button>
 
       <p style={{ fontSize: 11, color: theme?.textFaint || '#AAA', margin: '8px 0 0', lineHeight: 1.45, textAlign: 'center' }}>
-        Walk the expo aisle · Tap to jump over counters & reps · Reach Global Access on the right
+        Walk the expo aisle · Jump counters, vendors & security · Reach Global Access on the right
       </p>
 
       {hud.phase === 'over' && lastRun && (
