@@ -4,7 +4,7 @@ import { minQtyForProduct } from '../lib/pricing';
 import { subscribeStockNotify, fetchMyStockAlerts, stockAlertKey } from '../lib/stockNotify';
 import { useTheme } from '../context/ThemeContext';
 
-export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, isInterested, interests, onSubmit, isMobile, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess }) {
+export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, isInterested, interests, onSubmit, isMobile, hasBottomNav = false, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess }) {
   const { t } = useTheme();
   const [lightbox, setLightbox] = useState(null);
   const [lightboxIdx, setLightboxIdx] = useState(0);
@@ -119,9 +119,17 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
     elevated: { boxShadow: `0 2px 12px ${t.shadow}`, border: t.borderHairlineLight },
     bordered: { boxShadow: 'none', border: `2px solid ${brand.color}` },
   };
-  const flavorGridCols = gridColumns
-    ? `repeat(${gridColumns}, 1fr)`
-    : (isMobile ? '1fr' : 'repeat(auto-fill, minmax(200px, 1fr))');
+  const flavorGridCols = isMobile
+    ? '1fr'
+    : (gridColumns ? `repeat(${gridColumns}, minmax(0, 1fr))` : 'repeat(auto-fill, minmax(200px, 1fr))');
+
+  const stickyBottom = hasBottomNav
+    ? 'calc(56px + env(safe-area-inset-bottom, 0px))'
+    : 'env(safe-area-inset-bottom, 0px)';
+
+  const pagePaddingBottom = interests.length > 0
+    ? (hasBottomNav ? 'calc(8rem + 56px + env(safe-area-inset-bottom, 0px))' : 'calc(6rem + env(safe-area-inset-bottom, 0px))')
+    : (hasBottomNav ? 'calc(2rem + 56px + env(safe-area-inset-bottom, 0px))' : 'calc(2rem + env(safe-area-inset-bottom, 0px))');
 
   const productHeader = (product, { onDark = false } = {}) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
@@ -171,7 +179,17 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
   };
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: isMobile ? '1rem' : '1.5rem', paddingBottom: '6rem' }}>
+    <div
+      className="brand-page"
+      style={{
+        maxWidth: 760,
+        width: '100%',
+        margin: '0 auto',
+        boxSizing: 'border-box',
+        padding: isMobile ? '1rem' : '1.5rem',
+        paddingBottom: pagePaddingBottom,
+      }}
+    >
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Pacifico&display=swap" rel="stylesheet" />
 
       <button onClick={onBack} style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', fontSize: 13, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6, padding: 0, fontFamily: 'inherit' }}>← All Brands</button>
@@ -180,11 +198,11 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
       <div style={{ background: '#0D0D0D', borderRadius: headerStyle === 'minimal' ? 12 : 20, overflow: 'hidden', marginBottom: '1.5rem', position: 'relative', minHeight: headerMinHeight }}>
         <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 50%, ${brand.color}55 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, ${brand.color}33 0%, transparent 60%)` }} />
         {headerStyle !== 'minimal' && brand.gallery && brand.gallery[0] && (
-          <img src={brand.gallery[0]} alt={brand.name} style={{ position: 'absolute', right: 0, top: 0, height: '100%', width: headerStyle === 'compact' ? '40%' : '50%', objectFit: 'cover', opacity: 0.25, WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)', maskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)' }} onError={e => { e.target.style.display = 'none'; }} />
+          <img src={brand.gallery[0]} alt={brand.name} className="brand-hero-bg" style={{ position: 'absolute', right: 0, top: 0, height: '100%', width: headerStyle === 'compact' ? '40%' : '50%', objectFit: 'cover', opacity: 0.25, WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)', maskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)' }} onError={e => { e.target.style.display = 'none'; }} />
         )}
         <div style={{ position: 'relative', zIndex: 2, padding: isMobile ? '1.5rem' : '2rem' }}>
           {brand.logoUrl && (
-            <img src={brand.logoUrl} alt={`${brand.name} logo`} style={{ height: headerStyle === 'compact' ? 32 : 44, marginBottom: 10, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
+            <img src={brand.logoUrl} alt={`${brand.name} logo`} style={{ height: headerStyle === 'compact' ? 32 : 44, maxWidth: '100%', marginBottom: 10, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
           )}
           <div style={{ display: 'inline-block', background: brand.color + '22', border: `0.5px solid ${brand.color}55`, borderRadius: 20, padding: '4px 12px', fontSize: 10, color: brand.color, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 600 }}>{brand.category}</div>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: headerStyle === 'compact' ? (isMobile ? 30 : 40) : (isMobile ? 38 : 52), color: '#FFF', lineHeight: 0.95, marginBottom: 10 }}>{brand.name}</div>
@@ -202,30 +220,84 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
 
       {/* Gallery — only show slots with valid photos */}
       {galleryImages.length > 0 && (
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: '1.5rem', maxWidth: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ fontSize: 10, letterSpacing: '0.2em', color: t.textFaint, textTransform: 'uppercase' }}>Photos</div>
-            {galleryImages.length > 1 && (
+            {!isMobile && galleryImages.length > 1 && (
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => scrollGallery(-1)} style={{ width: 28, height: 28, background: t.bgElevated, border: t.borderHairline, borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', color: t.text }}>‹</button>
-                <button onClick={() => scrollGallery(1)} style={{ width: 28, height: 28, background: t.bgElevated, border: t.borderHairline, borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', color: t.text }}>›</button>
+                <button type="button" onClick={() => scrollGallery(-1)} style={{ width: 28, height: 28, background: t.bgElevated, border: t.borderHairline, borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', color: t.text }}>‹</button>
+                <button type="button" onClick={() => scrollGallery(1)} style={{ width: 28, height: 28, background: t.bgElevated, border: t.borderHairline, borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', color: t.text }}>›</button>
               </div>
             )}
           </div>
-          <div ref={galleryRef} style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 8, scrollbarWidth: 'none' }}>
-            {galleryImages.map((img, i) => (
-              <div key={img} onClick={() => { setLightboxIdx(i); setLightbox(img); }} style={{ flexShrink: 0, width: isMobile ? 160 : 200, height: isMobile ? 120 : 150, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', scrollSnapAlign: 'start', border: t.borderHairlineLight, transition: 'transform 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)'; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}>
-                <img
-                  src={img}
-                  alt={`${brand.name} ${i + 1}`}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  onError={() => markImageBroken(`gallery:${img}`)}
-                />
-              </div>
-            ))}
-          </div>
+          {isMobile ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }} className="brand-gallery-grid">
+              {galleryImages.map((img, i) => (
+                <button
+                  key={img}
+                  type="button"
+                  onClick={() => { setLightboxIdx(i); setLightbox(img); }}
+                  style={{
+                    border: t.borderHairlineLight,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    padding: 0,
+                    cursor: 'pointer',
+                    background: t.bgMuted,
+                    aspectRatio: '4/3',
+                  }}
+                >
+                  <img
+                    src={img}
+                    alt={`${brand.name} ${i + 1}`}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    onError={() => markImageBroken(`gallery:${img}`)}
+                  />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div
+              ref={galleryRef}
+              className="brand-gallery-scroll"
+              style={{
+                display: 'flex',
+                gap: 10,
+                overflowX: 'auto',
+                scrollSnapType: 'x mandatory',
+                paddingBottom: 8,
+                scrollbarWidth: 'none',
+                maxWidth: '100%',
+              }}
+            >
+              {galleryImages.map((img, i) => (
+                <button
+                  key={img}
+                  type="button"
+                  onClick={() => { setLightboxIdx(i); setLightbox(img); }}
+                  style={{
+                    flexShrink: 0,
+                    width: 200,
+                    height: 150,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    scrollSnapAlign: 'start',
+                    border: t.borderHairlineLight,
+                    padding: 0,
+                    background: t.bgMuted,
+                  }}
+                >
+                  <img
+                    src={img}
+                    alt={`${brand.name} ${i + 1}`}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    onError={() => markImageBroken(`gallery:${img}`)}
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -281,7 +353,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
       )}
 
       {/* Products */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0, width: '100%' }}>
         {brand.products.map(product => {
           const productFlavors = isDistributor ? (product.flavors_distro || []) : (product.flavors_retail || []);
           const currentMode = getOrderMode(product);
@@ -290,9 +362,9 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
           const showProductImage = product.image && !brokenImages[imageKey];
 
           return (
-            <div key={product.sku} style={{ background: t.bgElevated, borderRadius: 16, overflow: 'hidden', ...productCardStyles[cardStyle] }}>
+            <div key={product.sku} style={{ background: t.bgElevated, borderRadius: 16, overflow: 'hidden', maxWidth: '100%', minWidth: 0, width: '100%', ...productCardStyles[cardStyle] }}>
               {showProductImage && (
-                <div style={{ position: 'relative', height: 160, overflow: 'hidden' }}>
+                <div className="brand-product-image" style={{ position: 'relative', height: 160, overflow: 'hidden', maxWidth: '100%' }}>
                   <img
                     src={product.image}
                     alt={product.name}
@@ -312,7 +384,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
                 </div>
               )}
 
-              <div style={{ padding: '1rem 1.25rem 1.25rem' }}>
+              <div style={{ padding: '1rem 1.25rem 1.25rem', minWidth: 0, overflow: 'hidden' }}>
                 <ProductCommerceInfo
                   product={product}
                   userType={userType}
@@ -352,17 +424,17 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
                 </div>
 
                 {/* Flavors/options grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: flavorGridCols, gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: flavorGridCols, gap: 8, minWidth: 0, width: '100%' }}>
                   {productFlavors.map(flavor => {
-                    const isSoldOut = flavor.includes('SOLD OUT');
+                    const isSoldOut = flavor.includes(' SOLD OUT') || flavor.includes(' — SOLD OUT');
                     const selected = isInterested(product.sku, flavor);
                     const key = `${product.sku}__${flavor}`;
 
                     return (
-                      <div key={flavor} style={{ position: 'relative' }}>
+                      <div key={flavor} style={{ position: 'relative', minWidth: 0, maxWidth: '100%' }}>
                         <button onClick={() => handleFlavorClick(product, flavor)} disabled={isSoldOut}
-                          style={{ width: '100%', background: selected ? brand.color + '15' : t.bgMuted, border: `0.5px solid ${selected ? brand.color : t.borderLight}`, borderRadius: 10, padding: '10px 12px', textAlign: 'left', cursor: isSoldOut ? 'not-allowed' : 'pointer', opacity: isSoldOut ? 0.4 : 1, transition: 'all 0.15s', outline: 'none', fontFamily: 'inherit' }}>
-                          <div style={{ fontSize: 13, color: selected ? t.text : t.textSecondary, fontWeight: selected ? 500 : 400, lineHeight: 1.4, paddingRight: selected ? 24 : 0 }}>{flavor.replace(' — SOLD OUT', '')}</div>
+                          style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', background: selected ? brand.color + '15' : t.bgMuted, border: `0.5px solid ${selected ? brand.color : t.borderLight}`, borderRadius: 10, padding: '10px 12px', textAlign: 'left', cursor: isSoldOut ? 'not-allowed' : 'pointer', opacity: isSoldOut ? 0.4 : 1, transition: 'all 0.15s', outline: 'none', fontFamily: 'inherit', overflow: 'hidden' }}>
+                          <div style={{ fontSize: 13, color: selected ? t.text : t.textSecondary, fontWeight: selected ? 500 : 400, lineHeight: 1.4, paddingRight: selected ? 24 : 0, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{flavor.replace(' — SOLD OUT', '')}</div>
                           {isSoldOut && <div style={{ fontSize: 10, color: '#E05A5A', marginTop: 2, fontWeight: 500 }}>Sold out</div>}
                           {selected && <div style={{ position: 'absolute', top: 10, right: 10, width: 20, height: 20, background: brand.color, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#FFF', fontWeight: 700 }}>✓</div>}
                         </button>
@@ -393,7 +465,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
 
                         {/* Qty input when selected */}
                         {selected && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, padding: '0 2px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, padding: '0 2px', flexWrap: 'wrap' }}>
                             <span style={{ fontSize: 11, color: t.textFaint }}>Qty:</span>
                             <button onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product)) - 1, product)} style={{ width: 24, height: 24, background: t.bgMuted, border: t.borderHairline, borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textSecondary }}>−</button>
                             <input type="number" min={minQtyForProduct(product)} value={quantities[key] || minQtyForProduct(product)} onChange={e => setQty(key, e.target.value, product)}
@@ -414,7 +486,20 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
 
       {/* Sticky submit */}
       {interests.length > 0 && (
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '1rem', background: 'rgba(245,242,237,0.95)', backdropFilter: 'blur(12px)', borderTop: '0.5px solid #E0DDD8', zIndex: 50 }}>
+        <div style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: stickyBottom,
+          padding: '1rem',
+          paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+          paddingRight: 'max(1rem, env(safe-area-inset-right))',
+          background: 'rgba(245,242,237,0.95)',
+          backdropFilter: 'blur(12px)',
+          borderTop: '0.5px solid #E0DDD8',
+          zIndex: 50,
+          boxSizing: 'border-box',
+        }}>
           <button onClick={onSubmit} style={{ width: '100%', maxWidth: 760, margin: '0 auto', display: 'block', background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em', fontFamily: 'inherit' }}>
             Request quote ({interests.length} item{interests.length !== 1 ? 's' : ''}) →
           </button>

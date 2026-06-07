@@ -661,7 +661,8 @@ export default function App() {
           isInterested={isInterested}
           interests={interests}
           onSubmit={handleSubmitAttempt}
-          isMobile={isMobile}
+          isMobile={isMobile || isMobileDevice}
+          hasBottomNav={showMobileNav}
           masterPricingQualified={masterPricingQualified}
           pricingVisible={authState !== 'browse'}
           onSignIn={authState === 'browse' ? () => setAuthState('login') : null}

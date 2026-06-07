@@ -20,9 +20,9 @@ export default function ProductCommerceInfo({
   if (!pricingVisible && !packLines.length && !shipping && !moq) return null;
 
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div style={{ marginBottom: 14, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
       {packLines.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10, minWidth: 0 }}>
           {packLines.map(line => (
             <span key={line} style={{
               fontSize: 11,
@@ -32,6 +32,9 @@ export default function ProductCommerceInfo({
               borderRadius: 6,
               padding: '4px 8px',
               lineHeight: 1.4,
+              maxWidth: '100%',
+              wordBreak: 'break-word',
+              overflowWrap: 'anywhere',
             }}>
               {line}
             </span>
