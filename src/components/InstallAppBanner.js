@@ -37,7 +37,7 @@ export default function InstallAppBanner({ canInstall, showIosHint, onInstall, o
         color: '#C9A84C',
         flexShrink: 0,
       }}>
-        G
+        GA
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>Install Global Access</div>

@@ -1,4 +1,4 @@
-const CACHE = 'global-access-v3';
+const CACHE = 'global-access-v4';
 const PRECACHE = ['/', '/index.html', '/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', (event) => {

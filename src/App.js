@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
 import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, clearPortalSession } from './lib/session';
-import { updateUserPresence, resolvePortalAdmin, ensurePortalAdminFlag, submitInterestToSupport } from './lib/community';
+import { updateUserPresence, resolvePortalAdmin, ensurePortalAdminFlag, submitInterestToSupport, isProfileComplete } from './lib/community';
 import { useBrandContent } from './lib/content';
 import { getFontFamily } from './lib/design';
 import LoginScreen from './components/LoginScreen';
@@ -34,6 +34,7 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [profileGate, setProfileGate] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [isPortalAdmin, setIsPortalAdmin] = useState(false);
   const { getMergedBrands, bgColor, globalStyles, navigation } = useBrandContent();
@@ -51,7 +52,14 @@ export default function App() {
   const chatLabel = isPortalAdmin ? 'Messages' : 'Support';
 
   const openChat = () => {
+    if (user && !isPortalAdmin && !isProfileComplete(form)) {
+      setProfileGate('chat');
+      if (isMobile) setView('profile');
+      else setShowProfile(true);
+      return;
+    }
     setShowProfile(false);
+    setProfileGate(null);
     if (isMobile) setView('chat');
     else setChatOpen(true);
   };
@@ -61,14 +69,43 @@ export default function App() {
     else setChatOpen(false);
   };
 
+  const closeProfile = () => {
+    setProfileGate(null);
+    if (isMobile) setView('home');
+    else setShowProfile(false);
+  };
+
+  const openProfile = () => {
+    if (isMobile) setView('profile');
+    else setShowProfile(true);
+  };
+
+  const handleProfileSaved = ({ profileComplete } = {}) => {
+    if (profileGate === 'chat' && profileComplete) {
+      setProfileGate(null);
+      if (isMobile) setView('chat');
+      else setChatOpen(true);
+    }
+  };
+
   const navigateHome = () => {
     setShowProfile(false);
+    setProfileGate(null);
     goHome();
   };
 
   const navigateList = () => {
     setShowProfile(false);
+    setProfileGate(null);
+    if (isProfileComplete(form)) {
+      setForm(f => ({ ...f, notes: '' }));
+    }
     setView('interest');
+  };
+
+  const navigateProfile = () => {
+    setProfileGate(null);
+    openProfile();
   };
 
   const chatActive = (isMobile && view === 'chat') || chatOpen;
@@ -429,7 +466,7 @@ export default function App() {
         navigation={navigation}
         globalStyles={globalStyles}
         onNavClick={handleNavClick}
-        onProfile={user && !showMobileNav ? () => setShowProfile(true) : null}
+        onProfile={user && !showMobileNav ? openProfile : null}
         onChat={user && !showMobileNav ? openChat : null}
         chatLabel={chatLabel}
         isMobile={isMobile}
@@ -445,15 +482,16 @@ export default function App() {
           onUnreadChange={refreshUnread}
         />
       )}
-      {showProfile && (
+      {showProfile && !isMobile && (
         <ProfileModal
           user={user}
           form={form}
           setForm={setForm}
           userType={userType}
           setUserType={setUserType}
-          onClose={() => setShowProfile(false)}
-          isMobile={isMobile}
+          onClose={closeProfile}
+          profileGate={profileGate}
+          onSaved={handleProfileSaved}
           pwa={{ canInstall, showIosHint, isInstalled, install, isMobileDevice }}
         />
       )}
@@ -503,6 +541,24 @@ export default function App() {
             onClose={closeChat}
             isAdmin={isPortalAdmin}
             onUnreadChange={refreshUnread}
+            profileComplete={isProfileComplete(form)}
+            onRequireProfile={() => { setProfileGate('chat'); setView('profile'); }}
+          />
+        </div>
+      )}
+      {view === 'profile' && isMobile && user && (
+        <div style={{ height: 'calc(100dvh - 48px - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))', minHeight: 320 }}>
+          <ProfileModal
+            user={user}
+            form={form}
+            setForm={setForm}
+            userType={userType}
+            setUserType={setUserType}
+            variant="page"
+            onClose={closeProfile}
+            profileGate={profileGate}
+            onSaved={handleProfileSaved}
+            pwa={{ canInstall, showIosHint, isInstalled, install, isMobileDevice }}
           />
         </div>
       )}
@@ -531,6 +587,7 @@ export default function App() {
           onSubmit={handleSubmitAttempt}
           onBack={() => setView(activeBrand ? 'brand' : 'home')}
           isMobile={isMobile}
+          profileSaved={isProfileComplete(form)}
         />
       )}
       {view === 'thanks' && (
@@ -547,7 +604,7 @@ export default function App() {
           onHome={navigateHome}
           onList={navigateList}
           onChat={openChat}
-          onProfile={() => setShowProfile(true)}
+          onProfile={navigateProfile}
           listCount={interests.length}
           unread={chatUnread}
           chatLabel={chatLabel}

@@ -17,7 +17,7 @@ export default function MobileBottomNav({
     { id: 'home', label: 'Home', icon: '⌂', onClick: onHome, active: activeView === 'home' || activeView === 'brand' },
     showList && { id: 'list', label: 'My List', icon: '☰', onClick: onList, active: activeView === 'interest', badge: listCount || null },
     showChat && { id: 'chat', label: chatLabel, icon: '💬', onClick: onChat, active: activeView === 'chat', badge: unread || null, accent: true },
-    showProfile && { id: 'profile', label: 'Profile', icon: '👤', onClick: onProfile, active: false },
+    showProfile && { id: 'profile', label: 'Profile', icon: '👤', onClick: onProfile, active: activeView === 'profile' },
   ].filter(Boolean);
 
   return (

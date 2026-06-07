@@ -374,6 +374,10 @@ export function subscribeToMessages(conversationId, onMessage) {
     .subscribe();
 }
 
+export function isProfileComplete(fields = {}) {
+  return !!(fields.name?.trim() && fields.company?.trim() && fields.phone?.trim());
+}
+
 export async function saveProfile(userId, email, fields) {
   const payload = {
     user_id: userId,
@@ -389,6 +393,8 @@ export async function saveProfile(userId, email, fields) {
   if (fields.user_type !== undefined) payload.user_type = fields.user_type;
   if (fields.role !== undefined) payload.role = fields.role;
   if (fields.is_portal_admin !== undefined) payload.is_portal_admin = fields.is_portal_admin;
+  if (fields.preferred_appointment_at !== undefined) payload.preferred_appointment_at = fields.preferred_appointment_at;
+  if (fields.appointment_notes !== undefined) payload.appointment_notes = fields.appointment_notes;
 
   const { error } = await supabase.from('user_profiles').upsert(payload, { onConflict: 'user_id' });
   return !error;

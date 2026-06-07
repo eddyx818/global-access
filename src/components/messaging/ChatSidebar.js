@@ -31,6 +31,8 @@ export default function ChatSidebar({
   isAdmin = false,
   variant = 'sidebar',
   onUnreadChange,
+  profileComplete = true,
+  onRequireProfile,
 }) {
   const isPage = variant === 'page';
   const [tab, setTab] = useState('chats');
@@ -122,6 +124,10 @@ export default function ChatSidebar({
   };
 
   const openSupportChat = async () => {
+    if (!isAdmin && !profileComplete) {
+      onRequireProfile?.();
+      return;
+    }
     try {
       const convo = await getOrCreateSupportConversation(user.id);
       setActiveConvo(convo);
@@ -132,6 +138,10 @@ export default function ChatSidebar({
 
   const handleSend = async (text, attachment = null) => {
     if (!activeConvo) return;
+    if (!isAdmin && !profileComplete) {
+      onRequireProfile?.();
+      return;
+    }
     const isGroup = isGroupConversation(activeConvo);
     let otherId = null;
     if (!isGroup) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { saveProfile, checkUsernameAvailable } from '../lib/community';
+import { saveProfile, checkUsernameAvailable, isProfileComplete } from '../lib/community';
 import {
   getNotificationPrefs,
   saveNotificationPrefs,
@@ -10,24 +10,62 @@ import {
 import { playMessageSound, vibrateDevice } from '../lib/messageAlerts';
 import { subscribeToPushNotifications, isPushSupported } from '../lib/pushNotifications';
 
-export default function ProfileModal({ user, form, setForm, userType, setUserType, onClose, isMobile = false, pwa = {} }) {
+function splitAppointment(iso) {
+  if (!iso) return { date: '', time: '' };
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { date: '', time: '' };
+  const date = d.toISOString().slice(0, 10);
+  const time = d.toTimeString().slice(0, 5);
+  return { date, time };
+}
+
+function combineAppointment(date, time) {
+  if (!date || !time) return null;
+  const d = new Date(`${date}T${time}:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+export default function ProfileModal({
+  user,
+  form,
+  setForm,
+  userType,
+  setUserType,
+  onClose,
+  variant = 'modal',
+  profileGate = null,
+  onSaved,
+  pwa = {},
+}) {
+  const isPage = variant === 'page';
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
+  const [appointmentNotes, setAppointmentNotes] = useState('');
   const [error, setError] = useState('');
   const [notifyPrefs, setNotifyPrefs] = useState(getNotificationPrefs);
   const [notifyPerm, setNotifyPerm] = useState(getNotificationPermission);
 
   useEffect(() => {
     if (!user?.id) return;
-    supabase.from('user_profiles').select('username, bio, profile_avatar_url').eq('user_id', user.id).single()
+    supabase.from('user_profiles')
+      .select('username, bio, profile_avatar_url, preferred_appointment_at, appointment_notes')
+      .eq('user_id', user.id)
+      .single()
       .then(({ data }) => {
         if (data) {
           setUsername(data.username || '');
           setBio(data.bio || '');
           setAvatarUrl(data.profile_avatar_url || '');
+          setAppointmentNotes(data.appointment_notes || '');
+          const { date, time } = splitAppointment(data.preferred_appointment_at);
+          setAppointmentDate(date);
+          setAppointmentTime(time);
         }
       });
   }, [user?.id]);
@@ -35,15 +73,16 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
   const inputStyle = {
     width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8',
     borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 16,
-    outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit'
+    outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
   };
   const labelStyle = {
     fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6,
-    letterSpacing: '0.06em', textTransform: 'uppercase'
+    letterSpacing: '0.06em', textTransform: 'uppercase',
   };
 
   const { canInstall = false, showIosHint = false, isInstalled = false, install, isMobileDevice = false } = pwa;
   const showInstallInSettings = isMobileDevice && !isInstalled && (canInstall || showIosHint);
+  const needsDetails = profileGate === 'chat' && !isProfileComplete(form);
 
   const toggleNotify = (key, value) => {
     const next = { ...notifyPrefs, [key]: value };
@@ -68,11 +107,21 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
   const handleSave = async () => {
     setSaving(true);
     setError('');
+
+    if (profileGate === 'chat' && !isProfileComplete(form)) {
+      setError('Please add your name, company, and phone to use Support chat.');
+      setSaving(false);
+      return;
+    }
+
     const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     if (cleanUsername) {
       const ok = await checkUsernameAvailable(cleanUsername, user.id);
       if (!ok) { setError('Username is already taken.'); setSaving(false); return; }
     }
+
+    const appointmentAt = combineAppointment(appointmentDate, appointmentTime);
+
     try {
       await saveProfile(user.id, user.email, {
         username: cleanUsername || null,
@@ -82,14 +131,213 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
         bio: bio.trim() || null,
         profile_avatar_url: avatarUrl.trim() || null,
         user_type: userType,
+        preferred_appointment_at: appointmentAt,
+        appointment_notes: appointmentNotes.trim() || null,
       });
       setSaved(true);
-      setTimeout(() => { setSaved(false); onClose(); }, 1500);
+      setTimeout(() => {
+        setSaved(false);
+        onSaved?.({ profileComplete: isProfileComplete(form) });
+        if (!isPage) onClose();
+      }, isPage ? 800 : 1500);
     } catch (_) {
       setError('Could not save profile.');
     }
     setSaving(false);
   };
+
+  const formBody = (
+    <>
+      {needsDetails && (
+        <div style={{ background: '#FDF6E3', border: '0.5px solid #FCD34D', borderRadius: 10, padding: '12px 14px', marginBottom: '1rem', fontSize: 13, color: '#92400E', lineHeight: 1.5 }}>
+          Add your business details below to start Support chat. We will save them for future visits.
+        </div>
+      )}
+
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={labelStyle}>Username</label>
+        <input value={username} onChange={e => setUsername(e.target.value)} placeholder="yourname" style={inputStyle} autoCapitalize="none" />
+      </div>
+
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={labelStyle}>Avatar URL</label>
+        <input value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} placeholder="https://..." style={inputStyle} autoCapitalize="none" />
+      </div>
+
+      <div style={{ marginBottom: '1.25rem' }}>
+        <label style={labelStyle}>Account Type</label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {['retailer', 'distributor'].map(t => (
+            <button key={t} type="button" onClick={() => setUserType(t)}
+              style={{ flex: 1, background: userType === t ? '#1A1A1A' : '#F8F6F3', color: userType === t ? '#FFF' : '#888', border: `0.5px solid ${userType === t ? '#1A1A1A' : '#E0DDD8'}`, borderRadius: 8, padding: '10px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize', fontWeight: userType === t ? 600 : 400 }}>
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {[['name', 'Full Name *'], ['company', 'Company / Store *'], ['phone', 'Phone / WhatsApp *'], ['email', 'Email']].map(([field, label]) => (
+        <div key={field} style={{ marginBottom: '1rem' }}>
+          <label style={labelStyle}>{label}</label>
+          <input
+            value={form[field] || ''}
+            onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
+            disabled={field === 'email'}
+            style={{ ...inputStyle, opacity: field === 'email' ? 0.5 : 1 }}
+            autoCapitalize={field === 'email' ? 'none' : 'words'}
+          />
+        </div>
+      ))}
+
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={labelStyle}>Notes for our team</label>
+        <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Optional notes about your business..."
+          style={{ ...inputStyle, height: 72, resize: 'none' }} />
+      </div>
+
+      <div style={{ marginBottom: '1rem', padding: '14px 16px', background: '#F8F6F3', borderRadius: 12, border: '0.5px solid #E8E4DF' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>Schedule a call (optional)</div>
+        <div style={{ fontSize: 11, color: '#888', lineHeight: 1.45, marginBottom: 12 }}>
+          Pick a date and time if you would like us to reach out to discuss your order or account.
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div>
+            <label style={labelStyle}>Date</label>
+            <input type="date" value={appointmentDate} min={new Date().toISOString().slice(0, 10)}
+              onChange={e => setAppointmentDate(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Time</label>
+            <input type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)} style={inputStyle} />
+          </div>
+        </div>
+        <label style={labelStyle}>Appointment notes</label>
+        <textarea value={appointmentNotes} onChange={e => setAppointmentNotes(e.target.value)}
+          placeholder="What would you like to discuss?" style={{ ...inputStyle, height: 64, resize: 'none' }} />
+      </div>
+
+      <div style={{ marginBottom: '1rem', padding: '14px 16px', background: '#F8F6F3', borderRadius: 12, border: '0.5px solid #E8E4DF' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>Message alerts</div>
+        <div style={{ fontSize: 11, color: '#888', lineHeight: 1.45, marginBottom: 12 }}>
+          Sound, vibration, and badge when you receive chat messages.
+        </div>
+        {[
+          ['sound', 'Sound'],
+          ['vibrate', 'Vibrate (mobile)'],
+          ['badge', 'App icon badge'],
+        ].map(([key, label]) => (
+          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, fontSize: 13, color: '#555', cursor: 'pointer' }}>
+            <input type="checkbox" checked={!!notifyPrefs[key]} onChange={e => toggleNotify(key, e.target.checked)} />
+            {label}
+          </label>
+        ))}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, fontSize: 13, color: '#555', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={!!notifyPrefs.notifications && notifyPerm === 'granted'}
+            disabled={notifyPerm === 'denied' || notifyPerm === 'unsupported'}
+            onChange={e => toggleNotify('notifications', e.target.checked)}
+          />
+          Push notifications
+        </label>
+        {notifyPerm === 'default' && (
+          <button type="button" onClick={enablePush}
+            style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8 }}>
+            Allow notifications
+          </button>
+        )}
+        {notifyPerm === 'granted' && isPushSupported() && (
+          <div style={{ fontSize: 11, color: '#2D7A50', marginBottom: 8 }}>
+            Push enabled — you will get banners when the app is in the background.
+          </div>
+        )}
+        {notifyPerm === 'granted' && !isPushSupported() && (
+          <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
+            In-app alerts work here. For background banners on iPhone, install the app from Safari and allow notifications.
+          </div>
+        )}
+        {notifyPerm === 'denied' && (
+          <div style={{ fontSize: 11, color: '#C53030', marginBottom: 8 }}>Notifications blocked in browser settings.</div>
+        )}
+        <button type="button" onClick={testAlert}
+          style={{ background: '#FFF', color: '#555', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '7px 12px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Test sound & vibrate
+        </button>
+      </div>
+
+      {showInstallInSettings && (
+        <div style={{ marginBottom: '1rem', padding: '14px 16px', background: '#F8F6F3', borderRadius: 12, border: '0.5px solid #E8E4DF' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>Install app</div>
+          <div style={{ fontSize: 11, color: '#888', lineHeight: 1.45, marginBottom: 10 }}>
+            {showIosHint && !canInstall
+              ? 'On iPhone: tap Share in Safari, then Add to Home Screen.'
+              : 'Add Global Access to your home screen for full-screen mobile use.'}
+          </div>
+          {canInstall && (
+            <button type="button" onClick={install}
+              style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Install on this device
+            </button>
+          )}
+        </div>
+      )}
+
+      {isInstalled && isMobileDevice && (
+        <div style={{ marginBottom: '1rem', padding: '10px 14px', background: '#F0FAF4', borderRadius: 10, border: '0.5px solid #C6EDD7', fontSize: 12, color: '#2D7A50' }}>
+          App installed on this device
+        </div>
+      )}
+
+      {error && <div style={{ background: '#FEF0F0', border: '0.5px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#C53030', marginBottom: '1rem' }}>{error}</div>}
+
+      <div style={{ display: 'flex', gap: 8, marginTop: isPage ? '0.5rem' : '1.5rem', paddingBottom: isPage ? 8 : 0 }}>
+        {!isPage && (
+          <button type="button" onClick={onClose} style={{ flex: 1, background: 'none', border: '0.5px solid #E0DDD8', borderRadius: 10, padding: '12px', fontSize: 13, color: '#AAA', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+        )}
+        <button type="button" onClick={handleSave} disabled={saving}
+          style={{ flex: isPage ? 1 : 2, background: saving ? '#E0DDD8' : '#1A1A1A', color: saving ? '#AAA' : '#FFF', border: 'none', borderRadius: 10, padding: '14px', fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+          {saved ? '✓ Saved!' : saving ? 'Saving...' : (needsDetails ? 'Save & continue' : 'Save Profile')}
+        </button>
+      </div>
+    </>
+  );
+
+  if (isPage) {
+    return (
+      <div style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#FFF',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          padding: '14px 16px',
+          paddingTop: 'max(14px, env(safe-area-inset-top))',
+          borderBottom: '0.5px solid #E8E4DF',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          background: '#1A1A1A',
+          flexShrink: 0,
+        }}>
+          <button type="button" onClick={onClose} aria-label="Back"
+            style={{ background: 'none', border: 'none', color: '#FFF', cursor: 'pointer', fontSize: 22, padding: '4px 8px 4px 0', fontFamily: 'inherit', lineHeight: 1 }}>
+            ‹
+          </button>
+          <div style={{ fontSize: 16, fontWeight: 600, color: '#FFF' }}>My Profile</div>
+        </div>
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          padding: '1.25rem 1rem calc(1rem + env(safe-area-inset-bottom))',
+        }}>
+          {formBody}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -98,23 +346,14 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 600,
-        display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center',
-        padding: isMobile ? 0 : '1.5rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem',
       }}
     >
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: '#FFF',
-          borderRadius: isMobile ? '20px 20px 0 0' : 20,
-          padding: isMobile ? '1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom))' : '2rem',
-          maxWidth: 440,
-          width: '100%',
-          maxHeight: isMobile ? '92dvh' : '90vh',
-          overflowY: 'auto',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
-          display: 'flex',
-          flexDirection: 'column',
+          background: '#FFF', borderRadius: 20, padding: '2rem', maxWidth: 440, width: '100%',
+          maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
         }}
       >
         <div style={{
@@ -127,129 +366,7 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
             ×
           </button>
         </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={labelStyle}>Username</label>
-          <input value={username} onChange={e => setUsername(e.target.value)} placeholder="yourname" style={inputStyle} autoCapitalize="none" />
-        </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={labelStyle}>Avatar URL</label>
-          <input value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} placeholder="https://..." style={inputStyle} autoCapitalize="none" />
-        </div>
-
-        <div style={{ marginBottom: '1.25rem' }}>
-          <label style={labelStyle}>Account Type</label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {['retailer', 'distributor'].map(t => (
-              <button key={t} onClick={() => setUserType(t)}
-                style={{ flex: 1, background: userType === t ? '#1A1A1A' : '#F8F6F3', color: userType === t ? '#FFF' : '#888', border: `0.5px solid ${userType === t ? '#1A1A1A' : '#E0DDD8'}`, borderRadius: 8, padding: '10px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize', fontWeight: userType === t ? 600 : 400 }}>
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {[['name', 'Full Name'], ['company', 'Company / Store'], ['phone', 'Phone / WhatsApp'], ['email', 'Email']].map(([field, label]) => (
-          <div key={field} style={{ marginBottom: '1rem' }}>
-            <label style={labelStyle}>{label}</label>
-            <input
-              value={form[field] || ''}
-              onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-              disabled={field === 'email'}
-              style={{ ...inputStyle, opacity: field === 'email' ? 0.5 : 1 }}
-              autoCapitalize={field === 'email' ? 'none' : 'words'}
-            />
-          </div>
-        ))}
-
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={labelStyle}>Notes</label>
-          <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Optional notes for our team..."
-            style={{ ...inputStyle, height: 72, resize: 'none' }} />
-        </div>
-
-        <div style={{ marginBottom: '1rem', padding: '14px 16px', background: '#F8F6F3', borderRadius: 12, border: '0.5px solid #E8E4DF' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>Message alerts</div>
-          <div style={{ fontSize: 11, color: '#888', lineHeight: 1.45, marginBottom: 12 }}>
-            Sound, vibration, and badge when you receive chat messages.
-          </div>
-          {[
-            ['sound', 'Sound'],
-            ['vibrate', 'Vibrate (mobile)'],
-            ['badge', 'App icon badge'],
-          ].map(([key, label]) => (
-            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, fontSize: 13, color: '#555', cursor: 'pointer' }}>
-              <input type="checkbox" checked={!!notifyPrefs[key]} onChange={e => toggleNotify(key, e.target.checked)} />
-              {label}
-            </label>
-          ))}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, fontSize: 13, color: '#555', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={!!notifyPrefs.notifications && notifyPerm === 'granted'}
-              disabled={notifyPerm === 'denied' || notifyPerm === 'unsupported'}
-              onChange={e => toggleNotify('notifications', e.target.checked)}
-            />
-            Push notifications
-          </label>
-          {notifyPerm === 'default' && (
-            <button type="button" onClick={enablePush}
-              style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8 }}>
-              Allow notifications
-            </button>
-          )}
-          {notifyPerm === 'granted' && isPushSupported() && (
-            <div style={{ fontSize: 11, color: '#2D7A50', marginBottom: 8 }}>
-              Push enabled — you will get banners when the app is in the background.
-            </div>
-          )}
-          {notifyPerm === 'granted' && !isPushSupported() && (
-            <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
-              In-app alerts work here. For background banners on iPhone, install the app from Safari and allow notifications.
-            </div>
-          )}
-          {notifyPerm === 'denied' && (
-            <div style={{ fontSize: 11, color: '#C53030', marginBottom: 8 }}>Notifications blocked in browser settings.</div>
-          )}
-          <button type="button" onClick={testAlert}
-            style={{ background: '#FFF', color: '#555', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '7px 12px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Test sound & vibrate
-          </button>
-        </div>
-
-        {showInstallInSettings && (
-          <div style={{ marginBottom: '1rem', padding: '14px 16px', background: '#F8F6F3', borderRadius: 12, border: '0.5px solid #E8E4DF' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>Install app</div>
-            <div style={{ fontSize: 11, color: '#888', lineHeight: 1.45, marginBottom: 10 }}>
-              {showIosHint && !canInstall
-                ? 'On iPhone: tap Share in Safari, then Add to Home Screen.'
-                : 'Add Global Access to your home screen for full-screen mobile use.'}
-            </div>
-            {canInstall && (
-              <button type="button" onClick={install}
-                style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                Install on this device
-              </button>
-            )}
-          </div>
-        )}
-
-        {isInstalled && isMobileDevice && (
-          <div style={{ marginBottom: '1rem', padding: '10px 14px', background: '#F0FAF4', borderRadius: 10, border: '0.5px solid #C6EDD7', fontSize: 12, color: '#2D7A50' }}>
-            App installed on this device
-          </div>
-        )}
-
-        {error && <div style={{ background: '#FEF0F0', border: '0.5px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#C53030', marginBottom: '1rem' }}>{error}</div>}
-
-        <div style={{ display: 'flex', gap: 8, marginTop: '1.5rem' }}>
-          <button onClick={onClose} style={{ flex: 1, background: 'none', border: '0.5px solid #E0DDD8', borderRadius: 10, padding: '12px', fontSize: 13, color: '#AAA', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
-          <button onClick={handleSave} disabled={saving}
-            style={{ flex: 2, background: saving ? '#E0DDD8' : '#1A1A1A', color: saving ? '#AAA' : '#FFF', border: 'none', borderRadius: 10, padding: '12px', fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-            {saved ? '✓ Saved!' : saving ? 'Saving...' : 'Save Profile'}
-          </button>
-        </div>
+        {formBody}
       </div>
     </div>
   );

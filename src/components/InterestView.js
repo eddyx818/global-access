@@ -1,13 +1,18 @@
 import React from 'react';
 
-export function InterestView({ interests, toggleInterest, form, setForm, onSubmit, onBack, isMobile }) {
-  const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
+export function InterestView({ interests, toggleInterest, form, setForm, onSubmit, onBack, isMobile, profileSaved = false }) {
+  const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
+  const lockedStyle = { ...inputStyle, opacity: 0.75, background: '#F0EDE8' };
 
   return (
     <div style={{ maxWidth: 620, margin: '0 auto', padding: isMobile ? '1rem' : '1.5rem 1.5rem 3rem' }}>
       <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#AAA', cursor: 'pointer', fontSize: 13, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6, padding: 0, fontFamily: 'inherit' }}>← Back</button>
       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, letterSpacing: '0.04em', color: '#1A1A1A', marginBottom: 4 }}>Your Interest List</div>
-      <div style={{ fontSize: 13, color: '#AAA', marginBottom: '1.75rem', lineHeight: 1.6 }}>Tell us who you are and we'll reach out with pricing and availability before your meeting.</div>
+      <div style={{ fontSize: 13, color: '#AAA', marginBottom: '1.75rem', lineHeight: 1.6 }}>
+        {profileSaved
+          ? 'Your saved details are below. Add notes for this inquiry — we will reach out with pricing and availability.'
+          : 'Tell us who you are and we will reach out with pricing and availability.'}
+      </div>
       <div style={{ background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 12, padding: '1.25rem', marginBottom: '1rem' }}>
         <div style={{ fontSize: 11, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Selected items</div>
         {interests.length === 0 && <div style={{ fontSize: 13, color: '#CCC' }}>No items selected.</div>}
@@ -22,17 +27,31 @@ export function InterestView({ interests, toggleInterest, form, setForm, onSubmi
         ))}
       </div>
       <div style={{ background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 12, padding: '1.25rem', marginBottom: '1rem' }}>
-        <div style={{ fontSize: 11, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Your details</div>
+        <div style={{ fontSize: 11, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
+          {profileSaved ? 'Your saved details' : 'Your details'}
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 12 }}>
           {[['name','Name *'],['company','Company / Store *'],['phone','Phone / WhatsApp'],['email','Email']].map(([field, label]) => (
             <div key={field}>
               <label style={{ fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
-              <input value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} style={inputStyle} autoCapitalize={field === 'email' ? 'none' : 'words'} />
+              <input
+                value={form[field] || ''}
+                onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
+                readOnly={profileSaved && field !== 'email'}
+                style={profileSaved && field !== 'email' ? lockedStyle : inputStyle}
+                autoCapitalize={field === 'email' ? 'none' : 'words'}
+              />
             </div>
           ))}
         </div>
-        <label style={{ fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes (optional)</label>
-        <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Questions, timeline, or extra info..." style={{ ...inputStyle, height: 80, resize: 'none' }} />
+        <label style={{ fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes for this inquiry</label>
+        <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Questions, timeline, or extra info for this order..."
+          style={{ ...inputStyle, height: 80, resize: 'none' }} />
+        {profileSaved && (
+          <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
+            Update name, company, or phone anytime in Profile.
+          </div>
+        )}
       </div>
       <button onClick={onSubmit} disabled={interests.length === 0} style={{ width: '100%', background: interests.length > 0 ? '#1A1A1A' : '#E0DDD8', color: interests.length > 0 ? '#FFF' : '#AAA', border: 'none', borderRadius: 10, padding: '15px', fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', cursor: interests.length > 0 ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontFamily: 'inherit' }}>
         Submit inquiry →

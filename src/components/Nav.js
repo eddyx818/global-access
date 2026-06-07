@@ -48,8 +48,8 @@ export default function Nav({
       paddingTop: isMobile ? 'env(safe-area-inset-top, 0px)' : undefined,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16, minWidth: 0 }}>
-        <button type="button" onClick={() => setView('home')} style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 20 : 22, letterSpacing: '0.1em', color: primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}>
-          {isMobile ? 'GA' : 'Global Access'}
+        <button type="button" onClick={() => setView('home')} style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 18 : 22, letterSpacing: '0.08em', color: primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, whiteSpace: 'nowrap' }}>
+          Global Access
         </button>
         {!isMobile && navigation.map(item => (
           <button key={item.id} type="button" onClick={() => handleNavItem(item)}
