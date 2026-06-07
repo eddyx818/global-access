@@ -8,6 +8,12 @@ const TYPE_COLORS = {
   retailer: '#4CAF7D',
 };
 
+const FILTER_LABELS = {
+  all: 'All Contacts',
+  distributor: 'Distributors',
+  retailer: 'Retailers',
+};
+
 export default function ContactMap() {
   const { t } = useTheme();
   const ui = getAdminUi();
@@ -74,7 +80,7 @@ export default function ContactMap() {
         {['all','distributor','retailer'].map(f => (
           <button key={f} onClick={() => setFilter(f)}
             style={ui.tabBtn(filter === f)}>
-            {f === 'all' ? 'All Contacts' : f + 's'}
+            {FILTER_LABELS[f]}
           </button>
         ))}
       </div>

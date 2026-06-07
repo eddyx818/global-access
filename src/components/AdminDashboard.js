@@ -428,7 +428,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           <BrandManager onSaved={loadContentOverrides} />
         )}
         {tab === 'marketing' && (
-          <MarketingDashboard />
+          <MarketingDashboard isMobile={narrowHeader} />
         )}
         <AdminAgent />
       </div>

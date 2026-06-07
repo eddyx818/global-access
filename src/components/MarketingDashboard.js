@@ -14,7 +14,7 @@ const BRANDS = [
   { id: 'good-spirits', name: 'Good Spirits', color: '#C0392B' },
 ];
 
-export default function MarketingDashboard() {
+export default function MarketingDashboard({ isMobile = false }) {
   const { t } = useTheme();
   const ui = getAdminUi();
   const [drafts, setDrafts] = useState([]);
@@ -99,9 +99,32 @@ export default function MarketingDashboard() {
   const pendingDrafts = drafts.filter(d => d.status === 'pending');
   const sentDrafts = drafts.filter(d => d.status === 'sent');
 
-  const card = { ...ui.card, marginBottom: 12 };
-  const inputStyle = { ...ui.input, fontSize: 13 };
-  const labelStyle = { fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' };
+  const card = {
+    ...ui.card,
+    marginBottom: isMobile ? 16 : 12,
+    padding: isMobile ? '1.5rem' : '1.25rem',
+  };
+  const inputStyle = {
+    ...ui.input,
+    minHeight: 50,
+    fontSize: 16,
+    borderRadius: 10,
+    padding: '12px 14px',
+  };
+  const labelStyle = {
+    fontSize: 11,
+    color: t.textFaint,
+    display: 'block',
+    marginBottom: 8,
+    letterSpacing: '0.08em',
+    lineHeight: 1.25,
+    textTransform: 'uppercase',
+  };
+  const metricCards = [
+    ['Pending Review', pendingDrafts.length, '#C9A84C'],
+    ['Sent Campaigns', sentDrafts.length, '#4CAF7D'],
+    ['Total Reached', campaigns.reduce((s, c) => s + (c.sent_count || 0), 0), '#7B6CF6'],
+  ];
 
   return (
     <div>
@@ -109,23 +132,19 @@ export default function MarketingDashboard() {
       {error && <div style={{ background: '#FEF0F0', border: '0.5px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#C53030', marginBottom: 16 }}>{error}<button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C53030', marginLeft: 8, fontFamily: 'inherit' }}>×</button></div>}
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: '1.5rem' }}>
-        {[
-          ['Pending Review', pendingDrafts.length, '#C9A84C'],
-          ['Sent Campaigns', sentDrafts.length, '#4CAF7D'],
-          ['Total Reached', campaigns.reduce((s, c) => s + (c.sent_count || 0), 0), '#7B6CF6'],
-        ].map(([label, val, color]) => (
-          <div key={label} style={{ background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 12, padding: '1rem' }}>
-            <div style={{ fontSize: 11, color: '#AAA', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{label}</div>
-            <div style={{ fontSize: 28, fontWeight: 500, color, lineHeight: 1 }}>{val}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(auto-fit, minmax(96px, 1fr))' : 'repeat(auto-fit, minmax(130px, 1fr))', gap: isMobile ? 10 : 12, marginBottom: isMobile ? '1.75rem' : '1.5rem' }}>
+        {metricCards.map(([label, val, color]) => (
+          <div key={label} style={{ ...ui.statCard, padding: isMobile ? '14px 12px' : '1rem', minHeight: isMobile ? 86 : undefined }}>
+            <div style={{ fontSize: isMobile ? 10 : 11, color: t.textFaint, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8, lineHeight: 1.25 }}>{label}</div>
+            <div style={{ fontSize: isMobile ? 30 : 28, fontWeight: 500, color, lineHeight: 1 }}>{val}</div>
           </div>
         ))}
       </div>
 
       {/* Generate new draft */}
       <div style={card}>
-        <div style={{ fontSize: 12, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14, fontWeight: 500 }}>Generate New Email Draft</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+        <div style={{ fontSize: 12, color: t.textFaint, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: isMobile ? 18 : 14, fontWeight: 600 }}>Generate New Email Draft</div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 14 : 10, marginBottom: isMobile ? 18 : 14 }}>
           <div>
             <label style={labelStyle}>Feature Brand (or leave blank for auto)</label>
             <select value={genForm.brand_id} onChange={e => setGenForm(f => ({ ...f, brand_id: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
@@ -143,10 +162,10 @@ export default function MarketingDashboard() {
           </div>
         </div>
         <button onClick={handleGenerate} disabled={generating}
-          style={{ width: '100%', background: generating ? '#E0DDD8' : '#1A1A1A', color: generating ? '#AAA' : '#FFF', border: 'none', borderRadius: 10, padding: '13px', fontSize: 13, fontWeight: 700, cursor: generating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+          style={{ width: '100%', background: generating ? t.bgSubtle : t.btnPrimaryBg, color: generating ? t.textDisabled : t.btnPrimaryText, border: 'none', borderRadius: 12, padding: isMobile ? '15px 14px' : '13px', fontSize: 13, fontWeight: 700, cursor: generating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
           {generating ? '✦ Claude is writing your email...' : '✦ Generate AI Email Draft'}
         </button>
-        <div style={{ fontSize: 11, color: '#CCC', textAlign: 'center', marginTop: 8 }}>Claude will write professional copy — you review before anything is sent</div>
+        <div style={{ fontSize: 12, color: t.textMuted, textAlign: 'center', margin: '10px auto 0', maxWidth: 300, lineHeight: 1.35 }}>Claude will write professional copy — you review before anything is sent</div>
       </div>
 
       {/* Pending drafts */}
