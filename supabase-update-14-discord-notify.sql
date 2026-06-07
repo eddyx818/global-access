@@ -5,6 +5,13 @@
 -- CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 
 -- ─── SETUP (required) ───────────────────────────────────────────────────────
+-- SUPPORT CHAT: at least one user must have is_portal_admin = true.
+--   Option A — Admin → Users: your account role = admin (creates portal admin flag).
+--   Option B — Vercel env REACT_APP_ADMIN_EMAIL=your@email.com then sign in via Admin login once.
+--   Option C — SQL:
+--     UPDATE user_profiles SET is_portal_admin = true, role = 'admin'
+--     WHERE email = 'your@email.com';
+--
 -- 1. Deploy edge function: notify-discord
 -- 2. Supabase → Project Settings → Edge Functions → Secrets:
 --      DISCORD_WEBHOOK_URL  = your Discord channel webhook URL

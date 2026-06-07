@@ -39,6 +39,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [profileGate, setProfileGate] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [openSupportOnLoad, setOpenSupportOnLoad] = useState(0);
   const [isPortalAdmin, setIsPortalAdmin] = useState(false);
   const [isSalesRep, setIsSalesRep] = useState(false);
   const [staffProfile, setStaffProfile] = useState(null);
@@ -92,6 +93,7 @@ export default function App() {
     if (profileGate === 'chat' && profileComplete) {
       setProfileGate(null);
       setShowProfile(false);
+      setOpenSupportOnLoad(n => n + 1);
       if (mobileShell) setView('chat');
       else setChatOpen(true);
     }
@@ -531,6 +533,7 @@ export default function App() {
           onUnreadChange={refreshUnread}
           profileComplete={isProfileComplete(form)}
           onRequireProfile={requireProfileForChat}
+          openSupportOnLoad={openSupportOnLoad}
         />
       )}
       {showProfile && !mobileShell && (
@@ -594,6 +597,7 @@ export default function App() {
             onUnreadChange={refreshUnread}
             profileComplete={isProfileComplete(form)}
             onRequireProfile={requireProfileForChat}
+            openSupportOnLoad={openSupportOnLoad}
           />
         </div>
       )}

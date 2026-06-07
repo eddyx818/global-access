@@ -37,6 +37,7 @@ export default function ChatSidebar({
   onUnreadChange,
   profileComplete = true,
   onRequireProfile,
+  openSupportOnLoad = 0,
 }) {
   const { t } = useTheme();
   const isStaff = isAdmin || isSalesRep;
@@ -50,6 +51,7 @@ export default function ChatSidebar({
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [supportError, setSupportError] = useState('');
   const subRef = useRef(null);
 
   const mergeProfiles = async (convos, msgs = []) => {
@@ -134,13 +136,27 @@ export default function ChatSidebar({
       onRequireProfile?.();
       return;
     }
+    setSupportError('');
     try {
       const convo = await getOrCreateSupportConversation(user.id);
       setActiveConvo(convo);
       setTab('chats');
       await refresh();
-    } catch (_) {}
+    } catch (err) {
+      const msg = err?.message || '';
+      if (msg.includes('not available')) {
+        setSupportError('Support chat is not set up yet. Please try again later or submit an access request.');
+      } else {
+        setSupportError(msg || 'Could not open Support chat. Please try again.');
+      }
+    }
   };
+
+  useEffect(() => {
+    if (!openSupportOnLoad || !user?.id || isStaff) return;
+    if (!(open || isPage) || !profileComplete) return;
+    openSupportChat();
+  }, [openSupportOnLoad]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSend = async (text, attachment = null) => {
     if (!activeConvo) return;
@@ -265,6 +281,13 @@ export default function ChatSidebar({
           <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', color: t.headerMuted, cursor: 'pointer', fontSize: 22, fontFamily: 'inherit', padding: 4 }}>×</button>
         )}
       </div>
+
+      {supportError && (
+        <div style={{ padding: '10px 14px', background: t.errorBg, borderBottom: `0.5px solid ${t.errorBorder}`, fontSize: 12, color: t.errorText, lineHeight: 1.5, flexShrink: 0 }}>
+          {supportError}
+          <button type="button" onClick={() => setSupportError('')} style={{ background: 'none', border: 'none', color: t.errorText, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, marginLeft: 8 }}>×</button>
+        </div>
+      )}
 
       {!activeConvo && isStaff && (
         <div style={{ display: 'flex', borderBottom: t.borderHairlineLight, flexShrink: 0 }}>
