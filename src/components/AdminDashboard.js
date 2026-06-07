@@ -9,6 +9,7 @@ import UserManager from './UserManager';
 import ActivityFeed from './ActivityFeed';
 import CustomerDirectory from './CustomerDirectory';
 import ContactImportPanel from './ContactImportPanel';
+import ReferralTracker from './ReferralTracker';
 import ThemeToggle from './ThemeToggle';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
@@ -180,6 +181,10 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
         )}
         {!loading && tab === 'community' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={ui.card}>
+              <div style={ui.sectionLabel}>Access code sign-ups</div>
+              <ReferralTracker currentUserId={user?.id} isAdmin compact />
+            </div>
             <div style={ui.card}>
               <div style={ui.sectionLabel}>Live activity feed</div>
               <ActivityFeed />

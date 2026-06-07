@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ChatSidebar from './messaging/ChatSidebar';
 import CustomerDirectory from './CustomerDirectory';
 import ContactImportPanel from './ContactImportPanel';
+import ReferralTracker from './ReferralTracker';
 import { useUnreadCount } from '../hooks/useUnreadCount';
 import { useTheme } from '../context/ThemeContext';
 
@@ -46,6 +47,7 @@ export default function StaffDashboard({ user, profile, onLogout }) {
         <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap' }}>
           {[
             ['messages', unread > 0 ? `Messages (${unread})` : 'Messages'],
+            ['signups', 'Sign-up progress'],
             ['customers', 'My customers'],
             ['contacts', 'Contact list'],
           ].map(([key, label]) => (
@@ -63,6 +65,12 @@ export default function StaffDashboard({ user, profile, onLogout }) {
               onUnreadChange={refreshUnread}
               profileComplete
             />
+          </div>
+        )}
+
+        {tab === 'signups' && (
+          <div style={{ background: t.bgElevated, border: t.borderHairlineLight, borderRadius: 12, padding: '1.25rem' }}>
+            <ReferralTracker currentUserId={user?.id} />
           </div>
         )}
 
