@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { isChatImage } from '../../lib/chatAttachments';
+import { getChatDisplayName } from '../../lib/community';
 import CustomerBadges from '../CustomerBadges';
 import { useTheme } from '../../context/ThemeContext';
 
-export default function MessageThread({ messages, currentUserId, profiles, loading, isGroup = false, showStaffNames = false }) {
+export default function MessageThread({ messages, currentUserId, profiles, loading, isGroup = false, showStaffNames = false, isStaff = false }) {
   const { t } = useTheme();
   const endRef = useRef(null);
 
@@ -17,7 +18,7 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
 
   const senderName = (userId) => {
     const p = profiles[userId] || {};
-    return p.username || p.name || 'User';
+    return getChatDisplayName(p, { viewerIsStaff: isStaff });
   };
 
   const renderAttachment = (msg, mine) => {

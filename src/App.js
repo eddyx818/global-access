@@ -25,6 +25,7 @@ import { getNotificationPermission } from './lib/notificationPrefs';
 import { subscribeToPushNotifications } from './lib/pushNotifications';
 import { canAccessPortal, fetchProfileAccess } from './lib/authGate';
 import { isHoneypotClean, isValidPhone, getPhoneValidationError } from './lib/accessRequestGate';
+import { validatePersonName, validateCompanyName } from './lib/nameValidation';
 import { hasCallablePhone } from './lib/whatsapp';
 import { useTheme } from './context/ThemeContext';
 import {
@@ -566,7 +567,19 @@ export default function App() {
   };
 
   const doSubmit = async () => {
-    if (!form.name?.trim() || !form.company?.trim() || !hasCallablePhone(form.phone)) {
+    const nameCheck = validatePersonName(form.name, { label: 'Name' });
+    if (!nameCheck.ok) {
+      const msg = nameCheck.error;
+      if (showSignupPrompt) setSignupPromptError(msg);
+      return;
+    }
+    const companyCheck = validateCompanyName(form.company);
+    if (!companyCheck.ok) {
+      const msg = companyCheck.error;
+      if (showSignupPrompt) setSignupPromptError(msg);
+      return;
+    }
+    if (!hasCallablePhone(form.phone)) {
       const msg = getPhoneValidationError(form.phone)
         || 'Please enter your name, company, and a real mobile number.';
       if (showSignupPrompt) setSignupPromptError(msg);
@@ -577,8 +590,8 @@ export default function App() {
     await supabase.from('inquiries').insert({
       session_id: sessionId,
       user_id: user?.id || null,
-      name: form.name,
-      company: form.company,
+      name: nameCheck.value,
+      company: companyCheck.value,
       phone: form.phone,
       email: form.email,
       notes: form.notes,
@@ -602,10 +615,11 @@ export default function App() {
     if (!isHoneypotClean(data)) return;
     if (!isValidPhone(data.phone)) return;
     const referral = await getPortalReferral();
-    await supabase.from('access_requests').insert({
+    const email = (data.email || '').trim().toLowerCase();
+    const { error: insertErr } = await supabase.from('access_requests').insert({
       name: data.name,
       company: data.company,
-      email: data.email,
+      email,
       phone: data.phone,
       account_type: data.account_type,
       store_type: data.store_type,
@@ -625,6 +639,12 @@ export default function App() {
       status: 'pending',
       created_at: new Date().toISOString(),
     });
+    if (insertErr) {
+      if (/duplicate|unique/i.test(insertErr.message || '')) {
+        throw new Error('We already have a pending request for this email.');
+      }
+      throw new Error(insertErr.message || 'Could not submit your request.');
+    }
   };
 
   if (authState === 'loading') return (

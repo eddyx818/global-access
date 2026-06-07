@@ -585,7 +585,7 @@ export default function ChatSidebar({
                 )}
               </div>
             )}
-            <MessageThread messages={messages} currentUserId={user.id} profiles={profiles} loading={loading} isGroup={activeIsGroup} showStaffNames={isStaff} />
+            <MessageThread messages={messages} currentUserId={user.id} profiles={profiles} loading={loading} isGroup={activeIsGroup} showStaffNames={isStaff} isStaff={isStaff} />
             {!isStaff && activeConvo && (
               <ScheduleCallRequest
                 user={user}

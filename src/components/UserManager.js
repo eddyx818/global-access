@@ -41,18 +41,32 @@ export default function UserManager() {
     if (createForm.password.length < 6) { setError('Password must be at least 6 characters.'); return; }
     setCreating(true); setError('');
     try {
+      const emailNorm = createForm.email.trim().toLowerCase();
+      const { data: existing } = await supabaseAdmin
+        .from('user_profiles')
+        .select('user_id')
+        .eq('email', emailNorm)
+        .maybeSingle();
+      if (existing?.user_id) {
+        throw new Error('An account already exists for this email.');
+      }
       // Create auth user via Supabase
       const { data, error: err } = await supabaseAdmin.auth.admin.createUser({
-        email: createForm.email.trim().toLowerCase(),
+        email: emailNorm,
         password: createForm.password,
         email_confirm: true,
         user_metadata: { role: createForm.role, name: createForm.name, company: createForm.company },
       });
-      if (err) throw err;
+      if (err) {
+        if (/already|registered|exists/i.test(err.message || '')) {
+          throw new Error('An account already exists for this email.');
+        }
+        throw err;
+      }
       // Save profile
       await supabaseAdmin.from('user_profiles').insert({
         user_id: data.user.id,
-        email: createForm.email.trim().toLowerCase(),
+        email: emailNorm,
         name: createForm.name.trim() || null,
         company: createForm.company.trim() || null,
         role: createForm.role,

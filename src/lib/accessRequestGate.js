@@ -18,21 +18,48 @@ export function isHoneypotClean(form) {
   return !(form?.website || form?._hp || '').trim();
 }
 
-/** Limit repeat access requests from the same email (client + DB check). */
+export function normalizeRequestEmail(email) {
+  return (email || '').trim().toLowerCase();
+}
+
+/** Block duplicate accounts and repeat pending requests (DB-backed). */
 export async function canSubmitAccessRequest(email) {
-  const normalized = (email || '').trim().toLowerCase();
+  const normalized = normalizeRequestEmail(email);
   if (!normalized) return { ok: false, error: 'Email is required.' };
 
   try {
-    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count, error } = await supabase
-      .from('access_requests')
-      .select('id', { count: 'exact', head: true })
-      .eq('email', normalized)
-      .gte('created_at', since);
-    if (error) return { ok: true };
-    if ((count || 0) > 0) {
-      return { ok: false, error: 'We already received a request from this email recently. Our team will follow up soon.' };
+    const { data, error } = await supabase.rpc('check_signup_email', { p_email: normalized });
+    if (error) {
+      const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count } = await supabase
+        .from('access_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('email', normalized)
+        .gte('created_at', since);
+      if ((count || 0) > 0) {
+        return {
+          ok: false,
+          code: 'pending_request',
+          error: 'We already received a request from this email. Check your status in the waiting room.',
+        };
+      }
+      return { ok: true };
+    }
+
+    const row = typeof data === 'object' && data !== null ? data : {};
+    if (row.has_account) {
+      return {
+        ok: false,
+        code: 'account_exists',
+        error: 'An account already exists for this email. Sign in instead of requesting access again.',
+      };
+    }
+    if (row.request_status === 'pending') {
+      return {
+        ok: false,
+        code: 'pending_request',
+        error: 'We already have a pending request for this email. Check status in the waiting room.',
+      };
     }
   } catch (_) {}
 

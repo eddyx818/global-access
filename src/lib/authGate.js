@@ -79,3 +79,17 @@ export async function resendSignupConfirmation(email) {
     options: { emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined },
   });
 }
+
+/** Map email or username to the auth email used for sign-in. */
+export async function resolveLoginEmail(identifier) {
+  const trimmed = (identifier || '').trim().toLowerCase();
+  if (!trimmed) return { ok: false, error: 'Email or username is required.' };
+  if (trimmed.includes('@')) return { ok: true, email: trimmed };
+
+  const { supabase } = await import('./supabase');
+  const { data, error } = await supabase.rpc('resolve_login_email', { p_identifier: trimmed });
+  if (error || !data) {
+    return { ok: false, error: 'No account found for that username.' };
+  }
+  return { ok: true, email: String(data).trim().toLowerCase() };
+}

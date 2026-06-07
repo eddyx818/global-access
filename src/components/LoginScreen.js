@@ -4,8 +4,9 @@ import { validateAccessCode } from '../lib/repCodes';
 import { setPortalReferral } from '../lib/session';
 import { getRememberLogin, getSavedLogin, saveLogin, clearSavedLogin } from '../lib/loginPrefs';
 import { APP_SESSION_HINT } from '../lib/appSession';
-import { canAccessPortal, fetchProfileAccess } from '../lib/authGate';
+import { canAccessPortal, fetchProfileAccess, resolveLoginEmail } from '../lib/authGate';
 import { isValidRequestEmail, isValidPhone, getPhoneValidationError, isHoneypotClean, canSubmitAccessRequest, savePendingAccess, readPendingAccess, fetchAccessRequestStatus } from '../lib/accessRequestGate';
+import { validatePersonName, validateCompanyName } from '../lib/nameValidation';
 import AccessWaitingRoom from './AccessWaitingRoom';
 import { useTheme } from '../context/ThemeContext';
 import AddressFields, { EMPTY_ADDRESS } from './AddressFields';
@@ -134,11 +135,17 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
  
   const handleLogin = async () => {
     setLoading(true); setError(''); setSuccess('');
-    const trimmedEmail = email.trim().toLowerCase();
-    const { data, error: err } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password });
+    const resolved = await resolveLoginEmail(email);
+    if (!resolved.ok) {
+      setLoading(false);
+      setError(resolved.error || 'Invalid email or username.');
+      return;
+    }
+    const loginEmail = resolved.email;
+    const { data, error: err } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
     if (err) {
       setLoading(false);
-      setError('Invalid email or password.');
+      setError('Invalid email/username or password.');
       return;
     }
     const accessProfile = await fetchProfileAccess(data.user.id);
@@ -146,7 +153,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
       await supabase.auth.signOut();
       setLoading(false);
       const pending = readPendingAccess();
-      if (pending?.email === trimmedEmail) {
+      if (pending?.email === loginEmail) {
         setWaitingMeta(pending);
         setMode('waiting');
         setError('');
@@ -157,7 +164,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     }
     setLoading(false);
     if (rememberMe) {
-      saveLogin({ email: trimmedEmail, password, remember: true });
+      saveLogin({ email, password, remember: true });
     } else {
       clearSavedLogin();
     }
@@ -178,6 +185,10 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
       setError('Please fill in name, company, email, and phone.');
       return;
     }
+    const nameCheck = validatePersonName(reqForm.name, { label: 'Name' });
+    if (!nameCheck.ok) { setError(nameCheck.error); return; }
+    const companyCheck = validateCompanyName(reqForm.company);
+    if (!companyCheck.ok) { setError(companyCheck.error); return; }
     if (!isValidRequestEmail(reqForm.email)) {
       setError('Please enter a valid email address.');
       return;
@@ -196,8 +207,24 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     const gate = await canSubmitAccessRequest(reqForm.email);
     if (!gate.ok) {
       setLoading(false);
+      const normalizedEmail = reqForm.email.trim().toLowerCase();
+      if (gate.code === 'account_exists') {
+        setEmail(normalizedEmail);
+        setError('');
+        setMode('login');
+        setSuccess('An account already exists for this email. Sign in below.');
+        return;
+      }
+      if (gate.code === 'pending_request') {
+        const meta = { email: normalizedEmail, name: reqForm.name.trim() };
+        savePendingAccess(meta);
+        setWaitingMeta(meta);
+        setMode('waiting');
+        setError('');
+        return;
+      }
       const pending = readPendingAccess();
-      if (pending?.email?.toLowerCase() === reqForm.email.trim().toLowerCase()) {
+      if (pending?.email?.toLowerCase() === normalizedEmail) {
         setWaitingMeta(pending);
         setMode('waiting');
         setError('');
@@ -206,11 +233,19 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
       setError(gate.error);
       return;
     }
-    await onRequestAccess({
-      ...reqForm,
-      ...reqForm.addressParts,
-      address: formatFullAddress(reqForm.addressParts),
-    });
+    try {
+      await onRequestAccess({
+        ...reqForm,
+        name: nameCheck.value,
+        company: companyCheck.value,
+        ...reqForm.addressParts,
+        address: formatFullAddress(reqForm.addressParts),
+      });
+    } catch (err) {
+      setLoading(false);
+      setError(err?.message || 'Could not submit your request.');
+      return;
+    }
     const meta = { email: reqForm.email.trim().toLowerCase(), name: reqForm.name.trim() };
     savePendingAccess(meta);
     setWaitingMeta(meta);
@@ -273,8 +308,8 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
           {mode === 'login' && (
             <>
               <div style={{ marginBottom: '1.25rem' }}>
-                <label style={labelStyle}>Email</label>
-                <input value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} placeholder="you@company.com" style={inputStyle} autoCapitalize="none" />
+                <label style={labelStyle}>Email or username</label>
+                <input value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLogin()} placeholder="you@company.com or yourname" style={inputStyle} autoCapitalize="none" />
               </div>
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={labelStyle}>Password</label>

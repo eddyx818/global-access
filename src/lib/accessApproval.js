@@ -68,6 +68,9 @@ export async function approveAccessRequestAndCreateAccount(req) {
         },
       });
       if (authErr) {
+        if (/already|registered|exists/i.test(authErr.message || '')) {
+          return { ok: false, error: 'An account already exists for this email.' };
+        }
         return { ok: false, error: authErr.message };
       }
       userId = authData.user.id;

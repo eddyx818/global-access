@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { saveProfile, checkUsernameAvailable, isProfileComplete } from '../lib/community';
 import { getPhoneValidationError } from '../lib/accessRequestGate';
+import { validatePersonName, validateCompanyName, validateUsername } from '../lib/nameValidation';
 import {
   getNotificationPrefs,
   saveNotificationPrefs,
@@ -51,6 +52,7 @@ export default function ProfileModal({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [username, setUsername] = useState('');
+  const [showUsernameInChat, setShowUsernameInChat] = useState(false);
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [appointmentDate, setAppointmentDate] = useState('');
@@ -67,6 +69,7 @@ export default function ProfileModal({
     const applyProfileExtras = (data) => {
       if (!data) return;
       setUsername(data.username || '');
+      setShowUsernameInChat(!!data.show_username_in_chat);
       setBio(data.bio || '');
       setAvatarUrl(data.profile_avatar_url || '');
       setAppointmentNotes(data.appointment_notes || '');
@@ -76,7 +79,7 @@ export default function ProfileModal({
     };
 
     supabase.from('user_profiles')
-      .select('username, bio, profile_avatar_url, preferred_appointment_at, appointment_notes, address, address_line2, city, state, zip, lat, lng, support_availability')
+      .select('username, show_username_in_chat, bio, profile_avatar_url, preferred_appointment_at, appointment_notes, address, address_line2, city, state, zip, lat, lng, support_availability')
       .eq('user_id', user.id)
       .single()
       .then(async ({ data, error }) => {
@@ -96,7 +99,7 @@ export default function ProfileModal({
         }
         if (!error) return;
         const { data: basic } = await supabase.from('user_profiles')
-          .select('username, bio, profile_avatar_url')
+          .select('username, show_username_in_chat, bio, profile_avatar_url')
           .eq('user_id', user.id)
           .single();
         applyProfileExtras(basic);
@@ -157,7 +160,28 @@ export default function ProfileModal({
       return;
     }
 
-    const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    const nameCheck = validatePersonName(form.name, { label: 'Full name' });
+    if (!nameCheck.ok) { setError(nameCheck.error); setSaving(false); return; }
+    const companyCheck = validateCompanyName(form.company);
+    if (!companyCheck.ok) { setError(companyCheck.error); setSaving(false); return; }
+
+    const usernameCheck = validateUsername(username);
+    if (!isStaff && !usernameCheck.ok) {
+      setError(usernameCheck.error);
+      setSaving(false);
+      return;
+    }
+    let cleanUsername = null;
+    if (!isStaff) {
+      cleanUsername = usernameCheck.value;
+    } else if (username.trim()) {
+      if (!usernameCheck.ok) {
+        setError(usernameCheck.error);
+        setSaving(false);
+        return;
+      }
+      cleanUsername = usernameCheck.value;
+    }
     if (cleanUsername) {
       const ok = await checkUsernameAvailable(cleanUsername, user.id);
       if (!ok) { setError('Username is already taken.'); setSaving(false); return; }
@@ -175,9 +199,10 @@ export default function ProfileModal({
 
     try {
       const result = await saveProfile(user.id, user.email, {
-        username: cleanUsername || null,
-        name: form.name,
-        company: form.company,
+        username: cleanUsername,
+        show_username_in_chat: !isStaff && !!cleanUsername && showUsernameInChat,
+        name: nameCheck.value,
+        company: companyCheck.value,
         phone: form.phone,
         bio: bio.trim() || null,
         profile_avatar_url: avatarUrl.trim() || null,
@@ -194,10 +219,13 @@ export default function ProfileModal({
         lng: addressParts.lng,
       });
       if (!result.ok) {
+        const dupUser = /username|unique|duplicate/i.test(result.error || '');
         const hint = result.error?.includes('phone')
           ? ' Run supabase-update-26-profile-columns.sql in Supabase, then try again.'
           : '';
-        setError(`Could not save profile.${hint ? ` ${hint}` : result.error ? ` (${result.error})` : ''}`);
+        setError(dupUser
+          ? 'Username is already taken.'
+          : `Could not save profile.${hint ? ` ${hint}` : result.error ? ` (${result.error})` : ''}`);
         setSaving(false);
         return;
       }
@@ -230,9 +258,30 @@ export default function ProfileModal({
       </div>
 
       <div style={{ marginBottom: '1rem' }}>
-        <label style={labelStyle}>Username</label>
+        <label style={labelStyle}>Username{!isStaff ? ' *' : ''}</label>
         <input value={username} onChange={e => setUsername(e.target.value)} placeholder="yourname" style={inputStyle} autoCapitalize="none" />
+        <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6, lineHeight: 1.45 }}>
+          Unique handle — used to sign in and optionally shown in chat instead of your real name.
+        </div>
       </div>
+
+      {!isStaff && (
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: '1rem', fontSize: 13, color: t.textSecondary, cursor: username.trim() ? 'pointer' : 'not-allowed', opacity: username.trim() ? 1 : 0.6 }}>
+          <input
+            type="checkbox"
+            checked={showUsernameInChat}
+            disabled={!username.trim()}
+            onChange={e => setShowUsernameInChat(e.target.checked)}
+            style={{ marginTop: 2 }}
+          />
+          <span>
+            Show my username in chat instead of my real name
+            <span style={{ display: 'block', fontSize: 11, color: t.textMuted, marginTop: 4, lineHeight: 1.45 }}>
+              Our team still sees your full name. Other members only see your username when this is on.
+            </span>
+          </span>
+        </label>
+      )}
 
       <div style={{ marginBottom: '1rem' }}>
         <label style={labelStyle}>Avatar URL</label>

@@ -380,6 +380,27 @@ export function getCustomerParticipantId(convo, profiles = {}) {
   });
 }
 
+export function getStaffChatDisplayName(profile) {
+  if (!profile) return 'Customer';
+  const name = profile.name || profile.company || profile.username || 'Customer';
+  if (profile.username && profile.name && profile.username !== profile.name) {
+    return `${name} (@${profile.username})`;
+  }
+  return name;
+}
+
+export function getChatDisplayName(profile, { viewerIsStaff = false } = {}) {
+  if (!profile) return 'User';
+  if (viewerIsStaff) return getStaffChatDisplayName(profile);
+  if (profile.is_portal_admin || profile.is_sales_rep) {
+    return profile.name || 'Trade Desk';
+  }
+  if (profile.show_username_in_chat && profile.username) {
+    return profile.username;
+  }
+  return profile.username || profile.name || profile.company || 'User';
+}
+
 export function getConversationTitle(convo, profiles, currentUserId, { isAdmin = false, isSalesRep = false, customerChatLabel = 'Trade Desk' } = {}) {
   if (convo.is_group) {
     return convo.group_name || customerChatLabel;
@@ -387,12 +408,12 @@ export function getConversationTitle(convo, profiles, currentUserId, { isAdmin =
   if (isAdmin || isSalesRep) {
     const customerId = getCustomerParticipantId(convo, profiles);
     const p = profiles[customerId] || {};
-    return p.name || p.company || p.username || 'Customer';
+    return getStaffChatDisplayName(p);
   }
   const otherId = (convo.participant_user_ids || []).find(id => id !== currentUserId);
   const p = profiles[otherId] || {};
   if (p.is_portal_admin || p.is_sales_rep) return customerChatLabel;
-  return p.username || p.name || p.company || 'User';
+  return getChatDisplayName(p, { viewerIsStaff: false });
 }
 
 export function isGroupConversation(convo) {
@@ -505,6 +526,7 @@ export async function saveProfile(userId, email, fields) {
   if (fields.lat !== undefined) payload.lat = fields.lat;
   if (fields.lng !== undefined) payload.lng = fields.lng;
   if (fields.support_availability !== undefined) payload.support_availability = fields.support_availability;
+  if (fields.show_username_in_chat !== undefined) payload.show_username_in_chat = fields.show_username_in_chat;
 
   const tryUpsert = async (body) => {
     const { error } = await supabase.from('user_profiles').upsert(body, { onConflict: 'user_id' });
@@ -525,6 +547,7 @@ export async function saveProfile(userId, email, fields) {
       delete body.bio;
       delete body.profile_avatar_url;
       delete body.username;
+      delete body.show_username_in_chat;
     }
     error = await tryUpsert(body);
     attempts += 1;
@@ -554,13 +577,26 @@ function missingColumnFromError(error) {
 }
 
 export async function checkUsernameAvailable(username, currentUserId) {
-  const { data } = await supabase
-    .from('user_profiles')
-    .select('user_id')
-    .eq('username', username.toLowerCase())
-    .maybeSingle();
-  if (!data) return true;
-  return data.user_id === currentUserId;
+  const clean = (username || '').trim().toLowerCase();
+  if (!clean) return true;
+  try {
+    const { data, error } = await supabase.rpc('check_username_available', {
+      p_username: clean,
+      p_user_id: currentUserId || null,
+    });
+    if (error) {
+      const { data: row } = await supabase
+        .from('user_profiles')
+        .select('user_id')
+        .eq('username', clean)
+        .maybeSingle();
+      if (!row) return true;
+      return row.user_id === currentUserId;
+    }
+    return data === true;
+  } catch (_) {
+    return true;
+  }
 }
 
 export async function confirmConversationContact(conversationId, adminUserId) {
