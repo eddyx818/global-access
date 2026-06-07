@@ -5,28 +5,35 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
   const [lightboxIdx, setLightboxIdx] = useState(0);
   const [orderMode, setOrderMode] = useState({}); // per sku: 'master_case' | 'pallet'
   const [quantities, setQuantities] = useState({}); // per flavor key: qty
+  const [brokenImages, setBrokenImages] = useState({});
   const galleryRef = useRef(null);
   const isDistributor = userType === 'distributor';
+
+  const markImageBroken = (key) => {
+    setBrokenImages(prev => (prev[key] ? prev : { ...prev, [key]: true }));
+  };
+
+  const galleryImages = (brand?.gallery || []).filter(img => img && !brokenImages[`gallery:${img}`]);
 
   // Keyboard navigation for lightbox
   React.useEffect(() => {
     const handleKey = (e) => {
       if (lightbox === null) return;
       const gallery = brand?.gallery || [];
-      if (e.key === 'ArrowRight') setLightboxIdx(i => (i + 1) % gallery.length);
-      if (e.key === 'ArrowLeft') setLightboxIdx(i => (i - 1 + gallery.length) % gallery.length);
+      if (e.key === 'ArrowRight') setLightboxIdx(i => (i + 1) % galleryImages.length);
+      if (e.key === 'ArrowLeft') setLightboxIdx(i => (i - 1 + galleryImages.length) % galleryImages.length);
       if (e.key === 'Escape') setLightbox(null);
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [lightbox, brand]);
+  }, [lightbox, brand, galleryImages.length]);
 
   // Sync lightbox image when idx changes (only if already open)
   React.useEffect(() => {
-    if (lightbox !== null && brand?.gallery && lightboxIdx >= 0) {
-      setLightbox(brand.gallery[lightboxIdx]);
+    if (lightbox !== null && galleryImages.length && lightboxIdx >= 0) {
+      setLightbox(galleryImages[lightboxIdx]);
     }
-  }, [lightboxIdx]); // eslint-disable-line
+  }, [lightboxIdx, galleryImages, lightbox]); // eslint-disable-line
 
   const scrollGallery = (dir) => {
     if (galleryRef.current) galleryRef.current.scrollBy({ left: dir * 220, behavior: 'smooth' });
@@ -69,6 +76,48 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
     ? `repeat(${gridColumns}, 1fr)`
     : (isMobile ? '1fr' : 'repeat(auto-fill, minmax(200px, 1fr))');
 
+  const productHeader = (product, { onDark = false } = {}) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontFamily: "'Bebas Neue', sans-serif",
+          fontSize: onDark ? 24 : 24,
+          color: onDark ? '#FFF' : '#1A1A1A',
+          letterSpacing: '0.04em',
+          lineHeight: 1,
+        }}>
+          {product.name}
+        </div>
+        {product.detail && (
+          <div style={{
+            fontSize: onDark ? 11 : 12,
+            color: onDark ? 'rgba(255,255,255,0.65)' : '#AAA',
+            marginTop: 4,
+            lineHeight: 1.5,
+          }}>
+            {product.detail}
+          </div>
+        )}
+      </div>
+      <div style={{
+        background: onDark ? 'rgba(0,0,0,0.55)' : '#FDF6E3',
+        border: onDark ? 'none' : '0.5px solid #F5D87A',
+        borderRadius: onDark ? 6 : 8,
+        padding: onDark ? '3px 9px' : '6px 12px',
+        fontSize: onDark ? 10 : 11,
+        color: onDark ? '#C9A84C' : '#A07A20',
+        fontWeight: 700,
+        letterSpacing: '0.08em',
+        flexShrink: 0,
+        textAlign: 'center',
+        backdropFilter: onDark ? 'blur(6px)' : 'none',
+      }}>
+        {!onDark && <div style={{ fontSize: 9, color: '#C9A84C', letterSpacing: '0.1em', marginBottom: 2 }}>SKU</div>}
+        {onDark ? `SKU: ${product.sku}` : product.sku}
+      </div>
+    </div>
+  );
+
   const unitLabel = (product) => {
     const mode = getOrderMode(product);
     return mode === 'pallet' ? 'Pallet' : 'Master Case';
@@ -104,22 +153,29 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
         </div>
       </div>
 
-      {/* Gallery */}
-      {brand.gallery && brand.gallery.length > 0 && (
+      {/* Gallery — only show slots with valid photos */}
+      {galleryImages.length > 0 && (
         <div style={{ marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ fontSize: 10, letterSpacing: '0.2em', color: '#BBB', textTransform: 'uppercase' }}>Photos</div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => scrollGallery(-1)} style={{ width: 28, height: 28, background: '#FFF', border: '0.5px solid #E0DDD8', borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>‹</button>
-              <button onClick={() => scrollGallery(1)} style={{ width: 28, height: 28, background: '#FFF', border: '0.5px solid #E0DDD8', borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>›</button>
-            </div>
+            {galleryImages.length > 1 && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => scrollGallery(-1)} style={{ width: 28, height: 28, background: '#FFF', border: '0.5px solid #E0DDD8', borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>‹</button>
+                <button onClick={() => scrollGallery(1)} style={{ width: 28, height: 28, background: '#FFF', border: '0.5px solid #E0DDD8', borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>›</button>
+              </div>
+            )}
           </div>
           <div ref={galleryRef} style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 8, scrollbarWidth: 'none' }}>
-            {brand.gallery.map((img, i) => (
-              <div key={i} onClick={() => { setLightboxIdx(i); setLightbox(img); }} style={{ flexShrink: 0, width: isMobile ? 160 : 200, height: isMobile ? 120 : 150, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', scrollSnapAlign: 'start', border: '0.5px solid #E8E4DF', transition: 'transform 0.2s' }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
-                <img src={img} alt={`${brand.name} ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.parentElement.style.background = '#F8F6F3'; e.target.style.display = 'none'; }} />
+            {galleryImages.map((img, i) => (
+              <div key={img} onClick={() => { setLightboxIdx(i); setLightbox(img); }} style={{ flexShrink: 0, width: isMobile ? 160 : 200, height: isMobile ? 120 : 150, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', scrollSnapAlign: 'start', border: '0.5px solid #E8E4DF', transition: 'transform 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}>
+                <img
+                  src={img}
+                  alt={`${brand.name} ${i + 1}`}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={() => markImageBroken(`gallery:${img}`)}
+                />
               </div>
             ))}
           </div>
@@ -136,28 +192,28 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
           <button onClick={() => setLightbox(null)} style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: 'none', borderRadius: '50%', width: 44, height: 44, color: '#FFF', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>×</button>
 
           {/* Left arrow */}
-          {brand.gallery && brand.gallery.length > 1 && (
-            <button onClick={(e) => { e.stopPropagation(); setLightboxIdx(i => (i - 1 + brand.gallery.length) % brand.gallery.length); }}
+          {brand.gallery && galleryImages.length > 1 && (
+            <button onClick={(e) => { e.stopPropagation(); setLightboxIdx(i => (i - 1 + galleryImages.length) % galleryImages.length); }}
               style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: 'none', borderRadius: '50%', width: 48, height: 48, color: '#FFF', fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>‹</button>
           )}
 
           {/* Right arrow */}
-          {brand.gallery && brand.gallery.length > 1 && (
-            <button onClick={(e) => { e.stopPropagation(); setLightboxIdx(i => (i + 1) % brand.gallery.length); }}
+          {brand.gallery && galleryImages.length > 1 && (
+            <button onClick={(e) => { e.stopPropagation(); setLightboxIdx(i => (i + 1) % galleryImages.length); }}
               style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: 'none', borderRadius: '50%', width: 48, height: 48, color: '#FFF', fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>›</button>
           )}
 
           {/* Counter */}
-          {brand.gallery && brand.gallery.length > 1 && (
+          {galleryImages.length > 1 && (
             <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', borderRadius: 20, padding: '5px 14px', fontSize: 12, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.06em' }}>
-              {lightboxIdx + 1} / {brand.gallery.length}
+              {lightboxIdx + 1} / {galleryImages.length}
             </div>
           )}
 
           {/* Dot strip */}
-          {brand.gallery && brand.gallery.length > 1 && (
+          {galleryImages.length > 1 && (
             <div style={{ position: 'absolute', bottom: 52, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
-              {brand.gallery.map((_, i) => (
+              {galleryImages.map((_, i) => (
                 <div key={i} onClick={() => setLightboxIdx(i)} style={{ width: i === lightboxIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === lightboxIdx ? '#FFF' : 'rgba(255,255,255,0.3)', cursor: 'pointer', transition: 'all 0.2s' }} />
               ))}
             </div>
@@ -178,33 +234,29 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
           const productFlavors = isDistributor ? (product.flavors_distro || []) : (product.flavors_retail || []);
           const currentMode = getOrderMode(product);
           const showToggle = isDistributor && product.orderUnit === 'both';
+          const imageKey = `product:${product.sku}`;
+          const showProductImage = product.image && !brokenImages[imageKey];
 
           return (
             <div key={product.sku} style={{ background: '#FFF', borderRadius: 16, overflow: 'hidden', ...productCardStyles[cardStyle] }}>
-              {/* Product image */}
-              {product.image && (
+              {showProductImage && (
                 <div style={{ position: 'relative', height: 160, overflow: 'hidden' }}>
-                  <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.parentElement.style.display = 'none'; }} />
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={() => markImageBroken(imageKey)}
+                  />
                   <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.65), transparent)' }} />
-                  <div style={{ position: 'absolute', bottom: 14, left: 16, right: 80 }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: '#FFF', letterSpacing: '0.04em', lineHeight: 1 }}>{product.name}</div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 3 }}>{product.detail}</div>
+                  <div style={{ position: 'absolute', bottom: 14, left: 16, right: 16 }}>
+                    {productHeader(product, { onDark: true })}
                   </div>
-                  <div style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', borderRadius: 6, padding: '3px 9px', fontSize: 10, color: '#C9A84C', letterSpacing: '0.08em', fontWeight: 600 }}>SKU: {product.sku}</div>
                 </div>
               )}
 
-              {/* No image fallback — always shows name, detail, SKU */}
-              {!product.image && (
-                <div style={{ padding: '1rem 1.25rem 0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, borderBottom: '0.5px solid #F0EDE8' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 24, color: '#1A1A1A', letterSpacing: '0.04em', lineHeight: 1 }}>{product.name}</div>
-                    <div style={{ fontSize: 12, color: '#AAA', marginTop: 4, lineHeight: 1.5 }}>{product.detail}</div>
-                  </div>
-                  <div style={{ background: '#FDF6E3', border: '0.5px solid #F5D87A', borderRadius: 8, padding: '6px 12px', fontSize: 11, color: '#A07A20', fontWeight: 700, letterSpacing: '0.08em', flexShrink: 0, textAlign: 'center' }}>
-                    <div style={{ fontSize: 9, color: '#C9A84C', letterSpacing: '0.1em', marginBottom: 2 }}>SKU</div>
-                    {product.sku}
-                  </div>
+              {!showProductImage && (
+                <div style={{ padding: '1rem 1.25rem 0.5rem', borderBottom: '0.5px solid #F0EDE8' }}>
+                  {productHeader(product)}
                 </div>
               )}
 

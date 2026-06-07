@@ -74,22 +74,13 @@ export function useBrandContent() {
     return allBrands.map(brand => {
       const override = brandOverrides[brand.id] || {};
 
-      // Build gallery: start with hardcoded, add any uploaded images from product_content
-      const uploadedProductImages = brand.products
-        .map(p => {
-          const po = productOverrides[p.sku] || {};
-          return po.image_url || null;
-        })
-        .filter(Boolean);
-
-      // Also include gallery table uploads
+      // Gallery: admin uploads + hardcoded brand photos only (product images stay on product cards)
       const galleryItems = (galleryOverrides[brand.id] || [])
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-        .map(g => g.image_url);
+        .map(g => g.image_url)
+        .filter(Boolean);
 
-      // Merge: uploaded product images first, then gallery extras, then hardcoded fallbacks
-      const allImages = [...new Set([...uploadedProductImages, ...galleryItems, ...brand.gallery])];
-      const finalGallery = allImages.filter(Boolean).length > 0 ? allImages.filter(Boolean) : brand.gallery;
+      const finalGallery = [...new Set([...galleryItems, ...(brand.gallery || [])])].filter(Boolean);
 
       return {
         ...brand,
