@@ -93,12 +93,12 @@ export function InterestView({
       )}
       <button onClick={onSubmit} disabled={interests.length === 0} style={{ width: '100%', background: interests.length > 0 ? t.btnPrimaryBg : t.border, color: interests.length > 0 ? t.btnPrimaryText : t.textDisabled, border: 'none', borderRadius: 10, padding: '15px', fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', cursor: interests.length > 0 ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontFamily: 'inherit' }}>
         {staffPriceCheck
-          ? `Send to team (${interests.length} item${interests.length !== 1 ? 's' : ''}) →`
+          ? `Continue to Price check (${interests.length} item${interests.length !== 1 ? 's' : ''}) →`
           : `Request quote (${interests.length} item${interests.length !== 1 ? 's' : ''}) →`}
       </button>
       <div style={{ textAlign: 'center', fontSize: 12, color: t.textDisabled, marginTop: 10 }}>
         {staffPriceCheck
-          ? 'Posted to Inbox for internal review — not a customer quote.'
+          ? 'Finish and submit on the Price check tab — not a customer quote.'
           : `Saved to our team. Track updates in ${chatLabel}.`}
       </div>
     </div>

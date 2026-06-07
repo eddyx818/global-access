@@ -30,6 +30,7 @@ import QuoteBuilderPanel from '../QuoteBuilderPanel';
 import ChatStaffTools from '../ChatStaffTools';
 import ScheduleCallRequest from '../ScheduleCallRequest';
 import StaffWhatsAppCallButton from './StaffWhatsAppCallButton';
+import ChatPriceCheckPanel from '../ChatPriceCheckPanel';
 import { useTheme } from '../../context/ThemeContext';
 
 async function loadProfileMap(userIds) {
@@ -56,6 +57,7 @@ export default function ChatSidebar({
   onRequireProfile,
   openSupportOnLoad = 0,
   customerChatLabel = 'Trade Desk',
+  onPriceCheckSubmitted = null,
 }) {
   const { t } = useTheme();
   const isStaff = isAdmin || isSalesRep;
@@ -563,6 +565,17 @@ export default function ChatSidebar({
                       Propose different time
                     </button>
                   </div>
+                )}
+                {isStaff && customerUserId && activeConvo && (
+                  <ChatPriceCheckPanel
+                    staffUserId={user.id}
+                    customerProfile={staffCustomerProfile}
+                    customerUserId={customerUserId}
+                    conversationId={activeConvo.id}
+                    customerInquiry={customerInquiry}
+                    lastCustomerMessage={[...messages].reverse().find(m => m.from_user_id === customerUserId && m.content && !m.is_system)?.content || ''}
+                    onSubmitted={() => onPriceCheckSubmitted?.()}
+                  />
                 )}
                 {isStaff && customerInquiry && (
                   <QuoteBuilderPanel

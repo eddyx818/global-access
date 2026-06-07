@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
 import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, getPortalReferral } from './lib/session';
 import { getRememberLogin, getSavedLogin } from './lib/loginPrefs';
-import { updateUserPresence, resolveAuthRole, ensurePortalAdminFlag, submitInterestToSupport, sendStaffPriceCheck, isProfileComplete } from './lib/community';
+import { updateUserPresence, resolveAuthRole, ensurePortalAdminFlag, submitInterestToSupport, isProfileComplete } from './lib/community';
 import { resolveCustomerChatLabel, staffChatLabel } from './lib/chatLabels';
 import { useBrandContent } from './lib/content';
 import { getFontFamily } from './lib/design';
@@ -35,8 +35,10 @@ import {
   readSavedPortalNav,
   saveAppNavigation,
 } from './lib/appNavigation';
-import StaffInboxView from './components/StaffInboxView';
-import { countNewInboxItems, fetchStaffInboxItems } from './lib/staffInbox';
+import StaffQuotesView from './components/StaffQuotesView';
+import StaffPriceCheckView from './components/StaffPriceCheckView';
+import { fetchRecentInquiries } from './lib/inquiries';
+import { fetchRecentPriceChecks, countNewPriceChecks } from './lib/priceChecks';
 import { isSessionResumable, clearAppSession } from './lib/appSession';
 
 export default function App() {
@@ -80,14 +82,15 @@ export default function App() {
     enabled: !!user?.id,
   });
   const { canInstall, showIosHint, isInstalled, install } = usePwaInstall();
-  const [inboxNewCount, setInboxNewCount] = useState(0);
+  const [quotesNewCount, setQuotesNewCount] = useState(0);
+  const [priceCheckNewCount, setPriceCheckNewCount] = useState(0);
   const isStaffPortalUser = isPortalAdmin || isSalesRep;
   const isAdminPortalPreview = authState === 'admin' && adminMode === 'portal';
   const isRepCatalog = authState === 'sales_rep' && repMode === 'portal';
   const isStaffCatalogPortal = isAdminPortalPreview || isRepCatalog;
   const isStaffPriceCheck = isStaffCatalogPortal;
   const showCustomerShopping = !isStaffPortalUser || isStaffCatalogPortal;
-  const showCustomerList = showCustomerShopping;
+  const showCustomerList = showCustomerShopping && !isStaffCatalogPortal;
   const showStaffTools = isStaffPortalUser && !isStaffCatalogPortal;
 
   const inPortalView = authState === 'portal' || authState === 'browse'
@@ -176,10 +179,16 @@ export default function App() {
     if (mobileShell) setView('home');
   };
 
-  const navigateInbox = () => {
+  const navigateQuotes = () => {
     setShowProfile(false);
     setProfileGate(null);
-    setView('inbox');
+    setView('quotes');
+  };
+
+  const navigatePriceChecks = () => {
+    setShowProfile(false);
+    setProfileGate(null);
+    setView('price_checks');
   };
 
   const navigateProfile = () => {
@@ -211,8 +220,9 @@ export default function App() {
 
   useEffect(() => {
     if (!isStaffPortalUser || !inPortalView) return;
-    fetchStaffInboxItems(50).then(({ quotes, priceChecks }) => {
-      setInboxNewCount(countNewInboxItems(quotes, priceChecks));
+    Promise.all([fetchRecentInquiries(50), fetchRecentPriceChecks(50)]).then(([quotes, priceChecks]) => {
+      setQuotesNewCount(quotes.filter(i => (i.quote_status || 'new') === 'new').length);
+      setPriceCheckNewCount(countNewPriceChecks(priceChecks));
     });
   }, [isStaffPortalUser, inPortalView, view]);
 
@@ -236,8 +246,16 @@ export default function App() {
       return;
     }
 
-    if (view === 'inbox' && !isStaffPortalUser) {
+    if (view === 'quotes' && !isStaffPortalUser) {
       setView('home');
+    }
+
+    if (view === 'price_checks' && !isStaffPortalUser) {
+      setView('home');
+    }
+
+    if (view === 'inbox') {
+      setView(isStaffPortalUser ? 'quotes' : 'home');
     }
 
     if (view === 'interest' && !showCustomerList) {
@@ -623,7 +641,7 @@ export default function App() {
     if (!showCustomerShopping) return;
     if (isStaffPriceCheck) {
       if (!interests.length) return;
-      doSubmit();
+      setView('price_checks');
       return;
     }
     if (authState === 'browse') {
@@ -642,29 +660,7 @@ export default function App() {
 
   const doSubmit = async () => {
     if (!showCustomerShopping) return;
-    if (isStaffPriceCheck) {
-      if (!interests.length || !user?.id) return;
-      try {
-        const result = await sendStaffPriceCheck(user.id, {
-          interests,
-          userType,
-          notes: form.notes,
-        });
-        setOpenSupportOnLoad(n => n + 1);
-        setInterests([]);
-        setForm(f => ({ ...f, notes: '' }));
-        setView('inbox');
-        if (!result.inboxSaved) {
-          window.alert(
-            result.inboxError
-              || 'Price check was sent to Messages, but could not save to Inbox. Run SQL migration 43 in Supabase.',
-          );
-        }
-      } catch (err) {
-        window.alert(err?.message || 'Could not send price check. Try again or open Messages.');
-      }
-      return;
-    }
+    if (isStaffPriceCheck) return;
     const nameCheck = validatePersonName(form.name, { label: 'Name' });
     if (!nameCheck.ok) {
       const msg = nameCheck.error;
@@ -833,9 +829,12 @@ export default function App() {
         includeSafeAreaTop={isMobileDevice && !portalTopChrome}
         unread={chatUnread}
         showCustomerList={showCustomerList}
-        listLabel={isStaffPriceCheck ? 'Price check' : 'My List'}
-        onInbox={isStaffPortalUser ? navigateInbox : null}
-        inboxNewCount={inboxNewCount}
+        onQuotes={isStaffPortalUser ? navigateQuotes : null}
+        onPriceChecks={isStaffCatalogPortal ? navigatePriceChecks : null}
+        quotesNewCount={quotesNewCount}
+        priceCheckNewCount={priceCheckNewCount}
+        priceCheckDraftCount={isStaffCatalogPortal ? interests.length : 0}
+        homeLabel={isStaffCatalogPortal ? 'Catalog' : 'Home'}
         isAdmin={isPortalAdmin && adminMode === 'portal'}
         onAdminClick={openAdminDashboard}
         showAdminPreview={isStaffCatalogPortal}
@@ -856,6 +855,9 @@ export default function App() {
             onRequireProfile={requireProfileForChat}
             openSupportOnLoad={openSupportOnLoad}
             customerChatLabel={chatLabel}
+            onPriceCheckSubmitted={() => {
+              fetchRecentPriceChecks(50).then(rows => setPriceCheckNewCount(countNewPriceChecks(rows)));
+            }}
           />
         </ChatErrorBoundary>
       )}
@@ -929,6 +931,9 @@ export default function App() {
               onRequireProfile={requireProfileForChat}
               openSupportOnLoad={openSupportOnLoad}
               customerChatLabel={chatLabel}
+              onPriceCheckSubmitted={() => {
+                fetchRecentPriceChecks(50).then(rows => setPriceCheckNewCount(countNewPriceChecks(rows)));
+              }}
             />
           </ChatErrorBoundary>
         </div>
@@ -995,14 +1000,30 @@ export default function App() {
           staffPriceCheck={isStaffPriceCheck}
         />
       )}
-      {view === 'inbox' && isStaffPortalUser && (
+      {view === 'quotes' && isStaffPortalUser && (
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-          <StaffInboxView
+          <StaffQuotesView
             isMobile={isMobile || isMobileDevice}
-            onCountsChange={setInboxNewCount}
+            onCountsChange={setQuotesNewCount}
+            staffUserId={user?.id}
+          />
+        </div>
+      )}
+      {view === 'price_checks' && isStaffCatalogPortal && (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <StaffPriceCheckView
+            isMobile={isMobile || isMobileDevice}
             staffUserId={user?.id}
             isPortalAdmin={isPortalAdmin}
-            onOpenChat={openChat}
+            interests={interests}
+            toggleInterest={toggleInterest}
+            userType={userType}
+            onUserTypeChange={setUserType}
+            onCountsChange={setPriceCheckNewCount}
+            onSubmitted={() => {
+              setInterests([]);
+              setForm(f => ({ ...f, notes: '' }));
+            }}
           />
         </div>
       )}
@@ -1021,16 +1042,21 @@ export default function App() {
           activeView={view}
           onHome={navigateHome}
           onList={navigateList}
-          onInbox={navigateInbox}
+          onQuotes={navigateQuotes}
+          onPriceChecks={navigatePriceChecks}
           onChat={openChat}
           onProfile={navigateProfile}
           listCount={interests.length}
-          inboxCount={inboxNewCount}
+          quotesCount={quotesNewCount}
+          priceCheckCount={priceCheckNewCount}
+          priceCheckDraftCount={interests.length}
           unread={chatUnread}
           chatLabel={chatLabel}
           showList={showCustomerList}
-          listLabel={isStaffPriceCheck ? 'Price check' : 'My List'}
-          showInbox={isStaffPortalUser}
+          listLabel="My List"
+          showQuotes={isStaffPortalUser}
+          showPriceChecks={isStaffCatalogPortal}
+          homeLabel={isStaffCatalogPortal ? 'Catalog' : 'Home'}
         />
       )}
     </div>

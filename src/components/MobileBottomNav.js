@@ -5,25 +5,33 @@ export default function MobileBottomNav({
   activeView,
   onHome,
   onList,
-  onInbox,
+  onQuotes,
+  onPriceChecks,
   onChat,
   onProfile,
   listCount = 0,
-  inboxCount = 0,
+  quotesCount = 0,
+  priceCheckCount = 0,
+  priceCheckDraftCount = 0,
   unread = 0,
   chatLabel = 'Support',
   showList = true,
   listLabel = 'My List',
-  showInbox = false,
+  showQuotes = false,
+  showPriceChecks = false,
   showChat = true,
   showProfile = true,
+  homeLabel = 'Home',
 }) {
   const { t } = useTheme();
 
+  const priceCheckBadge = (priceCheckCount || 0) + (priceCheckDraftCount > 0 ? priceCheckDraftCount : 0);
+
   const items = [
-    { id: 'home', label: 'Home', icon: '⌂', onClick: onHome, active: activeView === 'home' || activeView === 'brand' },
+    { id: 'home', label: homeLabel, icon: '⌂', onClick: onHome, active: activeView === 'home' || activeView === 'brand' },
     showList && { id: 'list', label: listLabel, icon: '☰', onClick: onList, active: activeView === 'interest', badge: listCount || null },
-    showInbox && { id: 'inbox', label: 'Inbox', icon: '📥', onClick: onInbox, active: activeView === 'inbox' || activeView === 'quotes', badge: inboxCount || null },
+    showQuotes && { id: 'quotes', label: 'Quotes', icon: '📋', onClick: onQuotes, active: activeView === 'quotes', badge: quotesCount || null },
+    showPriceChecks && { id: 'price_checks', label: 'Price check', icon: '💰', onClick: onPriceChecks, active: activeView === 'price_checks', badge: priceCheckBadge || null },
     showChat && { id: 'chat', label: chatLabel, icon: '💬', onClick: onChat, active: activeView === 'chat', badge: unread || null, accent: true },
     showProfile && { id: 'profile', label: 'Profile', icon: '👤', onClick: onProfile, active: activeView === 'profile' },
   ].filter(Boolean);

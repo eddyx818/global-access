@@ -644,30 +644,46 @@ export async function confirmConversationContact(conversationId, adminUserId) {
   return data;
 }
 
-export async function sendStaffPriceCheck(staffUserId, { interests, userType, notes = '' }) {
-  const convo = await getOrCreateSupportConversation(staffUserId);
+export async function sendStaffPriceCheck(staffUserId, {
+  interests = [],
+  userType,
+  notes = '',
+  accountName = '',
+  targetRates = '',
+  customerUserId = null,
+  customerConversationId = null,
+  source = 'catalog',
+}) {
   const itemsList = interests.map(i => {
     const unit = i.orderUnitLabel || (i.orderMode === 'pallet' ? 'pallets' : 'cases');
     const skuPart = i.sku ? `${i.sku} · ` : '';
     return `• ${skuPart}${i.brandName} — ${i.productName}\n  ${i.flavor || '—'} · Qty ${i.qty || 1} ${unit}`;
   }).join('\n');
+
+  const accountLine = accountName?.trim()
+    ? `Account / store: ${accountName.trim()}`
+    : null;
+  const targetLine = targetRates?.trim()
+    ? `Customer target rates / their quote:\n${targetRates.trim()}`
+    : null;
+  const sourceLine = source === 'chat'
+    ? 'Source: customer chat'
+    : 'Source: catalog price check';
+
   const text = [
     '📋 Internal price check (staff)',
+    '',
+    accountLine,
+    sourceLine,
     '',
     itemsList || '(No line items)',
     '',
     `Preview pricing as: ${userType === 'distributor' ? 'Distributor' : 'Retailer'}`,
+    targetLine,
     notes?.trim() ? `Notes: ${notes.trim()}` : '',
     '',
     'Team — please reply with best pricing or catalog guidance.',
   ].filter(Boolean).join('\n');
-  const adminId = convo.participant_user_ids.find(id => id !== staffUserId);
-  const msg = await sendMessage({
-    conversationId: convo.id,
-    fromUserId: staffUserId,
-    toUserId: adminId,
-    content: text,
-  });
 
   const serialized = interests.map(i => ({
     key: i.key,
@@ -680,19 +696,42 @@ export async function sendStaffPriceCheck(staffUserId, { interests, userType, no
     orderMode: i.orderMode,
     orderUnitLabel: i.orderUnitLabel,
   }));
+
+  let msg = null;
+  let recordConversationId = customerConversationId || null;
+
+  if (source === 'chat' && customerConversationId) {
+    recordConversationId = customerConversationId;
+  } else {
+    const supportConvo = await getOrCreateSupportConversation(staffUserId);
+    recordConversationId = supportConvo.id;
+    const adminId = supportConvo.participant_user_ids.find(id => id !== staffUserId);
+    msg = await sendMessage({
+      conversationId: supportConvo.id,
+      fromUserId: staffUserId,
+      toUserId: adminId,
+      content: text,
+    });
+  }
+
   const record = await createStaffPriceCheckRecord({
     staffUserId,
     interests: serialized,
     userType,
     notes,
-    conversationId: convo.id,
+    accountName,
+    targetRates,
+    customerUserId,
+    conversationId: recordConversationId,
     messageId: msg?.id || null,
+    source,
   });
 
   return {
-    convo,
-    inboxSaved: !!record.ok,
-    inboxError: record.ok ? null : record.error,
+    convo: { id: recordConversationId },
+    saved: !!record.ok,
+    error: record.ok ? null : record.error,
+    row: record.row,
   };
 }
 

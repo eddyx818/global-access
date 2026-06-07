@@ -22,8 +22,12 @@ export default function Nav({
   unread = 0,
   showCustomerList = true,
   listLabel = 'My List',
-  onInbox = null,
-  inboxNewCount = 0,
+  onQuotes = null,
+  onPriceChecks = null,
+  quotesNewCount = 0,
+  priceCheckNewCount = 0,
+  priceCheckDraftCount = 0,
+  homeLabel = 'Home',
   showAdminPreview = false,
   onStaffHomeClick = null,
   previewUserType = 'retailer',
@@ -170,9 +174,14 @@ export default function Nav({
             {isMobile ? `${listLabel} (${interests.length})` : `${listLabel} (${interests.length})`}
           </button>
         )}
-        {!showCustomerList && onInbox && !hideMobileActions && (
-          <button type="button" onClick={onInbox} style={{ background: t.goldBg, color: t.gold, border: `0.5px solid ${t.gold}`, borderRadius: btnRadius >= 18 ? 20 : btnRadius, padding: isMobile ? '5px 12px' : '6px 16px', fontSize: isMobile ? 11 : 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', position: 'relative' }}>
-            Inbox{inboxNewCount > 0 ? ` (${inboxNewCount})` : ''}
+        {!showCustomerList && onQuotes && !hideMobileActions && (
+          <button type="button" onClick={onQuotes} style={{ background: t.goldBg, color: t.gold, border: `0.5px solid ${t.gold}`, borderRadius: btnRadius >= 18 ? 20 : btnRadius, padding: isMobile ? '5px 12px' : '6px 16px', fontSize: isMobile ? 11 : 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Quotes{quotesNewCount > 0 ? ` (${quotesNewCount})` : ''}
+          </button>
+        )}
+        {!showCustomerList && onPriceChecks && !hideMobileActions && (
+          <button type="button" onClick={onPriceChecks} style={{ background: t.accentBg, color: t.accentDark, border: `0.5px solid ${t.accentBorder}`, borderRadius: btnRadius >= 18 ? 20 : btnRadius, padding: isMobile ? '5px 12px' : '6px 16px', fontSize: isMobile ? 11 : 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Price check{(priceCheckNewCount + priceCheckDraftCount) > 0 ? ` (${priceCheckNewCount + priceCheckDraftCount})` : ''}
           </button>
         )}
         {onChat && !hideMobileActions && (
