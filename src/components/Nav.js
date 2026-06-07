@@ -42,11 +42,19 @@ export default function Nav({
     }
   };
 
+  const glassSurface = {
+    background: isNight ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.55)',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+    border: isNight ? '0.5px solid rgba(255, 255, 255, 0.12)' : '0.5px solid rgba(0, 0, 0, 0.08)',
+  };
+
   const dashboardBtnStyle = {
-    background: '#C9A84C',
-    color: '#1A1A1A',
-    border: 'none',
-    borderRadius: 8,
+    ...glassSurface,
+    background: isNight ? 'rgba(212, 180, 90, 0.22)' : 'rgba(201, 168, 76, 0.28)',
+    color: isNight ? '#E8D08A' : '#6B5210',
+    border: isNight ? '0.5px solid rgba(212, 180, 90, 0.45)' : '0.5px solid rgba(201, 168, 76, 0.5)',
+    borderRadius: 10,
     padding: isMobile ? '6px 10px' : '6px 12px',
     fontSize: isMobile ? 11 : 12,
     fontWeight: 700,
@@ -57,79 +65,91 @@ export default function Nav({
     lineHeight: 1.2,
   };
 
-  return (
-    <nav
-      className={`app-no-select app-portal-nav${isMobile && includeSafeAreaTop ? ' app-portal-nav--safe-top' : ''}${showAdminPreview ? ' app-portal-nav--admin' : ''}`}
+  const signOutBtnStyle = {
+    ...glassSurface,
+    borderRadius: 10,
+    padding: isMobile ? '6px 8px' : '6px 12px',
+    fontSize: isMobile ? 10 : 12,
+    color: t.textMuted,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+    lineHeight: 1.2,
+  };
+
+  const previewToggle = showAdminPreview && onPreviewUserTypeChange ? (
+    <div
+      role="group"
+      aria-label="Preview account type"
+      className="app-portal-nav__preview-toggle"
       style={{
-      position: 'sticky',
-      top: 0,
-      zIndex: 100,
-      background: showAdminPreview && isMobile ? undefined : (showAdminPreview ? '#161616' : t.navBg),
-      backdropFilter: showAdminPreview ? 'none' : 'blur(16px)',
-      WebkitBackdropFilter: showAdminPreview ? 'none' : 'blur(16px)',
-      borderBottom: showAdminPreview ? '0.5px solid #2A2A2A' : `0.5px solid ${t.navBorder}`,
-      ...(isMobile ? {} : {
-        boxSizing: 'border-box',
+        display: 'inline-flex',
         flexShrink: 0,
-        height: 52,
-        paddingLeft: '1.25rem',
-        paddingRight: '1.25rem',
-        paddingTop: 0,
-        paddingBottom: 0,
-      }),
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      transition: 'background 0.35s ease, border-color 0.35s ease',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, minWidth: 0, flex: showAdminPreview && isMobile ? 1 : undefined }}>
-        <button type="button" onClick={() => (onHome ? onHome() : setView('home'))} style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile && showAdminPreview ? 17 : (isMobile ? 18 : 22), letterSpacing: '0.06em', color: showAdminPreview ? '#F5F2ED' : primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, whiteSpace: 'nowrap' }}>
+        borderRadius: 10,
+        overflow: 'hidden',
+        ...glassSurface,
+        background: isNight ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.45)',
+      }}
+    >
+      {[
+        ['retailer', isMobile ? 'Retailer' : 'Retailer'],
+        ['distributor', isMobile ? 'Distro' : 'Distributor'],
+      ].map(([type, label]) => (
+        <button
+          key={type}
+          type="button"
+          onClick={() => onPreviewUserTypeChange(type)}
+          style={{
+            padding: isMobile ? '6px 10px' : '6px 12px',
+            fontSize: isMobile ? 10 : 11,
+            fontWeight: 700,
+            letterSpacing: '0.02em',
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            background: previewUserType === type
+              ? (isNight ? 'rgba(212, 180, 90, 0.32)' : 'rgba(201, 168, 76, 0.38)')
+              : 'transparent',
+            color: previewUserType === type ? (isNight ? '#F0E2B0' : '#5C4808') : t.textMuted,
+            whiteSpace: 'nowrap',
+            backdropFilter: previewUserType === type ? 'blur(8px)' : undefined,
+            WebkitBackdropFilter: previewUserType === type ? 'blur(8px)' : undefined,
+          }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
+  const navBody = showAdminPreview ? (
+    <>
+      <div className="app-portal-nav__left">
+        <button type="button" onClick={() => (onHome ? onHome() : setView('home'))} style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 17 : 22, letterSpacing: '0.06em', color: primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, whiteSpace: 'nowrap' }}>
           Global Access
         </button>
-        {showAdminPreview && onPreviewUserTypeChange && (
-          <div
-            role="group"
-            aria-label="Preview account type"
-            style={{
-              display: 'inline-flex',
-              flexShrink: 0,
-              borderRadius: 8,
-              overflow: 'hidden',
-              border: '0.5px solid #3A3A3A',
-              background: '#0D0D0D',
-            }}
-          >
-            {[
-              ['retailer', isMobile ? 'Ret' : 'Retailer'],
-              ['distributor', isMobile ? 'Dist' : 'Distributor'],
-            ].map(([type, label]) => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => onPreviewUserTypeChange(type)}
-                style={{
-                  padding: isMobile ? '5px 8px' : '5px 10px',
-                  fontSize: isMobile ? 10 : 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.02em',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  background: previewUserType === type ? '#C9A84C' : 'transparent',
-                  color: previewUserType === type ? '#1A1A1A' : '#888',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-        {showAdminPreview && isAdmin && onAdminClick && (
+        {previewToggle}
+      </div>
+      <div className="app-portal-nav__right">
+        {isAdmin && onAdminClick && (
           <button type="button" onClick={onAdminClick} style={dashboardBtnStyle}>
             Dashboard
           </button>
         )}
+        {onLogout && (
+          <button type="button" onClick={onLogout} style={signOutBtnStyle}>
+            Sign out
+          </button>
+        )}
+      </div>
+    </>
+  ) : (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16, minWidth: 0 }}>
+        <button type="button" onClick={() => (onHome ? onHome() : setView('home'))} style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 18 : 22, letterSpacing: '0.08em', color: primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, whiteSpace: 'nowrap' }}>
+          Global Access
+        </button>
         {!isMobile && navigation.map(item => (
           <button key={item.id} type="button" onClick={() => handleNavItem(item)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: t.textSecondary, fontFamily: 'inherit', padding: '4px 0', letterSpacing: '0.02em' }}>
@@ -163,29 +183,63 @@ export default function Nav({
             Profile
           </button>
         )}
-        {isAdmin && onAdminClick && !showAdminPreview && (
+        {isAdmin && onAdminClick && (
           <button type="button" onClick={onAdminClick} style={dashboardBtnStyle}>
             Dashboard
           </button>
         )}
         {onLogout && (
           <button type="button" onClick={onLogout} style={{
-            background: showAdminPreview ? '#252525' : (isNight ? t.bgSubtle : 'rgba(255,255,255,0.6)'),
-            border: showAdminPreview ? '0.5px solid #3A3A3A' : t.borderHairlineLight,
-            borderRadius: 8,
-            padding: isMobile ? '6px 8px' : '6px 12px',
+            background: isNight ? t.bgSubtle : 'rgba(255,255,255,0.6)',
+            border: t.borderHairlineLight,
+            borderRadius: 20,
+            padding: isMobile ? '4px 8px' : '5px 12px',
             fontSize: isMobile ? 10 : 12,
-            color: showAdminPreview ? '#AAA' : t.textMuted,
+            color: t.textMuted,
             cursor: 'pointer',
             fontFamily: 'inherit',
+            backdropFilter: 'blur(4px)',
             whiteSpace: 'nowrap',
             flexShrink: 0,
-            lineHeight: 1.2,
           }}>
             Sign out
           </button>
         )}
       </div>
+    </>
+  );
+
+  return (
+    <nav
+      className={`app-no-select app-portal-nav${isMobile && includeSafeAreaTop ? ' app-portal-nav--safe-top' : ''}${showAdminPreview ? ' app-portal-nav--admin' : ''}`}
+      style={{
+      position: 'sticky',
+      top: 0,
+      zIndex: 100,
+      background: t.navBg,
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      borderBottom: `0.5px solid ${t.navBorder}`,
+      ...(isMobile ? {} : {
+        boxSizing: 'border-box',
+        flexShrink: 0,
+        height: 52,
+        paddingLeft: '1.25rem',
+        paddingRight: '1.25rem',
+        paddingTop: 0,
+        paddingBottom: 0,
+      }),
+      display: 'flex',
+      flexDirection: showAdminPreview && isMobile && includeSafeAreaTop ? 'column' : undefined,
+      alignItems: showAdminPreview && isMobile && includeSafeAreaTop ? 'stretch' : 'center',
+      justifyContent: 'space-between',
+      transition: 'background 0.35s ease, border-color 0.35s ease',
+    }}>
+      {showAdminPreview && isMobile && includeSafeAreaTop ? (
+        <div className="app-portal-nav__row">{navBody}</div>
+      ) : (
+        navBody
+      )}
     </nav>
   );
 }

@@ -25,6 +25,7 @@ import UserList from './UserList';
 import CustomerBadges from '../CustomerBadges';
 import StaffNotesCell from '../StaffNotesCell';
 import QuoteStatusBadge from '../QuoteStatusBadge';
+import QuoteBuilderPanel from '../QuoteBuilderPanel';
 import ChatStaffTools from '../ChatStaffTools';
 import ScheduleCallRequest from '../ScheduleCallRequest';
 import StaffWhatsAppCallButton from './StaffWhatsAppCallButton';
@@ -467,7 +468,7 @@ export default function ChatSidebar({
                 color: t.textSecondary,
                 lineHeight: 1.45,
                 flexShrink: 0,
-                maxHeight: isPage ? 140 : 200,
+                maxHeight: isPage ? 280 : 360,
                 overflowY: 'auto',
                 WebkitOverflowScrolling: 'touch',
               }}>
@@ -480,7 +481,7 @@ export default function ChatSidebar({
                       {staffCustomerProfile.phone && (
                         <span style={{ fontSize: 12, color: t.textSecondary }}>📱 {staffCustomerProfile.phone}</span>
                       )}
-                      {isAdmin && customerInquiry && (
+                      {isStaff && customerInquiry && (
                         <select
                           value={customerInquiry.quote_status || 'new'}
                           disabled={statusUpdating}
@@ -493,7 +494,7 @@ export default function ChatSidebar({
                         </select>
                       )}
                     </div>
-                    {!isAdmin && customerInquiry && (
+                    {!isStaff && customerInquiry && (
                       <div style={{ marginTop: 8 }}>
                         <QuoteStatusBadge status={customerInquiry.quote_status || 'new'} />
                       </div>
@@ -537,6 +538,22 @@ export default function ChatSidebar({
                       Propose different time
                     </button>
                   </div>
+                )}
+                {isStaff && customerInquiry && (
+                  <QuoteBuilderPanel
+                    inquiry={customerInquiry}
+                    staffUserId={user.id}
+                    customerUserId={customerUserId}
+                    compact
+                    onUpdated={(updated) => setCustomerInquiry(updated)}
+                    onSent={async (updated) => {
+                      setCustomerInquiry(updated);
+                      if (activeConvo?.id) {
+                        const msgs = await fetchMessages(activeConvo.id);
+                        setMessages(msgs);
+                      }
+                    }}
+                  />
                 )}
                 {isStaff && customerUserId && (
                   <div style={{ marginBottom: 10, paddingBottom: 10, borderBottom: t.borderHairlineLight }}>

@@ -11,12 +11,13 @@ import CustomerDirectory from './CustomerDirectory';
 import ContactImportPanel from './ContactImportPanel';
 import ReferralTracker from './ReferralTracker';
 import QuoteStatusBadge from './QuoteStatusBadge';
+import QuoteBuilderPanel from './QuoteBuilderPanel';
 import AdminTabBar from './AdminTabBar';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
 import { approveAccessRequestAndCreateAccount, denyAccessRequest, deleteAccessRequest, setAccessRequestDismissed } from '../lib/accessApproval';
 import { whatsAppUrl } from '../lib/whatsapp';
-import { updateInquiryQuoteStatus, QUOTE_STATUSES, deleteInquiry } from '../lib/inquiries';
+import { updateInquiryQuoteStatus, QUOTE_STATUSES, deleteInquiry, parseInquiryInterests } from '../lib/inquiries';
 import { loadAppNavigation, saveAppNavigationPartial } from '../lib/appNavigation';
 import IndustryFactsPanel from './IndustryFactsPanel';
 
@@ -649,8 +650,9 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
                     <div style={{ fontSize: 11, color: t.textDisabled }}>{new Date(inq.created_at).toLocaleString()}</div>
                   </div>
                 </div>
-                {(inq.interests || []).map(i => (
-                  <div key={i.key} style={{ fontSize: 12, color: t.textSecondary, padding: '4px 0', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
+                {parseInquiryInterests(inq.interests).map(i => (
+                  <div key={i.key || `${i.sku}-${i.productName}`} style={{ fontSize: 12, color: t.textSecondary, padding: '4px 0', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
+                    {i.sku && <span style={{ fontFamily: 'monospace', fontSize: 10, color: t.gold, marginRight: 6 }}>{i.sku}</span>}
                     {i.brandName} — {i.productName} · {i.flavor}
                   </div>
                 ))}
@@ -660,6 +662,13 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
                   </div>
                 )}
                 {inq.notes && <div style={{ fontSize: 12, color: t.textMuted, background: t.bgMuted, borderRadius: 6, padding: '8px 10px', marginTop: 8 }}>"{inq.notes}"</div>}
+                <QuoteBuilderPanel
+                  inquiry={inq}
+                  staffUserId={user?.id}
+                  customerUserId={inq.user_id}
+                  onUpdated={(updated) => setInquiries(prev => prev.map(i => (i.id === updated.id ? { ...i, ...updated } : i)))}
+                  onSent={(updated) => setInquiries(prev => prev.map(i => (i.id === updated.id ? { ...i, ...updated } : i)))}
+                />
               </div>
             ))}
           </div>

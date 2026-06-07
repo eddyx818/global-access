@@ -930,6 +930,7 @@ export default function App() {
         <StaffQuotesView
           isMobile={isMobile || isMobileDevice}
           onCountsChange={setQuotesNewCount}
+          staffUserId={user?.id}
         />
       )}
       {view === 'thanks' && (

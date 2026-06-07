@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { fetchRecentInquiries, updateInquiryQuoteStatus, QUOTE_STATUSES, parseInquiryInterests, deleteInquiry } from '../lib/inquiries';
 import QuoteStatusBadge from './QuoteStatusBadge';
+import QuoteBuilderPanel from './QuoteBuilderPanel';
 import { useTheme } from '../context/ThemeContext';
 
 function formatWhen(iso) {
@@ -15,7 +16,7 @@ function formatWhen(iso) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-export default function StaffQuotesView({ onCountsChange, isMobile = true }) {
+export default function StaffQuotesView({ onCountsChange, isMobile = true, staffUserId = null }) {
   const { t } = useTheme();
   const [inquiries, setInquiries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +61,18 @@ export default function StaffQuotesView({ onCountsChange, isMobile = true }) {
       });
     }
     setRemovingId(null);
+  };
+
+  const handleQuoteUpdated = (updated) => {
+    setInquiries(prev => prev.map(i => (i.id === updated.id ? { ...i, ...updated } : i)));
+  };
+
+  const handleQuoteSent = (updated) => {
+    setInquiries(prev => {
+      const next = prev.map(i => (i.id === updated.id ? { ...i, ...updated } : i));
+      onCountsChange?.(next.filter(i => (i.quote_status || 'new') === 'new').length);
+      return next;
+    });
   };
 
   const filtered = filter === 'new'
@@ -183,6 +196,7 @@ export default function StaffQuotesView({ onCountsChange, isMobile = true }) {
               </div>
               {interests.slice(0, 3).map(i => (
                 <div key={i.key || `${i.brandName}-${i.productName}`} style={{ fontSize: 12, color: t.textSecondary, padding: '3px 0' }}>
+                  {i.sku && <span style={{ fontFamily: 'monospace', fontSize: 10, color: t.gold, marginRight: 6 }}>{i.sku}</span>}
                   {i.brandName} — {i.productName}{i.flavor ? ` · ${i.flavor}` : ''}
                 </div>
               ))}
@@ -215,6 +229,16 @@ export default function StaffQuotesView({ onCountsChange, isMobile = true }) {
                   ))}
                 </select>
               </div>
+              {staffUserId && (
+                <QuoteBuilderPanel
+                  inquiry={inq}
+                  staffUserId={staffUserId}
+                  customerUserId={inq.user_id}
+                  compact
+                  onUpdated={handleQuoteUpdated}
+                  onSent={handleQuoteSent}
+                />
+              )}
             </div>
           );
         })}
