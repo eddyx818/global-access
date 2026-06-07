@@ -4,9 +4,11 @@ import BrandNamePattern from './BrandNamePattern';
 import { minQtyForProduct } from '../lib/pricing';
 import { subscribeStockNotify, fetchMyStockAlerts, stockAlertKey } from '../lib/stockNotify';
 import { useTheme } from '../context/ThemeContext';
+import { useBrandContent } from '../lib/content';
 
 export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, isInterested, interests, onSubmit, isMobile, hasBottomNav = false, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess }) {
   const { t, isNight } = useTheme();
+  const { bgColor } = useBrandContent();
   const [lightbox, setLightbox] = useState(null);
   const [lightboxIdx, setLightboxIdx] = useState(0);
   const [orderMode, setOrderMode] = useState({}); // per sku: 'master_case' | 'pallet'
@@ -181,12 +183,12 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
 
   return (
     <>
-      <BrandNamePattern brand={brand} isMobile={isMobile} isNight={isNight} />
+      <BrandNamePattern brand={brand} isMobile={isMobile} isNight={isNight} pageBg={bgColor} />
       <div
         className="brand-page"
         style={{
           position: 'relative',
-          zIndex: 1,
+          zIndex: 2,
           maxWidth: 760,
           width: '100%',
           margin: '0 auto',

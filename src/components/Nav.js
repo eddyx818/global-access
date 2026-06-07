@@ -90,8 +90,8 @@ export default function Nav({
           </button>
         )}
         {onLogout && (
-          <button type="button" onClick={onLogout} style={{ background: isNight ? t.bgSubtle : 'rgba(255,255,255,0.6)', border: t.borderHairlineLight, borderRadius: 20, padding: isMobile ? '4px 10px' : '5px 12px', fontSize: isMobile ? 11 : 12, color: t.textMuted, cursor: 'pointer', fontFamily: 'inherit', backdropFilter: 'blur(4px)' }}>
-            {isMobile ? 'Out' : 'Sign out'}
+          <button type="button" onClick={onLogout} style={{ background: isNight ? t.bgSubtle : 'rgba(255,255,255,0.6)', border: t.borderHairlineLight, borderRadius: 20, padding: isMobile ? '4px 8px' : '5px 12px', fontSize: isMobile ? 10 : 12, color: t.textMuted, cursor: 'pointer', fontFamily: 'inherit', backdropFilter: 'blur(4px)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            Sign out
           </button>
         )}
       </div>

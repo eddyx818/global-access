@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { BRANDS } from '../lib/data';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
+import { getSamplePatternForBg } from '../lib/patternStyle';
 
 const BG_PRESETS = [
   { label: 'Warm Cream', value: '#F5F2ED' },
@@ -141,9 +142,49 @@ export default function BrandManager({ onSaved }) {
             <button onClick={() => handleBgChange(bgColor)} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Apply</button>
           </div>
         </div>
-        {/* Live preview */}
-        <div style={{ marginTop: 14, padding: '1rem', borderRadius: 10, background: bgColor, border: '0.5px solid #E0DDD8' }}>
-          <div style={{ fontSize: 12, color: bgColor === '#111111' || bgColor === '#0F1B2D' || bgColor === '#1A2A1A' || bgColor === '#1C1C1E' ? '#FFF' : '#555' }}>Preview — this is how your site background will look</div>
+        {/* Live preview with watermark sample */}
+        <div style={{ marginTop: 14, padding: '1rem', borderRadius: 10, background: bgColor, border: '0.5px solid #E0DDD8', position: 'relative', overflow: 'hidden', minHeight: 88 }}>
+          {(() => {
+            const sample = getSamplePatternForBg(bgColor, '#C9A84C');
+            const darkPreview = sample.pageBg && sample.pageBg.toLowerCase() !== '#ffffff' && sample.pageBg.toLowerCase() !== '#f5f2ed' && sample.pageBg.toLowerCase() !== '#f0f0f0' && sample.pageBg.toLowerCase() !== '#ede8df';
+            return (
+              <>
+                <div aria-hidden="true" style={{
+                  position: 'absolute',
+                  inset: -20,
+                  transform: 'rotate(-28deg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 14,
+                  opacity: 1,
+                  pointerEvents: 'none',
+                }}>
+                  {[0, 1, 2].map(row => (
+                    <div key={row} style={{ display: 'flex', gap: 48, paddingLeft: row % 2 ? 24 : 0 }}>
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <span key={i} style={{
+                          fontFamily: "'Bebas Neue', sans-serif",
+                          fontSize: 28,
+                          letterSpacing: '0.12em',
+                          color: sample.color,
+                          opacity: sample.opacity,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          GOLDWHIP
+                        </span>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ position: 'relative', zIndex: 1, fontSize: 12, color: darkPreview ? '#FFF' : '#555' }}>
+                  Preview — site background with brand watermark
+                </div>
+                <div style={{ position: 'relative', zIndex: 1, marginTop: 6, fontSize: 11, color: darkPreview ? 'rgba(255,255,255,0.65)' : '#888' }}>
+                  Pattern auto-adjusts contrast for {BG_PRESETS.find(p => p.value === bgColor)?.label || 'custom'} tones
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
 

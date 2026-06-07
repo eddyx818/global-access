@@ -23,6 +23,7 @@ import CustomerBadges from '../CustomerBadges';
 import StaffNotesCell from '../StaffNotesCell';
 import QuoteStatusBadge from '../QuoteStatusBadge';
 import ChatStaffTools from '../ChatStaffTools';
+import ScheduleCallRequest from '../ScheduleCallRequest';
 import { useTheme } from '../../context/ThemeContext';
 
 async function loadProfileMap(userIds) {
@@ -476,6 +477,13 @@ export default function ChatSidebar({
                 assistMessages={messagesToAssistFormat(messages, customerUserId)}
                 inquiryNotes={customerInquiry?.notes}
                 onInsertText={(text) => setSuggestedReply(text)}
+              />
+            )}
+            {!isStaff && activeConvo && (
+              <ScheduleCallRequest
+                user={user}
+                isMobile={isPage}
+                onSendMessage={(text) => handleSend(text)}
               />
             )}
             <MessageInput

@@ -1,19 +1,23 @@
 import React, { useMemo } from 'react';
+import { getPatternAppearance, getPatternDensity } from '../lib/patternStyle';
 
-/** Diagonal repeating brand name — fills wide-screen margins behind brand pages. */
-export default function BrandNamePattern({ brand, isMobile, isNight = false }) {
-  const { angle, rowCount, repeatsPerRow } = useMemo(() => {
+/** Diagonal repeating brand name — fills page margins behind brand pages. */
+export default function BrandNamePattern({ brand, isMobile, isNight = false, pageBg }) {
+  const label = brand?.name?.toUpperCase() || '';
+
+  const { angle, rowCount, repeatsPerRow, color, opacity } = useMemo(() => {
     const seed = (brand?.id || brand?.name || '').split('').reduce((sum, c) => sum + c.charCodeAt(0), 0);
+    const appearance = getPatternAppearance(brand?.color, pageBg, { isNight, isMobile });
+    const density = getPatternDensity(label, isMobile);
     return {
       angle: seed % 2 === 0 ? -32 : 32,
-      rowCount: isMobile ? 16 : 22,
-      repeatsPerRow: isMobile ? 7 : 12,
+      ...density,
+      color: appearance.color,
+      opacity: appearance.opacity,
     };
-  }, [brand?.id, brand?.name, isMobile]);
+  }, [brand?.id, brand?.name, brand?.color, isMobile, isNight, pageBg, label]);
 
-  if (!brand?.name) return null;
-
-  const label = brand.name.toUpperCase();
+  if (!label) return null;
 
   return (
     <div
@@ -23,7 +27,8 @@ export default function BrandNamePattern({ brand, isMobile, isNight = false }) {
       data-mobile={isMobile ? 'true' : 'false'}
       style={{
         '--pattern-angle': `${angle}deg`,
-        '--pattern-color': brand.color || '#C9A84C',
+        '--pattern-color': color,
+        '--pattern-opacity': opacity,
       }}
     >
       <div className="brand-name-pattern__canvas">
@@ -31,7 +36,7 @@ export default function BrandNamePattern({ brand, isMobile, isNight = false }) {
           <div
             key={rowIdx}
             className="brand-name-pattern__row"
-            style={{ paddingLeft: rowIdx % 2 === 0 ? 0 : 'clamp(1.5rem, 4vw, 4rem)' }}
+            style={{ paddingLeft: rowIdx % 2 === 0 ? 0 : 'clamp(1.5rem, 5vw, 5rem)' }}
           >
             {Array.from({ length: repeatsPerRow }, (_, wordIdx) => (
               <span key={wordIdx} className="brand-name-pattern__word">

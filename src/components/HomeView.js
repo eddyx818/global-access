@@ -40,11 +40,7 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
   }, [loading]);
 
   const brands = brandOrder || allBrands;
-  const current = brands[slideIdx] || brands[0];
   const heroBg = heroConfig.background_color || '#0D0D0D';
-  const heroHeadline = heroConfig.headline || current?.name;
-  const heroSubheadline = heroConfig.subheadline || current?.tagline;
-  const heroCtaText = heroConfig.cta_text || `Explore ${current?.name || 'Brand'}`;
   const heroCtaBg = heroConfig.cta_color || 'rgba(255,255,255,0.95)';
   const heroCtaColor = heroConfig.cta_color ? '#FFF' : globalStyles.primary_color || '#1A1A1A';
   const ctaRadius = getButtonRadius(globalStyles.button_style);
@@ -149,15 +145,27 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
   return (
     <div>
       <style>{`
-        @keyframes heroFadeIn { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes heroImgFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
         @keyframes cardEntrance { from{opacity:0;transform:translateY(24px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
         .hero-arrow-zone:hover > .arrow-inner { background: rgba(255,255,255,0.28) !important; transform: scale(1.12) !important; }
         .arrow-inner { transition: all 0.2s ease !important; }
-        .hero-gallery-stack { animation: heroImgFloat 8s ease-in-out infinite; will-change: transform; }
         .hero-gallery-photo {
-          transition: opacity 1.4s ease-in-out;
-          will-change: opacity;
+          transition: opacity 1.6s ease-in-out;
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
+        }
+        .hero-gallery-stack--float {
+          animation: heroImgFloat 10s ease-in-out infinite;
+        }
+        @keyframes heroImgFloat { 0%,100%{transform:translate3d(0,0,0)} 50%{transform:translate3d(0,-6px,0)} }
+        .hero-slide-copy {
+          transition: opacity 0.85s ease-in-out;
+        }
+        .hero-slide-copy--active {
+          opacity: 1;
+        }
+        .hero-slide-copy--inactive {
+          opacity: 0;
+          pointer-events: none;
         }
       `}</style>
 
@@ -179,7 +187,7 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
                   transition: 'transform 0.4s ease-out',
                 }}
               >
-                <div className={i === slideIdx ? 'hero-gallery-stack' : undefined} style={{ position: 'absolute', inset: 0 }}>
+                <div className={i === slideIdx && !isNight && !isMobile ? 'hero-gallery-stack hero-gallery-stack--float' : 'hero-gallery-stack'} style={{ position: 'absolute', inset: 0 }}>
                   {brand.gallery.map((img, gi) => {
                     const isActiveBrand = i === slideIdx;
                     const isVisible = isActiveBrand && gi === galleryIdx;
@@ -212,15 +220,57 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
             )}
           </div>
         ))}
-        <div key={slideIdx} onClick={() => onBrandClick(current.id)}
-          style={{ position: 'relative', zIndex: 3, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: isMobile ? '2rem 4rem' : '3rem 8rem', animation: 'heroFadeIn 0.5s ease-out', cursor: 'pointer', transform: `perspective(800px) rotateY(${mousePos.x * 0.03}deg) rotateX(${-mousePos.y * 0.03}deg)`, transition: 'transform 0.35s ease-out' }}>
-          <div style={{ display: 'inline-block', background: current.color + '28', border: `1px solid ${current.color}66`, borderRadius: 20, padding: '5px 16px', fontSize: 10, color: current.color, letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: 16, fontWeight: 700, backdropFilter: 'blur(6px)' }}>{current.category}</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 54 : 88, letterSpacing: '0.03em', color: '#FFF', lineHeight: 0.85, marginBottom: 14, textShadow: '0 4px 32px rgba(0,0,0,0.5)' }}>{heroHeadline}</div>
-          <div style={{ fontSize: isMobile ? 13 : 15, color: 'rgba(255,255,255,0.5)', marginBottom: 30, letterSpacing: '0.04em', maxWidth: 360 }}>{heroSubheadline}</div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: heroCtaBg, color: heroCtaColor, borderRadius: ctaRadius, padding: isMobile ? '12px 22px' : '14px 30px', fontSize: isMobile ? 13 : 14, fontWeight: 700, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', letterSpacing: '0.03em' }}>
-            {heroCtaText} <span style={{ fontSize: 16 }}>→</span>
-          </div>
-        </div>
+        {brands.map((brand, i) => {
+          const isActive = i === slideIdx;
+          const slideHeadline = heroConfig.headline || brand.name;
+          const slideSubheadline = heroConfig.subheadline || brand.tagline;
+          const slideCta = heroConfig.cta_text || `Explore ${brand.name}`;
+          return (
+            <div
+              key={`copy-${brand.id}`}
+              className={`hero-slide-copy ${isActive ? 'hero-slide-copy--active' : 'hero-slide-copy--inactive'}`}
+              onClick={() => onBrandClick(brand.id)}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 3,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                padding: isMobile ? '2rem 3.5rem 1.75rem' : '3rem 8rem 2.5rem',
+                cursor: 'pointer',
+                transform: isActive ? `perspective(800px) rotateY(${mousePos.x * 0.03}deg) rotateX(${-mousePos.y * 0.03}deg)` : 'none',
+                transition: 'transform 0.35s ease-out',
+              }}
+            >
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: 520 }}>
+                <div style={{ display: 'inline-block', background: brand.color + '28', border: `1px solid ${brand.color}66`, borderRadius: 20, padding: '5px 16px', fontSize: 10, color: brand.color, letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: 16, fontWeight: 700, backdropFilter: 'blur(6px)' }}>{brand.category}</div>
+                <div style={{
+                  fontFamily: "'Bebas Neue', sans-serif",
+                  fontSize: isMobile ? 54 : 88,
+                  letterSpacing: '0.03em',
+                  color: '#FFF',
+                  lineHeight: 0.9,
+                  marginBottom: 14,
+                  textShadow: '0 4px 32px rgba(0,0,0,0.5)',
+                  minHeight: isMobile ? '2.6em' : '1.8em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  maxWidth: '100%',
+                }}>
+                  {slideHeadline}
+                </div>
+                <div style={{ fontSize: isMobile ? 13 : 15, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.04em', maxWidth: 360, minHeight: isMobile ? 40 : 44, lineHeight: 1.5 }}>{slideSubheadline}</div>
+              </div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: heroCtaBg, color: heroCtaColor, borderRadius: ctaRadius, padding: isMobile ? '12px 22px' : '14px 30px', fontSize: isMobile ? 13 : 14, fontWeight: 700, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', letterSpacing: '0.03em', flexShrink: 0 }}>
+                {slideCta} <span style={{ fontSize: 16 }}>→</span>
+              </div>
+            </div>
+          );
+        })}
         <div className="hero-arrow-zone" onClick={(e) => { e.stopPropagation(); changeSlide((slideIdx - 1 + brands.length) % brands.length); }}
           style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: isMobile ? 56 : 72, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
           <div className="arrow-inner" style={{ width: 38, height: 38, background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: 18 }}>‹</div>

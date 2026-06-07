@@ -223,17 +223,15 @@ html.app-native body {
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  z-index: 0;
-  mask-image: radial-gradient(ellipse 90% 80% at 50% 45%, #000 15%, transparent 72%);
-  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 45%, #000 15%, transparent 72%);
+  z-index: 1;
 }
 
 .brand-name-pattern__canvas {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 220vmax;
-  height: 220vmax;
+  width: 300vmax;
+  height: 300vmax;
   transform: translate(-50%, -50%) rotate(var(--pattern-angle, -32deg));
   display: flex;
   flex-direction: column;
@@ -255,31 +253,31 @@ html.app-native body {
   letter-spacing: 0.14em;
   line-height: 1;
   color: var(--pattern-color, #C9A84C);
-  opacity: 0.065;
+  opacity: var(--pattern-opacity, 0.09);
   white-space: nowrap;
   user-select: none;
 }
 
-.brand-name-pattern[data-night='true'] .brand-name-pattern__word {
-  opacity: 0.045;
-}
-
 .brand-name-pattern[data-mobile='true'] .brand-name-pattern__word {
-  font-size: clamp(1.65rem, 9vw, 2.35rem);
-  letter-spacing: 0.1em;
-  opacity: 0.05;
-}
-
-.brand-name-pattern[data-mobile='true'][data-night='true'] .brand-name-pattern__word {
-  opacity: 0.035;
+  font-size: clamp(1.85rem, 10vw, 2.75rem);
+  letter-spacing: 0.12em;
 }
 
 .brand-name-pattern[data-mobile='true'] .brand-name-pattern__row {
-  gap: clamp(1.25rem, 8vw, 2.75rem);
+  gap: clamp(1.5rem, 9vw, 3rem);
 }
 
 .brand-name-pattern[data-mobile='true'] .brand-name-pattern__canvas {
-  gap: clamp(0.85rem, 4vw, 1.75rem);
+  width: 320vmax;
+  height: 320vmax;
+  gap: clamp(1rem, 5vw, 2rem);
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .brand-name-pattern__canvas {
+    width: 260vmax;
+    height: 260vmax;
+  }
 }
 
 .app-login-screen {
