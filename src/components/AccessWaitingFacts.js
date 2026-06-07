@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   categoryLabel,
+  FALLBACK_INDUSTRY_FACTS,
   fetchActiveIndustryFacts,
   shuffleFacts,
 } from '../lib/industryFacts';
@@ -13,37 +14,48 @@ export default function AccessWaitingFacts({ theme }) {
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
   const [loading, setLoading] = useState(true);
-  const orderRef = useRef([]);
+  const mountedRef = useRef(true);
+  const fadeTimerRef = useRef(null);
 
   const loadFacts = useCallback(async () => {
     const r = await fetchActiveIndustryFacts();
-    const rows = shuffleFacts(r.rows || []);
-    orderRef.current = rows;
+    if (!mountedRef.current) return;
+    const rows = shuffleFacts(r.rows?.length ? r.rows : FALLBACK_INDUSTRY_FACTS);
     setFacts(rows);
-    setIdx(0);
+    setIdx((prev) => (rows.length ? Math.min(prev, rows.length - 1) : 0));
     setVisible(true);
     setLoading(false);
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     loadFacts();
     const refreshId = setInterval(loadFacts, REFRESH_MS);
-    return () => clearInterval(refreshId);
+    return () => {
+      mountedRef.current = false;
+      clearInterval(refreshId);
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    };
   }, [loadFacts]);
 
   useEffect(() => {
     if (facts.length <= 1) return undefined;
     const id = setInterval(() => {
       setVisible(false);
-      window.setTimeout(() => {
-        setIdx((i) => (i + 1) % facts.length);
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+      fadeTimerRef.current = window.setTimeout(() => {
+        if (!mountedRef.current) return;
+        setIdx((i) => (facts.length ? (i + 1) % facts.length : 0));
         setVisible(true);
       }, 420);
     }, ROTATE_MS);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    };
   }, [facts.length]);
 
-  const fact = facts[idx];
+  const fact = facts[idx] || facts[0];
   const gold = theme?.gold || '#C9A84C';
   const border = theme?.border || '#E0DDD8';
   const mutedBg = theme?.mutedBg || theme?.bgMuted || '#F8F6F3';
@@ -162,7 +174,7 @@ export default function AccessWaitingFacts({ theme }) {
         }}>
           {fact.body}
         </p>
-        {fact.source_url && (
+        {fact.source_url && /^https?:\/\//i.test(fact.source_url) && (
           <a
             href={fact.source_url}
             target="_blank"

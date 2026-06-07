@@ -55,7 +55,29 @@ function shuffle(list) {
 }
 
 export function shuffleFacts(facts) {
+  if (!facts?.length) return [];
   return shuffle(facts);
+}
+
+function normalizeStateCode(value) {
+  const raw = (value || '').trim().toUpperCase();
+  if (!raw) return null;
+  return raw.length === 2 ? raw : null;
+}
+
+function normalizeFactPayload(payload) {
+  const body = (payload.body || '').trim();
+  const title = (payload.title || '').trim();
+  const source = (payload.source_url || '').trim();
+  return {
+    category: payload.category,
+    title: title || null,
+    body,
+    state_code: normalizeStateCode(payload.state_code),
+    source_url: source || null,
+    sort_order: Number(payload.sort_order) || 0,
+    is_active: payload.is_active !== false,
+  };
 }
 
 export async function fetchActiveIndustryFacts() {
@@ -66,15 +88,16 @@ export async function fetchActiveIndustryFacts() {
     .order('sort_order', { ascending: false })
     .order('created_at', { ascending: false });
 
-  if (error) {
-    if (error.code === 'PGRST205' || /access_waiting_facts/i.test(error.message || '')) {
-      return { ok: true, rows: FALLBACK_INDUSTRY_FACTS, fromFallback: true };
-    }
-    return { ok: false, error: error.message, rows: FALLBACK_INDUSTRY_FACTS, fromFallback: true };
+  if (error || !data?.length) {
+    return {
+      ok: true,
+      rows: FALLBACK_INDUSTRY_FACTS,
+      fromFallback: true,
+      error: error?.message,
+    };
   }
 
-  const rows = data?.length ? data : FALLBACK_INDUSTRY_FACTS;
-  return { ok: true, rows, fromFallback: !data?.length };
+  return { ok: true, rows: data, fromFallback: false };
 }
 
 export async function fetchAllIndustryFactsAdmin() {
@@ -89,14 +112,15 @@ export async function fetchAllIndustryFactsAdmin() {
 }
 
 export async function createIndustryFact(payload) {
+  const normalized = normalizeFactPayload(payload);
+  if (normalized.body.length < 10) {
+    return { ok: false, error: 'Fact must be at least 10 characters.' };
+  }
+  if ((payload.state_code || '').trim() && !normalized.state_code) {
+    return { ok: false, error: 'State must be a 2-letter code (e.g. TX) or left blank.' };
+  }
   const { error } = await supabase.from('access_waiting_facts').insert({
-    category: payload.category,
-    title: payload.title?.trim() || null,
-    body: payload.body.trim(),
-    state_code: payload.state_code?.trim().toUpperCase() || null,
-    source_url: payload.source_url?.trim() || null,
-    sort_order: Number(payload.sort_order) || 0,
-    is_active: payload.is_active !== false,
+    ...normalized,
     updated_at: new Date().toISOString(),
   });
   if (error) return { ok: false, error: error.message };
@@ -104,13 +128,15 @@ export async function createIndustryFact(payload) {
 }
 
 export async function updateIndustryFact(id, payload) {
+  const normalized = normalizeFactPayload(payload);
+  if (normalized.body.length < 10) {
+    return { ok: false, error: 'Fact must be at least 10 characters.' };
+  }
+  if ((payload.state_code || '').trim() && !normalized.state_code) {
+    return { ok: false, error: 'State must be a 2-letter code (e.g. TX) or left blank.' };
+  }
   const { error } = await supabase.from('access_waiting_facts').update({
-    category: payload.category,
-    title: payload.title?.trim() || null,
-    body: payload.body.trim(),
-    state_code: payload.state_code?.trim().toUpperCase() || null,
-    source_url: payload.source_url?.trim() || null,
-    sort_order: Number(payload.sort_order) || 0,
+    ...normalized,
     is_active: !!payload.is_active,
     updated_at: new Date().toISOString(),
   }).eq('id', id);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import AccessWaitingFacts from './AccessWaitingFacts';
 import { fetchAccessRequestStatus, clearPendingAccess } from '../lib/accessRequestGate';
 
@@ -15,13 +15,20 @@ export default function AccessWaitingRoom({
   const [status, setStatus] = useState('pending');
   const [checking, setChecking] = useState(false);
   const [lastCheck, setLastCheck] = useState(null);
+  const [statusError, setStatusError] = useState('');
+  const mountedRef = useRef(true);
 
   const checkStatus = useCallback(async () => {
     setChecking(true);
     const result = await fetchAccessRequestStatus(email);
+    if (!mountedRef.current) return;
     setChecking(false);
     setLastCheck(new Date());
-    if (!result.ok) return;
+    if (!result.ok) {
+      setStatusError('Could not refresh status — will retry automatically.');
+      return;
+    }
+    setStatusError('');
     if (!result.status) {
       setStatus('pending');
       return;
@@ -38,9 +45,13 @@ export default function AccessWaitingRoom({
   }, [email, onApproved, onDenied]);
 
   useEffect(() => {
+    mountedRef.current = true;
     checkStatus();
     const id = setInterval(checkStatus, POLL_MS);
-    return () => clearInterval(id);
+    return () => {
+      mountedRef.current = false;
+      clearInterval(id);
+    };
   }, [checkStatus]);
 
   const firstName = (name || 'there').split(' ')[0];
@@ -73,6 +84,9 @@ export default function AccessWaitingRoom({
             {checking ? 'Checking status…' : lastCheck
               ? `Last checked ${lastCheck.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · auto-refreshes`
               : 'Waiting for admin review…'}
+            {statusError && !checking && (
+              <span style={{ display: 'block', marginTop: 4, color: '#c0392b' }}>{statusError}</span>
+            )}
           </div>
           <div style={{
             marginBottom: '1rem',

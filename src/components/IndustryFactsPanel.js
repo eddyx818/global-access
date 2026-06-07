@@ -58,7 +58,9 @@ export default function IndustryFactsPanel() {
     setRows(r.rows);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const setField = (field, value) => setForm((f) => ({ ...f, [field]: value }));
 
