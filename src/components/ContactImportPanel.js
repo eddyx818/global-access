@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { readFileAsText } from '../lib/adminUpload';
 import { parseContactSpreadsheet, importContacts, fetchUploadedContacts } from '../lib/contactImport';
 import { fetchRepRoster } from '../lib/repCodes';
-import { transferUploadedContact, repDisplayName, buildRepOptions } from '../lib/customerTransfer';
+import { transferUploadedContact, bulkTransferUploadedContacts, saveUploadedContactNotes, repDisplayName, buildRepOptions } from '../lib/customerTransfer';
+import BulkTransferBar from './BulkTransferBar';
+import StaffNotesCell from './StaffNotesCell';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
 
@@ -22,12 +24,15 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [transferringId, setTransferringId] = useState(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [selected, setSelected] = useState(() => new Set());
 
   const repOptions = buildRepOptions(reps);
   const repNameById = Object.fromEntries(repOptions.map(r => [r.user_id, repDisplayName(r)]));
 
   const load = async () => {
     setLoading(true);
+    setSelected(new Set());
     const rows = await fetchUploadedContacts({ userId, isAdmin, isSalesRep });
     setContacts(rows);
     setLoading(false);
@@ -55,6 +60,37 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
       setTimeout(() => setMessage(''), 3000);
     }
     setTransferringId(null);
+  };
+
+  const handleBulkTransfer = async (newRepUserId) => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    const targetLabel = newRepUserId
+      ? repDisplayName(repOptions.find(r => r.user_id === newRepUserId))
+      : 'Unassigned';
+    if (!window.confirm(`Transfer ${ids.length} contact(s) to ${targetLabel}?`)) return;
+
+    setBulkBusy(true);
+    setError('');
+    const result = await bulkTransferUploadedContacts(ids, newRepUserId || null);
+    if (!result.ok) {
+      setError(result.error || 'Bulk transfer failed.');
+    } else {
+      setMessage(`Transferred ${result.count} contact(s).`);
+      await load();
+      setTimeout(() => setMessage(''), 3000);
+    }
+    setBulkBusy(false);
+  };
+
+  const handleSaveContactNotes = async (contactId, notes) => {
+    const result = await saveUploadedContactNotes(contactId, notes);
+    if (result.ok) {
+      setContacts(prev => prev.map(c => (c.id === contactId ? { ...c, notes: notes || '' } : c)));
+    } else {
+      setError(result.error || 'Could not save notes.');
+    }
+    return result.ok;
   };
 
   const handleFile = async (e) => {
@@ -100,8 +136,30 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
   const filtered = contacts.filter(c => {
     const q = filter.toLowerCase();
     if (!q) return true;
-    return [c.name, c.company, c.email, c.phone, c.address, c.status].some(v => (v || '').toLowerCase().includes(q));
+    return [c.name, c.company, c.email, c.phone, c.address, c.status, c.notes].some(v => (v || '').toLowerCase().includes(q));
   });
+
+  const filteredIds = filtered.map(c => c.id);
+  const allFilteredSelected = filteredIds.length > 0 && filteredIds.every(id => selected.has(id));
+  const canBulk = isAdmin || isSalesRep;
+
+  const toggleSelect = (contactId) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(contactId)) next.delete(contactId);
+      else next.add(contactId);
+      return next;
+    });
+  };
+
+  const toggleSelectAllFiltered = () => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (allFilteredSelected) filteredIds.forEach(id => next.delete(id));
+      else filteredIds.forEach(id => next.add(id));
+      return next;
+    });
+  };
 
   const exportCsv = () => {
     const headers = ['name', 'company', 'email', 'phone', 'address', 'account_type', 'store_type', 'status', 'notes'];
@@ -168,6 +226,16 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
         <button onClick={load} style={{ ...ui.tabBtn(true) }}>↻</button>
       </div>
 
+      {canBulk && (
+        <BulkTransferBar
+          selectedCount={selected.size}
+          repOptions={repOptions}
+          onTransfer={handleBulkTransfer}
+          onClear={() => setSelected(new Set())}
+          busy={bulkBusy}
+        />
+      )}
+
       {loading ? (
         <div style={{ fontSize: 13, color: t.textFaint }}>Loading…</div>
       ) : (
@@ -175,7 +243,12 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: t.bgMuted }}>
-                {['Name', 'Company', 'Email', 'Phone', 'Type', 'Status', 'Assigned to', 'Source'].map(h => (
+                {canBulk && (
+                  <th style={{ padding: '8px 10px', borderBottom: t.borderHairline, width: 36 }}>
+                    <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAllFiltered} aria-label="Select all contacts" />
+                  </th>
+                )}
+                {['Name', 'Company', 'Email', 'Phone', 'Type', 'Status', 'Staff notes', 'Assigned to', 'Source'].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10, color: t.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: t.borderHairline }}>{h}</th>
                 ))}
               </tr>
@@ -183,6 +256,11 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
             <tbody>
               {filtered.map(c => (
                 <tr key={c.id}>
+                  {canBulk && (
+                    <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
+                      <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} aria-label={`Select ${c.name || c.company}`} />
+                    </td>
+                  )}
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, fontWeight: 500 }}>{c.name || '—'}</td>
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{c.company || '—'}</td>
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{c.email || '—'}</td>
@@ -194,11 +272,18 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
                       <div style={{ fontSize: 10, color: t.successText, marginTop: 4 }}>Signed up</div>
                     )}
                   </td>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, verticalAlign: 'top' }}>
+                    <StaffNotesCell
+                      value={c.notes}
+                      onSave={(notes) => handleSaveContactNotes(c.id, notes)}
+                      placeholder="Notes about this contact…"
+                    />
+                  </td>
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, minWidth: 150 }}>
                     {(isAdmin || isSalesRep) && repOptions.length > 0 ? (
                       <select
                         value={c.assigned_rep_id || ''}
-                        disabled={transferringId === c.id}
+                        disabled={transferringId === c.id || bulkBusy}
                         onChange={(e) => handleTransferContact(c.id, e.target.value || null, c.name || c.company)}
                         style={{ ...inputStyle, fontSize: 12, padding: '6px 8px', width: '100%', cursor: transferringId === c.id ? 'wait' : 'pointer' }}
                       >
