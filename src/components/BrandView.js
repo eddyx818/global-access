@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ProductCommerceInfo from './ProductCommerceInfo';
+import BrandNamePattern from './BrandNamePattern';
 import { minQtyForProduct } from '../lib/pricing';
 import { subscribeStockNotify, fetchMyStockAlerts, stockAlertKey } from '../lib/stockNotify';
 import { useTheme } from '../context/ThemeContext';
 
 export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, isInterested, interests, onSubmit, isMobile, hasBottomNav = false, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess }) {
-  const { t } = useTheme();
+  const { t, isNight } = useTheme();
   const [lightbox, setLightbox] = useState(null);
   const [lightboxIdx, setLightboxIdx] = useState(0);
   const [orderMode, setOrderMode] = useState({}); // per sku: 'master_case' | 'pallet'
@@ -179,17 +180,21 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
   };
 
   return (
-    <div
-      className="brand-page"
-      style={{
-        maxWidth: 760,
-        width: '100%',
-        margin: '0 auto',
-        boxSizing: 'border-box',
-        padding: isMobile ? '1rem' : '1.5rem',
-        paddingBottom: pagePaddingBottom,
-      }}
-    >
+    <>
+      <BrandNamePattern brand={brand} isMobile={isMobile} isNight={isNight} />
+      <div
+        className="brand-page"
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          maxWidth: 760,
+          width: '100%',
+          margin: '0 auto',
+          boxSizing: 'border-box',
+          padding: isMobile ? '1rem' : '1.5rem',
+          paddingBottom: pagePaddingBottom,
+        }}
+      >
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Pacifico&display=swap" rel="stylesheet" />
 
       <button onClick={onBack} style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', fontSize: 13, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6, padding: 0, fontFamily: 'inherit' }}>← All Brands</button>
@@ -505,6 +510,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
           </button>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

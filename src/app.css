@@ -218,6 +218,70 @@ html.app-native body {
   touch-action: pan-x;
 }
 
+.brand-name-pattern {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 45%, #000 15%, transparent 72%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 45%, #000 15%, transparent 72%);
+}
+
+.brand-name-pattern__canvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 220vmax;
+  height: 220vmax;
+  transform: translate(-50%, -50%) rotate(var(--pattern-angle, -32deg));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(1.25rem, 3.5vw, 3rem);
+}
+
+.brand-name-pattern__row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: clamp(2rem, 6vw, 6rem);
+  flex-shrink: 0;
+}
+
+.brand-name-pattern__word {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2.75rem, 5.5vw, 5.25rem);
+  letter-spacing: 0.14em;
+  line-height: 1;
+  color: var(--pattern-color, #C9A84C);
+  opacity: 0.065;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.brand-name-pattern[data-night='true'] .brand-name-pattern__word {
+  opacity: 0.045;
+}
+
+.brand-name-pattern[data-mobile='true'] .brand-name-pattern__word {
+  font-size: clamp(1.65rem, 9vw, 2.35rem);
+  letter-spacing: 0.1em;
+  opacity: 0.05;
+}
+
+.brand-name-pattern[data-mobile='true'][data-night='true'] .brand-name-pattern__word {
+  opacity: 0.035;
+}
+
+.brand-name-pattern[data-mobile='true'] .brand-name-pattern__row {
+  gap: clamp(1.25rem, 8vw, 2.75rem);
+}
+
+.brand-name-pattern[data-mobile='true'] .brand-name-pattern__canvas {
+  gap: clamp(0.85rem, 4vw, 1.75rem);
+}
+
 .app-login-screen {
   min-height: 100dvh;
   min-height: -webkit-fill-available;
