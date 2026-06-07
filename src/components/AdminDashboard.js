@@ -161,6 +161,45 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   };
 
   const pending = requests.filter(r => r.status === 'pending');
+  const [narrowHeader, setNarrowHeader] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const onChange = () => setNarrowHeader(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  const portalBtnStyle = {
+    background: t.gold,
+    color: t.btnPrimaryText,
+    border: 'none',
+    borderRadius: 8,
+    padding: narrowHeader ? '11px 12px' : '6px 12px',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+    width: narrowHeader ? '100%' : undefined,
+  };
+
+  const signOutBtnStyle = {
+    background: t.bgMuted,
+    border: t.borderHairline,
+    borderRadius: 8,
+    padding: narrowHeader ? '11px 12px' : '6px 10px',
+    fontSize: 12,
+    color: t.textMuted,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+    width: narrowHeader ? '100%' : undefined,
+  };
+
   const statusStyle = (status) => ({
     fontSize: 11,
     padding: '3px 10px',
@@ -174,15 +213,44 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   return (
     <div style={ui.page}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
-      <div style={ui.header}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.1em', color: t.text, flexShrink: 0 }}>
-          Global Access <span style={{ fontSize: 13, color: t.gold }}>Admin</span>
+      <div style={{
+        ...ui.header,
+        ...(narrowHeader ? {
+          height: 'auto',
+          minHeight: 0,
+          flexDirection: 'column',
+          alignItems: 'stretch',
+          padding: 'max(10px, env(safe-area-inset-top, 0px)) 1rem 14px',
+          gap: 14,
+        } : {}),
+      }}>
+        <div style={{
+          fontFamily: "'Bebas Neue', sans-serif",
+          fontSize: narrowHeader ? 28 : 22,
+          letterSpacing: '0.1em',
+          color: t.text,
+          flexShrink: 0,
+          lineHeight: 1,
+          textAlign: narrowHeader ? 'center' : 'left',
+        }}>
+          Global Access{' '}
+          <span style={{ fontSize: narrowHeader ? 15 : 13, color: t.gold, letterSpacing: '0.14em' }}>Admin</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <ThemeToggle compact />
-          <button onClick={onViewPortal} style={{ background: t.gold, color: t.btnPrimaryText, border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Portal</button>
-          <button onClick={onLogout} style={{ background: 'none', border: t.borderHairline, borderRadius: 6, padding: '6px 10px', fontSize: 12, color: t.textMuted, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Sign out</button>
-        </div>
+        {narrowHeader ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            <ThemeToggle compact fullWidth />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <button type="button" onClick={onViewPortal} style={portalBtnStyle}>Portal</button>
+              <button type="button" onClick={onLogout} style={signOutBtnStyle}>Sign out</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <ThemeToggle compact />
+            <button type="button" onClick={onViewPortal} style={portalBtnStyle}>Portal</button>
+            <button type="button" onClick={onLogout} style={signOutBtnStyle}>Sign out</button>
+          </div>
+        )}
       </div>
       {alert && (
         <div style={{ background: t.warningBg, borderBottom: `0.5px solid ${t.warningBorder}`, padding: '12px 1.5rem', fontSize: 13, color: t.warningText, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
@@ -196,7 +264,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           <button onClick={() => setApproveMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: t.successText }}>×</button>
         </div>
       )}
-      <div style={{ padding: '1.5rem', maxWidth: 960, margin: '0 auto' }}>
+      <div style={{ padding: narrowHeader ? '1rem' : '1.5rem', maxWidth: 960, margin: '0 auto', paddingBottom: narrowHeader ? 'max(1rem, env(safe-area-inset-bottom, 0px))' : '1.5rem' }}>
         <AdminTabBar
           activeTab={tab}
           onTabChange={setTab}
