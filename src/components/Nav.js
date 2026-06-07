@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function Nav({ interests, view, setView, onLogout, isAdmin, onAdminClick, navigation = [], globalStyles = {}, onNavClick, onProfile, onChat }) {
+export default function Nav({ interests, view, setView, onLogout, isAdmin, onAdminClick, navigation = [], globalStyles = {}, onNavClick, onProfile, onChat, chatLabel = 'Messages' }) {
   const primary = globalStyles.primary_color || '#1A1A1A';
   const btnRadius = getButtonRadius(globalStyles.button_style);
 
@@ -34,7 +34,7 @@ export default function Nav({ interests, view, setView, onLogout, isAdmin, onAdm
         )}
         {onChat && (
           <button onClick={onChat} style={{ background: 'rgba(76,175,125,0.12)', color: '#2D7A50', border: '0.5px solid rgba(76,175,125,0.35)', borderRadius: 20, padding: '5px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Messages
+            {chatLabel}
           </button>
         )}
         {onProfile && (

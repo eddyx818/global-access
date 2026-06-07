@@ -102,8 +102,8 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
         ))}
 
         <div style={{ marginBottom: '1rem' }}>
-          <label style={labelStyle}>Bio</label>
-          <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell others about your business..."
+          <label style={labelStyle}>Notes</label>
+          <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Optional notes for our team..."
             style={{ ...inputStyle, height: 72, resize: 'none' }} />
         </div>
 

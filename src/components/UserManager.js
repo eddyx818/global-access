@@ -45,6 +45,7 @@ export default function UserManager() {
         name: createForm.name,
         company: createForm.company,
         role: createForm.role,
+        is_portal_admin: createForm.role === 'admin',
         temp_password: createForm.password,
         created_at: new Date().toISOString(),
       });
@@ -70,6 +71,7 @@ export default function UserManager() {
         name: editForm.name,
         company: editForm.company,
         role: editForm.role,
+        is_portal_admin: editForm.role === 'admin',
         updated_at: new Date().toISOString(),
       }).eq('id', user.id);
       if (editForm.new_password && editForm.new_password.length >= 6) {

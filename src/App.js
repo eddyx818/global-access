@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
 import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, clearPortalSession } from './lib/session';
-import { updateUserPresence } from './lib/community';
+import { updateUserPresence, resolvePortalAdmin, ensurePortalAdminFlag } from './lib/community';
 import { WHATSAPP_NUMBER } from './lib/data';
 import { useBrandContent } from './lib/content';
 import { getFontFamily } from './lib/design';
@@ -26,7 +26,7 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [isPortalAdmin, setIsPortalAdmin] = useState(false);
   const { getMergedBrands, bgColor, globalStyles, navigation } = useBrandContent();
 
   useEffect(() => {
@@ -49,20 +49,19 @@ export default function App() {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        const adminEmail = (process.env.REACT_APP_ADMIN_EMAIL || '').toLowerCase();
-        const isAdmin = session.user.email.toLowerCase() === adminEmail;
+        const isAdmin = await resolvePortalAdmin(session.user);
         setUser(session.user);
+        setIsPortalAdmin(isAdmin);
         setAuthState(isAdmin ? 'admin' : 'portal');
-        // Pre-fill admin form info
         if (isAdmin) {
-          setForm(f => ({ ...f, name: 'Edward', company: 'Global Access', email: session.user.email, phone: '+1(818)319-9888' }));
+          setForm(f => ({ ...f, name: f.name || 'Global Access', company: f.company || 'Global Access', email: session.user.email }));
+          await ensurePortalAdminFlag(session.user.id, session.user.email);
         }
-        // Load user type from profile
         try {
           const { data: profile } = await supabase.from('user_profiles').select('user_type, name, company, phone, username, bio, profile_avatar_url').eq('user_id', session.user.id).single();
           if (profile?.user_type) setUserType(profile.user_type);
           if (profile?.name) setForm(f => ({ ...f, name: profile.name, company: profile.company || f.company, phone: profile.phone || f.phone }));
-        } catch(_) {}
+        } catch (_) {}
         await linkPortalSessionToUser(session.user.id);
         await updateUserPresence(session.user.id, 'online');
       } else {
@@ -73,9 +72,11 @@ export default function App() {
     init();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_e, session) => {
       if (session?.user) {
-        const isAdmin = session.user.email.toLowerCase() === (process.env.REACT_APP_ADMIN_EMAIL || '').toLowerCase();
+        const isAdmin = await resolvePortalAdmin(session.user);
         setUser(session.user);
+        setIsPortalAdmin(isAdmin);
         setAuthState(isAdmin ? 'admin' : 'portal');
+        if (isAdmin) await ensurePortalAdminFlag(session.user.id, session.user.email);
         await linkPortalSessionToUser(session.user.id);
         await updateUserPresence(session.user.id, 'online');
       }
@@ -253,8 +254,8 @@ export default function App() {
         </div>
       )}
 
-      <Nav interests={interests} view={view} setView={setView} onLogout={authState === 'browse' ? null : handleLogout} navigation={navigation} globalStyles={globalStyles} onNavClick={handleNavClick} onProfile={user ? () => setShowProfile(true) : null} onChat={user ? () => setChatOpen(true) : null} />
-      {user && <ChatSidebar user={user} open={chatOpen} onClose={() => setChatOpen(false)} />}
+      <Nav interests={interests} view={view} setView={setView} onLogout={authState === 'browse' ? null : handleLogout} navigation={navigation} globalStyles={globalStyles} onNavClick={handleNavClick} onProfile={user ? () => setShowProfile(true) : null} onChat={user ? () => setChatOpen(true) : null} chatLabel={authState === 'admin' ? 'Messages' : 'Support'} />
+      {user && <ChatSidebar user={user} open={chatOpen} onClose={() => setChatOpen(false)} isAdmin={isPortalAdmin} />}
       {showProfile && <ProfileModal user={user} form={form} setForm={setForm} userType={userType} setUserType={setUserType} onClose={() => setShowProfile(false)} />}
 
       {/* Signup prompt overlay */}

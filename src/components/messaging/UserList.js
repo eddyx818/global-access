@@ -2,9 +2,9 @@ import React from 'react';
 
 const STATUS_COLOR = { online: '#4CAF7D', away: '#C9A84C', offline: '#CCC' };
 
-export default function UserList({ users, onSelect }) {
+export default function UserList({ users, onSelect, emptyLabel = 'No users online right now.' }) {
   if (!users.length) {
-    return <div style={{ padding: 24, textAlign: 'center', fontSize: 13, color: '#AAA' }}>No users online right now.</div>;
+    return <div style={{ padding: 24, textAlign: 'center', fontSize: 13, color: '#AAA' }}>{emptyLabel}</div>;
   }
 
   return (

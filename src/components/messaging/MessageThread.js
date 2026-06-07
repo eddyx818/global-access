@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-export default function MessageThread({ messages, currentUserId, profiles, loading, isGroup = false }) {
+export default function MessageThread({ messages, currentUserId, profiles, loading, isGroup = false, showStaffNames = false }) {
   const endRef = useRef(null);
 
   useEffect(() => {
@@ -20,10 +20,13 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
     <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, background: '#FAFAF8' }}>
       {messages.map(msg => {
         const mine = msg.from_user_id === currentUserId;
+        const fromProfile = profiles[msg.from_user_id] || {};
+        const showName = (isGroup || showStaffNames) && !mine;
+        const staffLabel = fromProfile.is_portal_admin ? (fromProfile.name || 'Team') : senderName(msg.from_user_id);
         return (
           <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
-            {isGroup && !mine && (
-              <div style={{ fontSize: 10, color: '#888', marginBottom: 3, marginLeft: 4 }}>{senderName(msg.from_user_id)}</div>
+            {showName && (
+              <div style={{ fontSize: 10, color: '#888', marginBottom: 3, marginLeft: 4 }}>{staffLabel}</div>
             )}
             <div style={{
               maxWidth: '80%', padding: '8px 12px', borderRadius: mine ? '14px 14px 4px 14px' : '14px 14px 14px 4px',

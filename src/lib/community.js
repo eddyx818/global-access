@@ -1,6 +1,71 @@
 import { supabase } from './supabase';
 import { getPortalSessionToken } from './session';
 
+const ADMIN_EMAILS = () => (process.env.REACT_APP_ADMIN_EMAIL || '')
+  .split(',')
+  .map(e => e.trim().toLowerCase())
+  .filter(Boolean);
+
+export function isLegacyAdminEmail(email) {
+  const emails = ADMIN_EMAILS();
+  return emails.length > 0 && emails.includes((email || '').toLowerCase());
+}
+
+export async function fetchUserPortalAdmin(userId) {
+  if (!userId) return false;
+  const { data } = await supabase
+    .from('user_profiles')
+    .select('is_portal_admin, role')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return !!(data?.is_portal_admin || data?.role === 'admin');
+}
+
+export async function resolvePortalAdmin(sessionUser) {
+  if (!sessionUser?.id) return false;
+  if (isLegacyAdminEmail(sessionUser.email)) {
+    await ensurePortalAdminFlag(sessionUser.id, sessionUser.email);
+    return true;
+  }
+  return fetchUserPortalAdmin(sessionUser.id);
+}
+
+export async function ensurePortalAdminFlag(userId, email) {
+  if (!userId) return;
+  if (!isLegacyAdminEmail(email)) {
+    const isAdmin = await fetchUserPortalAdmin(userId);
+    if (!isAdmin) return;
+  }
+  await supabase.from('user_profiles').upsert({
+    user_id: userId,
+    email,
+    is_portal_admin: true,
+    role: 'admin',
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id' });
+}
+
+export async function fetchPortalAdmins() {
+  const { data } = await supabase
+    .from('user_profiles')
+    .select('user_id, username, name, company, role, status, profile_avatar_url, last_active_at, is_portal_admin')
+    .eq('is_portal_admin', true);
+  return data || [];
+}
+
+export async function fetchContactableUsers(currentUserId, isAdmin) {
+  if (isAdmin) {
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('user_id, username, name, company, role, status, profile_avatar_url, last_active_at, email, is_portal_admin')
+      .eq('is_portal_admin', false)
+      .neq('user_id', currentUserId)
+      .order('last_active_at', { ascending: false, nullsFirst: false });
+    return data || [];
+  }
+  return fetchPortalAdmins();
+}
+
 export async function updateUserPresence(userId, status = 'online') {
   if (!userId) return;
   await supabase.from('user_profiles').upsert({
@@ -25,24 +90,41 @@ export async function logUserActivity(eventType, pageUrl, metadata = {}, userId 
   } catch (_) {}
 }
 
-export async function fetchOnlineUsers() {
+export async function fetchOnlineUsers(isAdmin = false) {
   const since = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-  const { data } = await supabase
+  let query = supabase
     .from('user_profiles')
-    .select('user_id, username, name, company, role, status, profile_avatar_url, last_active_at')
+    .select('user_id, username, name, company, role, status, profile_avatar_url, last_active_at, is_portal_admin')
     .eq('status', 'online')
     .gte('last_active_at', since)
     .order('last_active_at', { ascending: false });
+
+  if (!isAdmin) {
+    query = query.eq('is_portal_admin', true);
+  }
+
+  const { data } = await query;
   return data || [];
 }
 
-export async function fetchConversations(userId) {
-  const { data } = await supabase
+export async function fetchConversations(userId, { isAdmin = false } = {}) {
+  let query = supabase
     .from('conversations')
     .select('*')
-    .contains('participant_user_ids', [userId])
     .order('last_message_at', { ascending: false });
-  return data || [];
+
+  if (!isAdmin) {
+    query = query.contains('participant_user_ids', [userId]);
+  } else {
+    query = query.eq('is_group', false);
+  }
+
+  const { data } = await query;
+  let convos = data || [];
+  if (!isAdmin) {
+    convos = convos.filter(c => !c.is_group);
+  }
+  return convos;
 }
 
 export async function fetchMessages(conversationId) {
@@ -52,6 +134,27 @@ export async function fetchMessages(conversationId) {
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true });
   return data || [];
+}
+
+export async function getOrCreateSupportConversation(customerId) {
+  const admins = await fetchPortalAdmins();
+  if (!admins.length) throw new Error('Support team is not available yet.');
+
+  const { data: existing } = await supabase
+    .from('conversations')
+    .select('*')
+    .contains('participant_user_ids', [customerId])
+    .eq('is_group', false);
+
+  const adminIds = new Set(admins.map(a => a.user_id));
+  const support = (existing || []).find(c =>
+    c.participant_user_ids.length === 2 &&
+    c.participant_user_ids.includes(customerId) &&
+    adminIds.has(c.participant_user_ids.find(id => id !== customerId))
+  );
+  if (support) return support;
+
+  return getOrCreateDirectConversation(customerId, admins[0].user_id);
 }
 
 export async function getOrCreateDirectConversation(userId, otherUserId) {
@@ -174,20 +277,48 @@ export async function joinGroupChat(conversationId) {
   return data;
 }
 
-export function getConversationTitle(convo, profiles, currentUserId) {
+export function getCustomerParticipantId(convo, profiles = {}) {
+  return (convo?.participant_user_ids || []).find(id => !profiles[id]?.is_portal_admin);
+}
+
+export function getConversationTitle(convo, profiles, currentUserId, { isAdmin = false } = {}) {
   if (convo.is_group) {
     return convo.group_name || 'Group chat';
   }
+  if (isAdmin) {
+    const customerId = getCustomerParticipantId(convo, profiles);
+    const p = profiles[customerId] || {};
+    return p.name || p.company || p.username || 'Customer';
+  }
   const otherId = convo.participant_user_ids.find(id => id !== currentUserId);
   const p = profiles[otherId] || {};
-  return p.username || p.name || 'User';
+  if (p.is_portal_admin) return 'Global Access';
+  return p.username || p.name || p.company || 'User';
 }
 
 export function isGroupConversation(convo) {
   return !!convo?.is_group;
 }
 
-export async function markMessagesRead(conversationId, userId) {
+export async function markMessagesRead(conversationId, userId, { isAdmin = false } = {}) {
+  if (isAdmin) {
+    const { data: msgs } = await supabase
+      .from('messages')
+      .select('id, from_user_id')
+      .eq('conversation_id', conversationId)
+      .eq('read_status', false);
+    const { data: admins } = await supabase
+      .from('user_profiles')
+      .select('user_id')
+      .eq('is_portal_admin', true);
+    const adminIds = new Set((admins || []).map(a => a.user_id));
+    const customerMsgIds = (msgs || [])
+      .filter(m => !adminIds.has(m.from_user_id))
+      .map(m => m.id);
+    if (!customerMsgIds.length) return;
+    await supabase.from('messages').update({ read_status: true }).in('id', customerMsgIds);
+    return;
+  }
   await supabase
     .from('messages')
     .update({ read_status: true })
@@ -196,7 +327,12 @@ export async function markMessagesRead(conversationId, userId) {
     .eq('read_status', false);
 }
 
-export async function getUnreadCount(userId) {
+export async function getUnreadCount(userId, { isAdmin = false } = {}) {
+  if (isAdmin) {
+    const { data, error } = await supabase.rpc('get_admin_unread_count');
+    if (error) return 0;
+    return data || 0;
+  }
   const { count } = await supabase
     .from('messages')
     .select('*', { count: 'exact', head: true })
@@ -248,6 +384,7 @@ export async function saveProfile(userId, email, fields) {
   if (fields.profile_avatar_url !== undefined) payload.profile_avatar_url = fields.profile_avatar_url;
   if (fields.user_type !== undefined) payload.user_type = fields.user_type;
   if (fields.role !== undefined) payload.role = fields.role;
+  if (fields.is_portal_admin !== undefined) payload.is_portal_admin = fields.is_portal_admin;
 
   const { error } = await supabase.from('user_profiles').upsert(payload, { onConflict: 'user_id' });
   return !error;

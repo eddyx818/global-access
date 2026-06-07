@@ -94,6 +94,32 @@ export function AssetPreview({ data }) {
   );
 }
 
+export function ProductPreview({ data }) {
+  const brand = BRANDS.find(b => b.id === data.brand_id);
+  return (
+    <div style={{ borderRadius: 10, border: '0.5px solid #E0DDD8', padding: 12, marginTop: 8, background: '#FFF' }}>
+      {(data.images?.[0] || data.image_url) && (
+        <img src={data.images?.[0] || data.image_url} alt="" style={{ width: '100%', maxHeight: 80, objectFit: 'cover', borderRadius: 8, marginBottom: 8 }} />
+      )}
+      <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A' }}>{data.name || 'New Product'}</div>
+      <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>{brand?.name || data.brand_id} · SKU: {data.sku}</div>
+      {data.detail && <div style={{ fontSize: 11, color: '#666', marginTop: 6 }}>{data.detail}</div>}
+      {data.flavors_retail?.length > 0 && (
+        <div style={{ fontSize: 10, color: '#AAA', marginTop: 8 }}>{data.flavors_retail.length} retail flavors</div>
+      )}
+    </div>
+  );
+}
+
+export function BulkImportPreview({ data }) {
+  const count = data.products?.length || 0;
+  return (
+    <div style={{ borderRadius: 10, border: '0.5px solid #E0DDD8', padding: 12, marginTop: 8, background: '#FFF', fontSize: 11, color: '#666' }}>
+      Import {count} product{count !== 1 ? 's' : ''}{data.overwrite_existing ? ' (overwrite existing)' : ''}
+    </div>
+  );
+}
+
 export function NavigationPreview({ data }) {
   const items = data._previewItems || (data.label ? [{ label: data.label, url: data.url }] : []);
   return (
@@ -110,6 +136,16 @@ export function NavigationPreview({ data }) {
 }
 
 export default function DesignPreview({ action, data }) {
+  if (action === 'generate_preview' && data.preview_type) {
+    const changes = data.changes || data;
+    switch (data.preview_type) {
+      case 'hero_section': return <HeroPreview data={changes} />;
+      case 'brand_page': return <BrandLayoutPreview data={changes} />;
+      case 'product_card': return <ProductPreview data={changes} />;
+      default: return <HeroPreview data={changes} />;
+    }
+  }
+
   switch (action) {
     case 'update_hero_section':
       return <HeroPreview data={data} brandName="Churros Locos" brandColor="#F5943A" />;
@@ -121,6 +157,10 @@ export default function DesignPreview({ action, data }) {
       return <AssetPreview data={data} />;
     case 'update_navigation':
       return <NavigationPreview data={data} />;
+    case 'create_product':
+      return <ProductPreview data={data} />;
+    case 'bulk_import':
+      return <BulkImportPreview data={data} />;
     default:
       return null;
   }
