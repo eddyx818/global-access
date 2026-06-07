@@ -382,21 +382,6 @@ const AISLE_BOOTH_STYLE_KEYS = {
   home: ['seven_oh', 'preroll_lab'],
 };
 
-function drawConventionCeiling(ctx, w, h) {
-  ctx.fillStyle = '#2a2a30';
-  ctx.fillRect(0, 0, w, h * 0.12);
-  ctx.fillStyle = '#383840';
-  for (let i = 0; i < 6; i += 1) {
-    ctx.fillRect(i * (w / 5.5), 0, w * 0.04, h * 0.12);
-  }
-  for (let i = 0; i < 4; i += 1) {
-    const lx = (i + 0.55) * (w / 4);
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fillRect(lx - 18, 10, 36, 4);
-  }
-}
-
-/** Front-facing booth kiosk for horizontal floor strip (scrolls past the player). */
 function drawSimpleBoothFront(ctx, bx, by, bw, bh, style) {
   ctx.fillStyle = '#252530';
   ctx.fillRect(bx, by, bw, bh * 0.18);
@@ -449,92 +434,125 @@ function getHorizontalBoothStrip(aisleId, boothW, boothH, styles) {
   return boothStripCache;
 }
 
-function drawSideVendorBooths(ctx, side, w, h, scroll, aisle) {
-  const isLeft = side === 'left';
-  const colX = isLeft ? 0 : w * 0.77;
-  const colW = w * 0.23;
-  const topY = h * 0.12;
-  const floorY = GROUND * h;
-  const floorBandH = h * 0.26;
-  const bandTop = floorY - floorBandH;
+function drawConventionCeiling(ctx, w, h, scroll) {
+  ctx.fillStyle = '#2a2a30';
+  ctx.fillRect(0, 0, w, h * 0.12);
+  const trussOffset = (scroll * 0.35) % (w / 4);
+  ctx.fillStyle = '#383840';
+  for (let i = -1; i < 7; i += 1) {
+    ctx.fillRect(i * (w / 4) - trussOffset, 0, w * 0.035, h * 0.12);
+  }
+  for (let i = 0; i < 5; i += 1) {
+    const lx = ((i * (w / 4.5) - scroll * 0.2) % (w + 40)) - 20;
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(lx, 8, 36, 4);
+  }
+}
 
-  ctx.fillStyle = '#3a3a44';
-  ctx.fillRect(colX, topY, colW, bandTop - topY);
-  ctx.fillStyle = '#44444e';
-  ctx.fillRect(colX + 2, topY + 4, colW - 4, (bandTop - topY) * 0.35);
+function blitHorizontalStrip(ctx, strip, destX, destY, destW, destH, offset) {
+  if (!strip.canvas || strip.stripW <= 0) return;
+  const sx = offset % strip.stripW;
+  const sw = Math.min(destW, strip.stripW - sx);
+  ctx.drawImage(strip.canvas, sx, 0, sw, strip.stripH, destX, destY, sw, destH);
+  const remain = destW - sw;
+  if (remain > 0) {
+    ctx.drawImage(strip.canvas, 0, 0, remain, strip.stripH, destX + sw, destY, remain, destH);
+  }
+}
+
+/** Far side of aisle — booth fronts facing the player (scrolls horizontally as you run forward). */
+function drawFarBoothWall(ctx, w, h, scroll, aisle) {
+  const wallTop = h * 0.12;
+  const wallBottom = h * 0.5;
+  const wallH = wallBottom - wallTop;
+
+  ctx.fillStyle = '#2e2e36';
+  ctx.fillRect(0, wallTop, w, wallH);
 
   const styles = boothStylePool(aisle.id);
-  const boothW = colW * 0.92;
-  const strip = getHorizontalBoothStrip(aisle.id, boothW, floorBandH, styles);
-  const visibleW = colW - 4;
-  const parallax = scroll * 1.35 + (isLeft ? 0 : 48);
-  const offset = strip.stripW > 0 ? parallax % strip.stripW : 0;
+  const boothW = w * 0.3;
+  const strip = getHorizontalBoothStrip(aisle.id, boothW, wallH, styles);
+  blitHorizontalStrip(ctx, strip, 0, wallTop, w, wallH, scroll * 1.25);
 
-  if (strip.canvas) {
-    const sx = offset;
-    const sw = Math.min(visibleW, strip.stripW - offset);
-    ctx.drawImage(strip.canvas, sx, 0, sw, strip.stripH, colX + 2, bandTop, sw, floorBandH);
-    const remain = visibleW - sw;
-    if (remain > 0 && strip.stripW > 0) {
-      ctx.drawImage(strip.canvas, 0, 0, remain, strip.stripH, colX + 2 + sw, bandTop, remain, floorBandH);
-    }
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(0, wallBottom - 4, w, 4);
+  ctx.strokeStyle = '#d4af37';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, wallBottom);
+  ctx.lineTo(w, wallBottom);
+  ctx.stroke();
+}
+
+/** Aisle floor — flat side-on plane; dashes scroll left as you run forward down the hall. */
+function drawAisleFloor(ctx, w, h, scroll) {
+  const floorTop = h * 0.5;
+  const floorBottom = GROUND * h;
+  const floorH = floorBottom - floorTop;
+
+  const floorGrad = ctx.createLinearGradient(0, floorTop, 0, floorBottom);
+  floorGrad.addColorStop(0, '#64646e');
+  floorGrad.addColorStop(1, '#4e4e58');
+  ctx.fillStyle = floorGrad;
+  ctx.fillRect(0, floorTop, w, floorH);
+
+  // Near-side curb (camera side of aisle)
+  ctx.fillStyle = '#3a3a44';
+  ctx.fillRect(0, floorTop, w * 0.06, floorH);
+  ctx.strokeStyle = 'rgba(201,168,76,0.45)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.06, floorTop);
+  ctx.lineTo(w * 0.06, floorBottom);
+  ctx.stroke();
+
+  // Far-side curb under booth wall
+  ctx.fillStyle = '#35353d';
+  ctx.fillRect(w * 0.94, floorTop, w * 0.06, floorH);
+  ctx.strokeStyle = 'rgba(201,168,76,0.25)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.94, floorTop);
+  ctx.lineTo(w * 0.94, floorBottom);
+  ctx.stroke();
+
+  const dashW = w * 0.08;
+  const lineY = floorTop + floorH * 0.62;
+  for (let t = -1; t < 16; t += 1) {
+    const tx = ((t * dashW * 1.55 - scroll * 2.4) % (w + dashW * 2) + w + dashW * 2) % (w + dashW * 2) - dashW;
+    ctx.strokeStyle = 'rgba(255,255,255,0.09)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(tx, lineY);
+    ctx.lineTo(tx + dashW, lineY);
+    ctx.stroke();
   }
 
-  ctx.strokeStyle = '#b8962e';
-  ctx.lineWidth = 2.5;
-  const edgeX = isLeft ? colX + colW : colX;
+  ctx.strokeStyle = 'rgba(201,168,76,0.35)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([12, 10]);
   ctx.beginPath();
-  ctx.moveTo(edgeX, topY);
-  ctx.lineTo(edgeX, floorY);
+  ctx.moveTo(w * 0.06, floorTop + floorH * 0.22);
+  ctx.lineTo(w * 0.94, floorTop + floorH * 0.22);
   ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#32323a';
+  ctx.fillRect(0, floorBottom, w, h - floorBottom);
 }
 
 function drawShowFloor(ctx, w, h, aisle, scroll) {
   const py = (n) => n * h;
-  const floorY = py(GROUND);
 
-  drawConventionCeiling(ctx, w, h);
-
-  ctx.fillStyle = '#35353c';
-  ctx.fillRect(0, py(0.12), w, floorY - py(0.12));
-
-  drawSideVendorBooths(ctx, 'left', w, h, scroll, aisle);
-  drawSideVendorBooths(ctx, 'right', w, h, scroll + 120, aisle);
-
-  const aisleGrad = ctx.createLinearGradient(w * 0.23, 0, w * 0.77, 0);
-  aisleGrad.addColorStop(0, '#62626c');
-  aisleGrad.addColorStop(0.5, '#848490');
-  aisleGrad.addColorStop(1, '#62626c');
-  ctx.fillStyle = aisleGrad;
-  ctx.fillRect(w * 0.23, py(0.12), w * 0.54, floorY - py(0.12));
-
-  for (let i = 0; i < 5; i += 1) {
-    const fx = w * 0.23 + (((i * 0.22 - scroll * 0.28) % 1 + 1) % 1) * w * 0.54;
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(fx, floorY);
-    ctx.lineTo(fx - w * 0.024, h);
-    ctx.stroke();
-  }
-
-  ctx.strokeStyle = '#d4af37';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.23, floorY);
-  ctx.lineTo(w * 0.23, h);
-  ctx.moveTo(w * 0.77, floorY);
-  ctx.lineTo(w * 0.77, h);
-  ctx.stroke();
-
-  ctx.fillStyle = '#3a3a42';
-  ctx.fillRect(0, floorY, w, h - floorY);
+  drawConventionCeiling(ctx, w, h, scroll);
+  drawFarBoothWall(ctx, w, h, scroll, aisle);
+  drawAisleFloor(ctx, w, h, scroll);
 
   ctx.fillStyle = '#2e2e34';
-  ctx.fillRect(w * 0.28, py(0.125), w * 0.44, py(0.028));
+  ctx.fillRect(w * 0.04, py(0.125), w * 0.92, py(0.028));
   ctx.fillStyle = aisle.neon;
   ctx.globalAlpha = 0.22;
-  ctx.fillRect(w * 0.28, py(0.125), w * 0.44, py(0.028));
+  ctx.fillRect(w * 0.04, py(0.125), w * 0.92, py(0.028));
   ctx.globalAlpha = 1;
   ctx.fillStyle = '#eee';
   ctx.font = '600 9px "Bebas Neue", sans-serif';
@@ -558,29 +576,33 @@ function playerCollisionBox(s) {
 }
 
 function drawGlobalAccessBooth(ctx, xNorm, w, h, glow, progress) {
+  const wallTop = h * 0.12;
+  const wallBottom = h * 0.5;
+  const wallH = wallBottom - wallTop;
   const rx = xNorm * w;
-  const footY = GROUND * h;
-  const bw = w * 0.3;
-  const bh = h * 0.42;
+  const bw = w * 0.32;
+  const bh = wallH * 0.92;
+  const by = wallTop + (wallH - bh) * 0.5;
+  const footY = by + bh - 2;
   const prog = Math.min(1, progress / CHECKOUT_GOAL);
 
   ctx.fillStyle = '#1a1a1e';
-  ctx.fillRect(rx, footY - bh, bw, bh);
+  ctx.fillRect(rx, by, bw, bh);
   ctx.strokeStyle = glow ? '#C9A84C' : '#666';
   ctx.lineWidth = glow ? 3 : 1.5;
-  ctx.strokeRect(rx, footY - bh, bw, bh);
+  ctx.strokeRect(rx, by, bw, bh);
 
   ctx.fillStyle = '#C9A84C';
-  ctx.fillRect(rx + 4, footY - bh + 6, bw - 8, bh * 0.14);
+  ctx.fillRect(rx + 4, by + 6, bw - 8, bh * 0.14);
   ctx.fillStyle = '#111';
   ctx.font = '700 13px "Bebas Neue", sans-serif';
-  ctx.fillText('GLOBAL ACCESS', rx + bw * 0.07, footY - bh * 0.88);
+  ctx.fillText('GLOBAL ACCESS', rx + bw * 0.07, by + bh * 0.12);
   ctx.font = '600 7px sans-serif';
   ctx.fillStyle = '#444';
-  ctx.fillText('REAL BRANDS · LEGIT DISTRIBUTOR', rx + bw * 0.08, footY - bh * 0.72);
+  ctx.fillText('REAL BRANDS · LEGIT DISTRIBUTOR', rx + bw * 0.08, by + bh * 0.22);
 
   ctx.fillStyle = '#2a2a30';
-  ctx.fillRect(rx + 6, footY - bh * 0.62, bw - 12, bh * 0.48);
+  ctx.fillRect(rx + 6, by + bh * 0.28, bw - 12, bh * 0.48);
 
   for (let i = 0; i < 2; i += 1) {
     drawHuman(ctx, rx + bw * (0.15 + i * 0.38), footY - bh * 0.08, characterScale(h, 0.75), 'left', i * 20, {
@@ -589,12 +611,12 @@ function drawGlobalAccessBooth(ctx, xNorm, w, h, glow, progress) {
   }
   ctx.font = '700 8px sans-serif';
   ctx.fillStyle = '#C9A84C';
-  ctx.fillText('YOU MADE IT →', rx + bw * 0.24, footY - bh * 0.04);
+  ctx.fillText('YOU MADE IT →', rx + bw * 0.24, by + bh * 0.92);
 
   if (prog > 0.45) {
     ctx.font = '700 9px "Bebas Neue", sans-serif';
     ctx.fillStyle = '#8bc34a';
-    ctx.fillText(`${Math.round(prog * 100)}%`, rx + bw * 0.82, footY - bh * 0.48);
+    ctx.fillText(`${Math.round(prog * 100)}%`, rx + bw * 0.82, by + bh * 0.38);
   }
 }
 
@@ -1129,7 +1151,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
       </div>
 
       <p style={{ fontSize: 11, color: theme?.textFaint || '#AAA', margin: '8px 0 0', lineHeight: 1.45, textAlign: 'center' }}>
-        Walk the expo aisle · Jump counters, vendors & security · Reach Global Access on the right
+        Walk the aisle toward Global Access · Booths ahead · Jump counters & reps · Reach GA on the right
       </p>
 
       {hud.phase === 'over' && lastRun && (
