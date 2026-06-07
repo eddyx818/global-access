@@ -16,7 +16,7 @@
 -- 2. Supabase → Project Settings → Edge Functions → Secrets:
 --      DISCORD_WEBHOOK_URL  = your Discord channel webhook URL
 --      DISCORD_NOTIFY_SECRET = long random string (e.g. openssl rand -hex 32)
---      PORTAL_URL           = https://your-portal-domain.com  (optional, for link in Discord)
+--      PORTAL_URL           = https://global-access.vercel.app  (your live site — change when you get a custom domain)
 -- 3. Supabase → Database → Webhooks → Create webhook:
 --      Name:     notify-discord-messages
 --      Table:    messages

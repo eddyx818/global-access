@@ -39,6 +39,8 @@ Deno.serve(async (req) => {
 
     const subject = subject_choice === 'b' ? draft.subject_b : draft.subject_a;
     const resendKey = Deno.env.get('RESEND_API_KEY');
+    const fromEmail = Deno.env.get('RESEND_FROM') || 'Global Access <edward@churroslocos.shop>';
+    const replyTo = Deno.env.get('RESEND_REPLY_TO') || 'edward@churroslocos.shop';
 
     // Send emails via Resend
     let sent = 0;
@@ -59,8 +61,8 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: 'Global Access <hello@globalaccess.shop>',
-            reply_to: 'edward@churroslocos.shop',
+            from: fromEmail,
+            reply_to: replyTo,
             to: contact.email,
             subject,
             html: personalizedHtml,
