@@ -18,7 +18,7 @@ import { approveAccessRequestAndCreateAccount, denyAccessRequest, setAccessReque
 import { whatsAppUrl } from '../lib/whatsapp';
 import { updateInquiryQuoteStatus, QUOTE_STATUSES } from '../lib/inquiries';
 import { loadAppNavigation, saveAppNavigationPartial } from '../lib/appNavigation';
-import { fetchLobbyLeaderboard, resetLobbyLeaderboard } from '../lib/lobbyGameScores';
+import IndustryFactsPanel from './IndustryFactsPanel';
 
 export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const { t } = useTheme();
@@ -50,9 +50,6 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const [requestActionMsg, setRequestActionMsg] = useState('');
   const [showDismissedRequests, setShowDismissedRequests] = useState(false);
   const [statusUpdatingId, setStatusUpdatingId] = useState(null);
-  const [lobbyScores, setLobbyScores] = useState([]);
-  const [resettingLobbyScores, setResettingLobbyScores] = useState(false);
-  const [lobbyScoreMsg, setLobbyScoreMsg] = useState('');
 
   useEffect(() => { loadAll(); loadContentOverrides(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -83,28 +80,9 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadLobbyScores = async () => {
-    const r = await fetchLobbyLeaderboard(8);
-    setLobbyScores(r.ok ? r.rows : []);
-  };
-
-  const handleResetLobbyScores = async () => {
-    if (!window.confirm('Clear all waiting-room high scores? This cannot be undone.')) return;
-    setResettingLobbyScores(true);
-    setLobbyScoreMsg('');
-    const r = await resetLobbyLeaderboard();
-    setResettingLobbyScores(false);
-    if (!r.ok) {
-      setLobbyScoreMsg(r.error || 'Reset failed — run supabase-update-36-reset-lobby-scores.sql in Supabase.');
-      return;
-    }
-    setLobbyScores([]);
-    setLobbyScoreMsg(`Cleared ${r.deleted} score${r.deleted === 1 ? '' : 's'}.`);
-  };
-
   const loadAll = async () => {
     setLoading(true);
-    await Promise.all([loadStats(), loadRequests(), loadInquiries(), loadTopPages(), loadTopClicks(), loadAvgTimes(), loadLobbyScores()]);
+    await Promise.all([loadStats(), loadRequests(), loadInquiries(), loadTopPages(), loadTopClicks(), loadAvgTimes()]);
     setLoading(false);
   };
 
@@ -371,44 +349,6 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
                 </div>
               ))}
             </div>
-            <div style={{ ...ui.card, marginBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-                <div style={ui.sectionLabel}>Waiting room game · high scores</div>
-                <button
-                  type="button"
-                  onClick={handleResetLobbyScores}
-                  disabled={resettingLobbyScores}
-                  style={{
-                    background: 'transparent',
-                    border: `0.5px solid ${t.border}`,
-                    borderRadius: 6,
-                    padding: '6px 10px',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: t.textMuted,
-                    cursor: resettingLobbyScores ? 'wait' : 'pointer',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  {resettingLobbyScores ? 'Clearing…' : 'Reset high scores'}
-                </button>
-              </div>
-              {lobbyScoreMsg && (
-                <div style={{ fontSize: 12, color: lobbyScoreMsg.startsWith('Cleared') ? t.accent : '#c0392b', marginBottom: 10 }}>
-                  {lobbyScoreMsg}
-                </div>
-              )}
-              {lobbyScores.length === 0 ? (
-                <div style={{ fontSize: 13, color: t.textDisabled }}>No scores on the board.</div>
-              ) : (
-                lobbyScores.map((row, i) => (
-                  <div key={`${row.player_name}-${row.created_at}-${i}`} style={ui.row}>
-                    <span>{i + 1}. {row.player_name}</span>
-                    <span style={{ fontSize: 12, color: t.textFaint }}>{row.score} pts · {row.products_collected} brands</span>
-                  </div>
-                ))
-              )}
-            </div>
             <div style={ui.card}>
               <div style={ui.sectionLabel}>Recent inquiries</div>
               {inquiries.slice(0, 5).map(inq => (
@@ -609,11 +549,14 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           </div>
         )}
         {!loading && tab === 'content' && (
-          <ContentEditor
-            brandOverrides={brandOverrides}
-            productOverrides={productOverrides}
-            onSaved={loadContentOverrides}
-          />
+          <>
+            <IndustryFactsPanel />
+            <ContentEditor
+              brandOverrides={brandOverrides}
+              productOverrides={productOverrides}
+              onSaved={loadContentOverrides}
+            />
+          </>
         )}
         {!loading && tab === 'users' && (
           <UserManager />

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import LobbyRunnerGame from './LobbyRunnerGame';
+import React, { useEffect, useState, useCallback } from 'react';
+import AccessWaitingFacts from './AccessWaitingFacts';
 import { fetchAccessRequestStatus, clearPendingAccess } from '../lib/accessRequestGate';
 
 const POLL_MS = 20000;
@@ -44,31 +44,15 @@ export default function AccessWaitingRoom({
   }, [checkStatus]);
 
   const firstName = (name || 'there').split(' ')[0];
-  const gameTheme = useMemo(() => ({
-    aisleBg: theme?.bgMuted || '#F3F0EA',
-    aisleLine: theme?.borderSubtle || 'rgba(0,0,0,0.06)',
-    shelf: theme?.border || '#E8E4DC',
-    floor: theme?.bgMuted || '#DED8CE',
-    repBg: theme?.btnPrimaryBg || '#1A1A1A',
-    repLabel: theme?.gold || '#C9A84C',
-    obstacle: '#B8A898',
-    canvasBg: theme?.bgElevated || '#FFF',
+  const factsTheme = {
+    gold: theme?.gold || '#C9A84C',
     border: theme?.border || '#E0DDD8',
+    bgMuted: theme?.bgMuted || '#F8F6F3',
     mutedBg: theme?.bgMuted || '#F8F6F3',
-    textMuted: theme?.textMuted || '#888',
-    textFaint: theme?.textFaint || '#AAA',
+    text: theme?.text || '#1A1A1A',
     textSecondary: theme?.textSecondary || '#555',
-  }), [
-    theme?.bgMuted,
-    theme?.borderSubtle,
-    theme?.border,
-    theme?.btnPrimaryBg,
-    theme?.gold,
-    theme?.bgElevated,
-    theme?.textMuted,
-    theme?.textFaint,
-    theme?.textSecondary,
-  ]);
+    textFaint: theme?.textFaint || '#AAA',
+  };
 
   return (
     <div>
@@ -95,17 +79,7 @@ export default function AccessWaitingRoom({
             padding: '12px 0 0',
             borderTop: theme?.borderHairline || '0.5px solid #E0DDD8',
           }}>
-            <div style={{
-              fontSize: 10,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: theme?.gold || '#C9A84C',
-              fontWeight: 600,
-              marginBottom: 10,
-            }}>
-              While you wait — Champs Show Runner™
-            </div>
-            <LobbyRunnerGame playerName={firstName} theme={gameTheme} />
+            <AccessWaitingFacts theme={factsTheme} />
           </div>
         </>
       )}

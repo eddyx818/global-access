@@ -261,7 +261,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                     }}
                     style={btnLink}
                   >
-                    Already requested? Check status / play game
+                    Already requested? Check status
                   </button>
                 </div>
               )}
