@@ -12,6 +12,7 @@ import ContactImportPanel from './ContactImportPanel';
 import ReferralTracker from './ReferralTracker';
 import ThemeToggle from './ThemeToggle';
 import QuoteStatusBadge from './QuoteStatusBadge';
+import AdminTabBar from './AdminTabBar';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
 import { approveAccessRequestAndCreateAccount } from '../lib/accessApproval';
@@ -196,23 +197,12 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
         </div>
       )}
       <div style={{ padding: '1.5rem', maxWidth: 960, margin: '0 auto' }}>
-        <div style={{
-          display: 'flex',
-          gap: 6,
-          marginBottom: '1.5rem',
-          overflowX: 'auto',
-          flexWrap: 'nowrap',
-          WebkitOverflowScrolling: 'touch',
-          paddingBottom: 4,
-          scrollbarWidth: 'none',
-        }}>
-          {['overview','community','contacts','pages','clicks','requests','inquiries','content','users','map','brands','marketing'].map(tabId => (
-            <button key={tabId} onClick={() => setTab(tabId)} style={{ ...ui.tabBtn(tab === tabId), flexShrink: 0, whiteSpace: 'nowrap' }}>
-              {tabId === 'requests' && pending.length > 0 ? `Requests (${pending.length})` : tabId.charAt(0).toUpperCase() + tabId.slice(1)}
-            </button>
-          ))}
-          <button onClick={loadAll} style={{ ...ui.tabBtn(false), flexShrink: 0, marginLeft: 'auto', whiteSpace: 'nowrap' }}>↻ Refresh</button>
-        </div>
+        <AdminTabBar
+          activeTab={tab}
+          onTabChange={setTab}
+          pendingCount={pending.length}
+          onRefresh={loadAll}
+        />
         {loading && <div style={{ color: t.textFaint, fontSize: 13 }}>Loading...</div>}
         {!loading && tab === 'overview' && (
           <div>
