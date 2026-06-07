@@ -1,8 +1,9 @@
 import React from 'react';
-import { formatPrice, getVisiblePrices, getActivePromo, getShippingSummary, getMoqLabel, getPackConfigLines } from '../lib/pricing';
+import { formatPrice, getVisiblePrices, getActivePromo, getShippingSummary, getMoqLabel, getPackConfigLines, masterPricingIsQuoteOnly } from '../lib/pricing';
 
 export default function ProductCommerceInfo({
   product,
+  brand,
   userType,
   orderMode,
   masterPricingQualified = false,
@@ -10,14 +11,15 @@ export default function ProductCommerceInfo({
   onSignIn,
   onRequestAccess,
 }) {
-  const prices = getVisiblePrices(product, userType, orderMode, { masterPricingQualified, pricingVisible });
+  const prices = getVisiblePrices(product, userType, orderMode, { masterPricingQualified, pricingVisible, brand });
   const promo = getActivePromo(product, userType, { pricingVisible });
   const shipping = getShippingSummary(product);
   const moq = getMoqLabel(product);
   const packLines = getPackConfigLines(product);
+  const masterQuoteOnly = masterPricingIsQuoteOnly(brand, { masterPricingQualified, userType });
 
-  if (!prices.length && !promo && !shipping && !moq && !packLines.length && pricingVisible) return null;
-  if (!pricingVisible && !packLines.length && !shipping && !moq) return null;
+  if (!prices.length && !promo && !shipping && !moq && !packLines.length && !masterQuoteOnly && pricingVisible) return null;
+  if (!pricingVisible && !packLines.length && !shipping && !moq && !masterQuoteOnly) return null;
 
   return (
     <div style={{ marginBottom: 14, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
@@ -70,6 +72,17 @@ export default function ProductCommerceInfo({
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {masterQuoteOnly && (
+        <div style={{ background: '#FDF6E3', border: '0.5px solid #F5D87A', borderRadius: 8, padding: '8px 12px', marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#A07A20', lineHeight: 1.45 }}>
+            Master Distributor pricing on request for this brand
+          </div>
+          <div style={{ fontSize: 11, color: '#888', marginTop: 4, lineHeight: 1.45 }}>
+            Add items to your quote and our team will follow up with rates.
+          </div>
         </div>
       )}
 

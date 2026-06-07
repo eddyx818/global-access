@@ -336,6 +336,18 @@ export default function App() {
     ));
   };
 
+  const updateInterestLine = (key, { qty, orderMode, orderUnitLabel } = {}) => {
+    setInterests(prev => prev.map(i => {
+      if (i.key !== key) return i;
+      return {
+        ...i,
+        ...(qty != null ? { qty } : {}),
+        ...(orderMode != null ? { orderMode } : {}),
+        ...(orderUnitLabel != null ? { orderUnitLabel } : {}),
+      };
+    }));
+  };
+
   const setMasterPricingInterestFlag = async (value) => {
     if (!user?.id) return;
     setMasterPricingInterest(value);
@@ -576,6 +588,7 @@ export default function App() {
           setForm={setForm}
           userType={userType}
           setUserType={setUserType}
+          isStaff={isPortalAdmin || isSalesRep}
           onClose={closeProfile}
           profileGate={profileGate}
           onSaved={handleProfileSaved}
@@ -615,8 +628,7 @@ export default function App() {
           isMobile={isMobile}
           userType={userType}
           masterPricingQualified={masterPricingQualified}
-          masterPricingInterest={masterPricingInterest}
-          onSetMasterPricingInterest={user?.id && userType === 'distributor' ? setMasterPricingInterestFlag : null}
+          isStaff={isPortalAdmin || isSalesRep}
           chatLabel={chatLabel}
         />
       )}
@@ -655,6 +667,7 @@ export default function App() {
             setForm={setForm}
             userType={userType}
             setUserType={setUserType}
+            isStaff={isPortalAdmin || isSalesRep}
             variant="page"
             onClose={closeProfile}
             profileGate={profileGate}
@@ -671,6 +684,7 @@ export default function App() {
           userEmail={form.email}
           onBack={goHome}
           toggleInterest={toggleInterest}
+          updateInterestLine={updateInterestLine}
           isInterested={isInterested}
           interests={interests}
           onSubmit={handleSubmitAttempt}

@@ -34,6 +34,7 @@ export default function ProfileModal({
   setForm,
   userType,
   setUserType,
+  isStaff = false,
   onClose,
   variant = 'modal',
   profileGate = null,
@@ -149,8 +150,7 @@ export default function ProfileModal({
         phone: form.phone,
         bio: bio.trim() || null,
         profile_avatar_url: avatarUrl.trim() || null,
-        user_type: userType,
-        role: userType,
+        ...(isStaff ? {} : { user_type: userType, role: userType }),
         preferred_appointment_at: appointmentAt,
         appointment_notes: appointmentNotes.trim() || null,
       });
@@ -200,17 +200,36 @@ export default function ProfileModal({
         <input value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} placeholder="https://..." style={inputStyle} autoCapitalize="none" />
       </div>
 
-      <div style={{ marginBottom: '1.25rem' }}>
-        <label style={labelStyle}>Account Type</label>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {['retailer', 'distributor'].map(typeKey => (
-            <button key={typeKey} type="button" onClick={() => setUserType(typeKey)}
-              style={{ flex: 1, background: userType === typeKey ? t.btnPrimaryBg : t.inputBg, color: userType === typeKey ? t.btnPrimaryText : t.textMuted, border: userType === typeKey ? `0.5px solid ${t.btnPrimaryBg}` : t.borderHairline, borderRadius: 8, padding: '10px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize', fontWeight: userType === typeKey ? 600 : 400 }}>
-              {typeKey}
-            </button>
-          ))}
+      {isStaff ? (
+        <details style={{ marginBottom: '1.25rem', ...sectionStyle, padding: '12px 14px' }}>
+          <summary style={{ fontSize: 12, fontWeight: 600, color: t.text, cursor: 'pointer' }}>
+            Preview portal as customer type
+          </summary>
+          <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, margin: '10px 0 12px' }}>
+            Switch how the portal looks for browsing only. This does not change your admin account.
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {['retailer', 'distributor'].map(typeKey => (
+              <button key={typeKey} type="button" onClick={() => setUserType(typeKey)}
+                style={{ flex: 1, background: userType === typeKey ? t.btnPrimaryBg : t.inputBg, color: userType === typeKey ? t.btnPrimaryText : t.textMuted, border: userType === typeKey ? `0.5px solid ${t.btnPrimaryBg}` : t.borderHairline, borderRadius: 8, padding: '10px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize', fontWeight: userType === typeKey ? 600 : 400 }}>
+                {typeKey}
+              </button>
+            ))}
+          </div>
+        </details>
+      ) : (
+        <div style={{ marginBottom: '1.25rem' }}>
+          <label style={labelStyle}>Account Type</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {['retailer', 'distributor'].map(typeKey => (
+              <button key={typeKey} type="button" onClick={() => setUserType(typeKey)}
+                style={{ flex: 1, background: userType === typeKey ? t.btnPrimaryBg : t.inputBg, color: userType === typeKey ? t.btnPrimaryText : t.textMuted, border: userType === typeKey ? `0.5px solid ${t.btnPrimaryBg}` : t.borderHairline, borderRadius: 8, padding: '10px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize', fontWeight: userType === typeKey ? 600 : 400 }}>
+                {typeKey}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {[['name', 'Full Name *'], ['company', 'Company / Store *'], ['phone', 'Phone / WhatsApp *'], ['email', 'Email']].map(([field, label]) => (
         <div key={field} style={{ marginBottom: '1rem' }}>

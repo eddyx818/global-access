@@ -41,6 +41,47 @@ function legacyDistroOrderOptions(product) {
   return [{ id: 'master_case', label: 'case' }];
 }
 
+/** Build distributor unit steps from pack config when admin list is empty. */
+function inferDistroOrderOptions(product) {
+  const options = [];
+  const seen = new Set();
+  const add = (label) => {
+    const id = slugOrderUnit(label);
+    if (!label || seen.has(id)) return;
+    seen.add(id);
+    options.push({ id, label });
+  };
+
+  const inner = product.inner_pack_label || product.retail_order_unit;
+  const detail = (product.detail || '').toLowerCase();
+  const hasMasterCase = detail.includes('master case') || detail.includes('master_case');
+
+  if (inner && !['case', 'unit', 'units'].includes(inner.toLowerCase())) {
+    add(inner);
+  }
+  if (product.inners_per_case) {
+    add(hasMasterCase ? 'master case' : 'case');
+  } else if (product.orderUnit === 'master_case') {
+    add(hasMasterCase ? 'master case' : 'case');
+  }
+  if (!hasMasterCase && detail.includes('master')) add('master case');
+  if (product.cases_per_pallet || product.orderUnit === 'pallet' || product.orderUnit === 'both') {
+    add('pallet');
+  }
+
+  return options.length ? options : legacyDistroOrderOptions(product);
+}
+
+/** Infer retailer steps: inner pack, then case when product ships in cases. */
+function inferRetailOrderOptions(product) {
+  const single = product.retail_order_unit || product.inner_pack_label || 'box';
+  const options = [{ id: slugOrderUnit(single), label: single }];
+  if (product.inners_per_case && single.toLowerCase() !== 'case') {
+    options.push({ id: 'case', label: 'case' });
+  }
+  return options;
+}
+
 /** Order-by choices for the current buyer type (typed in admin, comma-separated). */
 export function getProductOrderOptions(product, userType) {
   const listField = userType === 'distributor' ? 'distributor_order_units' : 'retail_order_units';
@@ -48,13 +89,12 @@ export function getProductOrderOptions(product, userType) {
   if (parsed.length) return parsed;
 
   if (userType !== 'distributor') {
-    const single = product.retail_order_unit || product.inner_pack_label;
-    if (single) return [{ id: slugOrderUnit(single), label: single }];
-    if (product.orderUnit === 'pallet') return [{ id: 'case', label: 'case' }];
-    return [{ id: 'box', label: 'box' }];
+    const parsedRetail = parseOrderUnitsList(product.retail_order_units);
+    if (parsedRetail.length) return parsedRetail;
+    return inferRetailOrderOptions(product);
   }
 
-  return legacyDistroOrderOptions(product);
+  return inferDistroOrderOptions(product);
 }
 
 export function defaultOrderMode(product, userType) {
@@ -190,14 +230,40 @@ function priceDisplayLabel(product, userType, orderMode) {
   return `Per ${getOrderOptionLabel(product, userType, orderMode)}`;
 }
 
-export function getVisiblePrices(product, userType, orderMode = 'master_case', { masterPricingQualified = false, pricingVisible = true } = {}) {
+export function productHasMasterPrices(product) {
+  if (!product) return false;
+  return product.price_master_per_unit != null
+    || product.price_master_per_case != null
+    || product.price_master_per_pallet != null;
+}
+
+/** show = publish master rates when set; quote = team follows up; auto = show only when SKU has master prices */
+export function getBrandMasterPricingMode(brand) {
+  return brand?.masterPricingMode || brand?.master_pricing_mode || 'auto';
+}
+
+export function shouldShowMasterPricing(brand, product, { masterPricingQualified = false, userType = 'retailer' } = {}) {
+  if (!masterPricingQualified || userType !== 'distributor') return false;
+  const mode = getBrandMasterPricingMode(brand);
+  if (mode === 'quote') return false;
+  if (mode === 'show') return productHasMasterPrices(product);
+  return productHasMasterPrices(product);
+}
+
+export function masterPricingIsQuoteOnly(brand, { masterPricingQualified = false, userType = 'retailer' } = {}) {
+  if (!masterPricingQualified || userType !== 'distributor') return false;
+  return getBrandMasterPricingMode(brand) === 'quote';
+}
+
+export function getVisiblePrices(product, userType, orderMode = 'master_case', { masterPricingQualified = false, pricingVisible = true, brand = null } = {}) {
   if (!pricingVisible) return [];
 
   const isDistributor = userType === 'distributor';
   const lines = [];
   const modeKey = normalizeOrderModeKey(orderMode);
+  const showMaster = shouldShowMasterPricing(brand, product, { masterPricingQualified, userType });
 
-  if (isDistributor && masterPricingQualified) {
+  if (isDistributor && showMaster) {
     const masterPrice = getMasterOrderPrice(product, orderMode);
     if (masterPrice != null) lines.push({ label: priceDisplayLabel(product, userType, orderMode), value: masterPrice, tier: 'master' });
     if (product.price_master_per_unit != null && modeKey === 'master_case') {

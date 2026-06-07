@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import MasterPricingNotice from './MasterPricingNotice';
 import { useTheme } from '../context/ThemeContext';
 
-export default function HomeView({ onBrandClick, isMobile, userType, masterPricingQualified, masterPricingInterest, onSetMasterPricingInterest, chatLabel = 'Trade Desk' }) {
+export default function HomeView({ onBrandClick, isMobile, userType, masterPricingQualified, isStaff = false, chatLabel = 'Trade Desk' }) {
   const { t, isNight } = useTheme();
   const [slideIdx, setSlideIdx] = useState(0);
   const [galleryIdx, setGalleryIdx] = useState(0); // cycles hero bg image
@@ -286,12 +286,8 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
 
       {/* 3D BRAND GRID */}
       <div style={{ padding: isMobile ? '0 0.75rem 2rem' : '0 1.25rem 2rem' }}>
-        {userType === 'distributor' && (
-          <MasterPricingNotice
-            qualified={masterPricingQualified}
-            hasInterest={masterPricingInterest}
-            onSetInterest={onSetMasterPricingInterest}
-          />
+        {userType === 'distributor' && !isStaff && (
+          <MasterPricingNotice qualified={masterPricingQualified} />
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <div style={{ fontSize: 10, letterSpacing: '0.2em', color: t.textFaint, textTransform: 'uppercase', fontWeight: 500 }}>Our Brands</div>

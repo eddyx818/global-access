@@ -100,6 +100,7 @@ export function useBrandContent() {
         color: override.color || brand.color,
         fontStyle: override.font_style || 'modern',
         logoUrl: override.logo_url || null,
+        masterPricingMode: override.master_pricing_mode || brand.masterPricingMode || 'auto',
         layout: parseJsonField(override.layout_config, {}),
         gallery: finalGallery,
         products: brand.products.map(product => {
@@ -133,6 +134,7 @@ export async function saveBrandContent(brandId, data) {
     description: data.description,
     font_style: data.fontStyle,
     color: data.color,
+    master_pricing_mode: data.masterPricingMode || null,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'brand_id' });
   return !error;

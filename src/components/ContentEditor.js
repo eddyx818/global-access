@@ -50,6 +50,7 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
       description: override.description || brand.description,
       color: override.color || brand.color,
       fontStyle: override.font_style || 'modern',
+      masterPricingMode: override.master_pricing_mode || brand.masterPricingMode || 'auto',
     });
     const pf = {};
     brand.products.forEach(p => {
@@ -282,6 +283,21 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
           <label style={labelStyle}>Description</label>
           <textarea value={brandForm.description || ''} onChange={e => setBrandForm(f => ({ ...f, description: e.target.value }))} style={{ ...inputStyle, height: 80, resize: 'vertical' }} />
         </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>Master Distributor pricing</label>
+          <select
+            value={brandForm.masterPricingMode || 'auto'}
+            onChange={e => setBrandForm(f => ({ ...f, masterPricingMode: e.target.value }))}
+            style={{ ...inputStyle, cursor: 'pointer' }}
+          >
+            <option value="auto">Auto — show master rates when entered on SKUs</option>
+            <option value="show">Show — publish master rates when entered</option>
+            <option value="quote">Quote only — team follows up with pricing</option>
+          </select>
+          <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6, lineHeight: 1.45 }}>
+            Use quote only for partner brands where master rates cannot be listed publicly.
+          </div>
+        </div>
         <div>
           <label style={labelStyle}>Font Style</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
@@ -382,7 +398,7 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
                     placeholder="e.g. jar  or  box, case"
                   />
                   <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6, lineHeight: 1.45 }}>
-                    Comma-separated. Multiple values show an order-by toggle on the brand page.
+                    Comma-separated units buyers can toggle per flavor (e.g. box, master case, pallet). Shown when selecting flavors on the brand page.
                   </div>
                 </div>
                 <div style={{ marginBottom: 10 }}>
@@ -391,8 +407,11 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
                     value={productForms[product.sku]?.distributor_order_units || ''}
                     onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], distributor_order_units: e.target.value } }))}
                     style={inputStyle}
-                    placeholder="e.g. box, case, master case, pallet"
+                    placeholder="e.g. box, master case, pallet"
                   />
+                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6, lineHeight: 1.45 }}>
+                    Distributors pick the unit per line item after clicking a flavor — use the steps that match how that SKU is sold.
+                  </div>
                 </div>
                 <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #F0EDE8' }}>
                   <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 10, lineHeight: 1.5 }}>

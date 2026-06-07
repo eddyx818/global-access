@@ -6,12 +6,13 @@ import { subscribeStockNotify, fetchMyStockAlerts, stockAlertKey } from '../lib/
 import { useTheme } from '../context/ThemeContext';
 import { useBrandContent } from '../lib/content';
 
-export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, isInterested, interests, onSubmit, isMobile, hasBottomNav = false, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess, chatLabel = 'Trade Desk' }) {
+export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, updateInterestLine, isInterested, interests, onSubmit, isMobile, hasBottomNav = false, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess, chatLabel = 'Trade Desk' }) {
   const { t, isNight } = useTheme();
   const { bgColor } = useBrandContent();
   const [lightbox, setLightbox] = useState(null);
   const [lightboxIdx, setLightboxIdx] = useState(0);
-  const [orderMode, setOrderMode] = useState({}); // per sku: 'master_case' | 'pallet'
+  const [orderMode, setOrderMode] = useState({}); // per sku default for new selections
+  const [lineOrderMode, setLineOrderMode] = useState({}); // per flavor line: `${sku}__${flavor}`
   const [quantities, setQuantities] = useState({}); // per flavor key: qty
   const [brokenImages, setBrokenImages] = useState({});
   const [stockAlerts, setStockAlerts] = useState(() => new Set());
@@ -60,24 +61,69 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
     if (galleryRef.current) galleryRef.current.scrollBy({ left: dir * 220, behavior: 'smooth' });
   };
 
-  const getOrderMode = (product) => {
+  const getOrderMode = (product, flavorKey = null) => {
+    if (flavorKey && lineOrderMode[flavorKey]) return lineOrderMode[flavorKey];
     if (orderMode[product.sku]) return orderMode[product.sku];
     return defaultOrderMode(product, userType);
   };
 
-  const setQty = (key, val, product) => {
+  const productFlavorsForSku = (product) => (
+    isDistributor ? (product.flavors_distro || []) : (product.flavors_retail || [])
+  );
+
+  const syncLineToInterest = (product, flavor, mode, qty) => {
+    const key = `${product.sku}__${flavor}`;
+    if (!isInterested(product.sku, flavor) || !updateInterestLine) return;
+    const n = qty ?? quantities[key] ?? minQtyForProduct(product);
+    updateInterestLine(key, {
+      qty: n,
+      orderMode: mode,
+      orderUnitLabel: formatOrderUnitLabel(product, userType, mode, n),
+    });
+  };
+
+  const setProductOrderMode = (product, mode) => {
+    setOrderMode(prev => ({ ...prev, [product.sku]: mode }));
+    const lineUpdates = {};
+    productFlavorsForSku(product).forEach(flavor => {
+      if (!isInterested(product.sku, flavor)) return;
+      const key = `${product.sku}__${flavor}`;
+      lineUpdates[key] = mode;
+      syncLineToInterest(product, flavor, mode);
+    });
+    if (Object.keys(lineUpdates).length) {
+      setLineOrderMode(prev => ({ ...prev, ...lineUpdates }));
+    }
+  };
+
+  const setLineOrderModeForFlavor = (product, flavor, mode) => {
+    const key = `${product.sku}__${flavor}`;
+    setLineOrderMode(prev => ({ ...prev, [key]: mode }));
+    syncLineToInterest(product, flavor, mode);
+  };
+
+  const setQty = (key, val, product, flavor) => {
     const min = minQtyForProduct(product);
     const n = Math.max(min, parseInt(val, 10) || min);
     setQuantities(prev => ({ ...prev, [key]: n }));
+    if (flavor && isInterested(product.sku, flavor)) {
+      const mode = getOrderMode(product, key);
+      syncLineToInterest(product, flavor, mode, n);
+    }
   };
 
   const handleFlavorClick = (product, flavor) => {
     const isSoldOut = flavor.includes('SOLD OUT');
     if (isSoldOut) return;
-    const mode = getOrderMode(product);
-    const qty = quantities[`${product.sku}__${flavor}`] || minQtyForProduct(product);
+    const key = `${product.sku}__${flavor}`;
+    const wasSelected = isInterested(product.sku, flavor);
+    const mode = getOrderMode(product, key);
+    const qty = quantities[key] || minQtyForProduct(product);
     const orderUnitLabel = formatOrderUnitLabel(product, userType, mode, qty);
     toggleInterest(product.sku, product.name, brand.name, flavor, qty, mode, brand.id, orderUnitLabel);
+    if (!wasSelected) {
+      setLineOrderMode(prev => ({ ...prev, [key]: mode }));
+    }
   };
 
   const handleStockNotify = async (product, flavor) => {
@@ -175,7 +221,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
     </div>
   );
 
-  const unitLabel = (product, qty = 1) => formatOrderUnitLabel(product, userType, getOrderMode(product), qty);
+  const unitLabel = (product, qty = 1, flavorKey = null) => formatOrderUnitLabel(product, userType, getOrderMode(product, flavorKey), qty);
 
   return (
     <>
@@ -391,6 +437,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
               <div style={{ padding: '1rem 1.25rem 1.25rem', minWidth: 0, overflow: 'hidden' }}>
                 <ProductCommerceInfo
                   product={product}
+                  brand={brand}
                   userType={userType}
                   orderMode={currentMode}
                   masterPricingQualified={masterPricingQualified}
@@ -402,10 +449,10 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
                 {/* Order unit toggle when multiple options are configured */}
                 {showToggle && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 11, color: t.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Order by:</span>
+                    <span style={{ fontSize: 11, color: t.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Default order by:</span>
                     <div style={{ display: 'flex', background: t.bgMuted, border: t.borderHairline, borderRadius: 8, overflow: 'hidden', flexWrap: 'wrap' }}>
                       {orderOptions.map(opt => (
-                        <button key={opt.id} onClick={() => setOrderMode(prev => ({ ...prev, [product.sku]: opt.id }))}
+                        <button key={opt.id} type="button" onClick={() => setProductOrderMode(product, opt.id)}
                           style={{ padding: '6px 14px', fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: currentMode === opt.id ? 600 : 400, background: currentMode === opt.id ? t.btnPrimaryBg : 'transparent', color: currentMode === opt.id ? t.btnPrimaryText : t.textMuted, transition: 'all 0.15s', textTransform: 'capitalize' }}>
                           {opt.label}
                         </button>
@@ -469,15 +516,36 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
                           </button>
                         )}
 
-                        {/* Qty input when selected */}
                         {selected && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, padding: '0 2px', flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 11, color: t.textFaint }}>Qty:</span>
-                            <button onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product)) - 1, product)} style={{ width: 24, height: 24, background: t.bgMuted, border: t.borderHairline, borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textSecondary }}>−</button>
-                            <input type="number" min={minQtyForProduct(product)} value={quantities[key] || minQtyForProduct(product)} onChange={e => setQty(key, e.target.value, product)}
-                              style={{ width: 44, textAlign: 'center', background: t.inputBg, border: t.borderHairline, borderRadius: 6, padding: '4px', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: t.text }} />
-                            <button onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product)) + 1, product)} style={{ width: 24, height: 24, background: brand.color, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' }}>+</button>
-                            <span style={{ fontSize: 11, color: t.textFaint }}>{unitLabel(product, quantities[key] || minQtyForProduct(product))}</span>
+                          <div style={{ marginTop: 8, padding: '8px', background: t.bgMuted, borderRadius: 10, border: t.borderHairlineLight }}>
+                            {showToggle && (
+                              <div style={{ marginBottom: 8 }}>
+                                <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Order by</div>
+                                <div style={{ display: 'flex', background: t.bgElevated, border: t.borderHairline, borderRadius: 8, overflow: 'hidden', flexWrap: 'wrap' }}>
+                                  {orderOptions.map(opt => {
+                                    const lineMode = getOrderMode(product, key);
+                                    return (
+                                      <button
+                                        key={opt.id}
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setLineOrderModeForFlavor(product, flavor, opt.id); }}
+                                        style={{ padding: '5px 10px', fontSize: 11, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: lineMode === opt.id ? 600 : 400, background: lineMode === opt.id ? brand.color : 'transparent', color: lineMode === opt.id ? '#FFF' : t.textMuted, textTransform: 'capitalize' }}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 11, color: t.textFaint }}>Qty:</span>
+                              <button type="button" onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product)) - 1, product, flavor)} style={{ width: 24, height: 24, background: t.bgElevated, border: t.borderHairline, borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textSecondary }}>−</button>
+                              <input type="number" min={minQtyForProduct(product)} value={quantities[key] || minQtyForProduct(product)} onChange={e => setQty(key, e.target.value, product, flavor)}
+                                style={{ width: 44, textAlign: 'center', background: t.inputBg, border: t.borderHairline, borderRadius: 6, padding: '4px', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: t.text }} />
+                              <button type="button" onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product)) + 1, product, flavor)} style={{ width: 24, height: 24, background: brand.color, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' }}>+</button>
+                              <span style={{ fontSize: 11, color: t.textFaint, fontWeight: 500 }}>{unitLabel(product, quantities[key] || minQtyForProduct(product), key)}</span>
+                            </div>
                           </div>
                         )}
                       </div>
