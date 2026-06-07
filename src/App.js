@@ -34,6 +34,8 @@ import {
   readSavedPortalNav,
   saveAppNavigation,
 } from './lib/appNavigation';
+import StaffQuotesView from './components/StaffQuotesView';
+import { fetchRecentInquiries } from './lib/inquiries';
 import { isSessionResumable, clearAppSession } from './lib/appSession';
 
 export default function App() {
@@ -73,6 +75,9 @@ export default function App() {
     enabled: !!user?.id,
   });
   const { canInstall, showIosHint, isInstalled, install } = usePwaInstall();
+  const [quotesNewCount, setQuotesNewCount] = useState(0);
+  const isStaffPortalUser = isPortalAdmin || isSalesRep;
+  const showCustomerList = !isStaffPortalUser;
 
   const inPortalView = authState === 'portal' || authState === 'browse' || (authState === 'admin' && adminMode === 'portal');
   const isMobileDevice = isMobile || /Android|iPhone|iPad|iPod|Mobile/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : '');
@@ -147,6 +152,19 @@ export default function App() {
     setView('interest');
   };
 
+  const openAdminDashboard = () => {
+    setShowProfile(false);
+    setProfileGate(null);
+    setAdminMode('dashboard');
+    if (mobileShell) setView('home');
+  };
+
+  const navigateQuotes = () => {
+    setShowProfile(false);
+    setProfileGate(null);
+    setView('quotes');
+  };
+
   const navigateProfile = () => {
     setProfileGate(null);
     openProfile();
@@ -174,6 +192,13 @@ export default function App() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
+  useEffect(() => {
+    if (!isPortalAdmin || !inPortalView) return;
+    fetchRecentInquiries(50).then((rows) => {
+      setQuotesNewCount(rows.filter(i => (i.quote_status || 'new') === 'new').length);
+    });
+  }, [isPortalAdmin, inPortalView, view]);
+
   // Recover orphaned views (desktop width with mobile routes, brand without id, etc.)
   useEffect(() => {
     if (!user || !inPortalView) return;
@@ -194,10 +219,18 @@ export default function App() {
       return;
     }
 
+    if (view === 'quotes' && showCustomerList) {
+      setView('home');
+    }
+
+    if (view === 'interest' && !showCustomerList) {
+      setView('home');
+    }
+
     if (view === 'brand' && !activeBrand) {
       setView('home');
     }
-  }, [view, mobileShell, user, inPortalView, activeBrand]);
+  }, [view, mobileShell, user, inPortalView, activeBrand, showCustomerList]);
 
   const mobileNavHeight = portalTopChrome
     ? 'var(--ga-nav-bar)'
@@ -693,14 +726,14 @@ export default function App() {
 
       {/* Admin bar */}
       {authState === 'admin' && adminMode === 'portal' && (
-        <div className="app-top-chrome app-safe-top-chrome" style={{ background: '#1A1A1A', paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12, color: '#888' }}>Admin preview mode</span>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <select value={userType} onChange={e => setUserType(e.target.value)} style={{ background: '#2A2A2A', border: '0.5px solid #3A3A3A', borderRadius: 6, padding: '4px 10px', fontSize: 12, color: '#FFF', cursor: 'pointer', fontFamily: 'inherit' }}>
+        <div className="app-top-chrome app-safe-top-chrome" style={{ background: '#1A1A1A', paddingLeft: isMobileDevice ? '0.75rem' : '1.25rem', paddingRight: isMobileDevice ? '0.75rem' : '1.25rem', paddingBottom: isMobileDevice ? 6 : 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: isMobileDevice ? 'wrap' : 'nowrap' }}>
+          <span style={{ fontSize: isMobileDevice ? 11 : 12, color: '#888' }}>Admin preview</span>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <select value={userType} onChange={e => setUserType(e.target.value)} style={{ background: '#2A2A2A', border: '0.5px solid #3A3A3A', borderRadius: 6, padding: isMobileDevice ? '3px 8px' : '4px 10px', fontSize: isMobileDevice ? 11 : 12, color: '#FFF', cursor: 'pointer', fontFamily: 'inherit', maxWidth: isMobileDevice ? 130 : undefined }}>
               <option value="retailer">View as Retailer</option>
               <option value="distributor">View as Distributor</option>
             </select>
-            <button onClick={() => setAdminMode('dashboard')} style={{ background: '#C9A84C', color: '#1A1A1A', border: 'none', borderRadius: 6, padding: '5px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>← Dashboard</button>
+            <button onClick={openAdminDashboard} style={{ background: '#C9A84C', color: '#1A1A1A', border: 'none', borderRadius: 6, padding: isMobileDevice ? '4px 10px' : '5px 14px', fontSize: isMobileDevice ? 11 : 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Dashboard</button>
           </div>
         </div>
       )}
@@ -741,6 +774,11 @@ export default function App() {
         hideMobileActions={showMobileNav}
         includeSafeAreaTop={isMobileDevice && !portalTopChrome}
         unread={chatUnread}
+        showCustomerList={showCustomerList}
+        onQuotes={isStaffPortalUser ? navigateQuotes : null}
+        quotesNewCount={quotesNewCount}
+        isAdmin={isPortalAdmin && adminMode === 'portal'}
+        onAdminClick={openAdminDashboard}
       />
       {user && !mobileShell && (
         <ChatErrorBoundary onFallback={navigateHome}>
@@ -765,7 +803,8 @@ export default function App() {
           setForm={setForm}
           userType={userType}
           setUserType={setUserType}
-          isStaff={isPortalAdmin || isSalesRep}
+          isStaff={isStaffPortalUser}
+          onOpenDashboard={isPortalAdmin ? openAdminDashboard : null}
           onClose={closeProfile}
           profileGate={profileGate}
           onSaved={handleProfileSaved}
@@ -848,7 +887,8 @@ export default function App() {
             setForm={setForm}
             userType={userType}
             setUserType={setUserType}
-            isStaff={isPortalAdmin || isSalesRep}
+            isStaff={isStaffPortalUser}
+            onOpenDashboard={isPortalAdmin ? openAdminDashboard : null}
             variant="page"
             onClose={closeProfile}
             profileGate={profileGate}
@@ -878,7 +918,7 @@ export default function App() {
           chatLabel={chatLabel}
         />
       )}
-      {view === 'interest' && (
+      {view === 'interest' && showCustomerList && (
         <InterestView
           interests={interests}
           toggleInterest={toggleInterest}
@@ -889,6 +929,13 @@ export default function App() {
           isMobile={isMobile}
           profileSaved={isProfileComplete(form)}
           chatLabel={chatLabel}
+        />
+      )}
+      {view === 'quotes' && isStaffPortalUser && (
+        <StaffQuotesView
+          isMobile={isMobile || isMobileDevice}
+          onOpenDashboard={isPortalAdmin ? openAdminDashboard : null}
+          onCountsChange={setQuotesNewCount}
         />
       )}
       {view === 'thanks' && (
@@ -905,12 +952,15 @@ export default function App() {
           activeView={view}
           onHome={navigateHome}
           onList={navigateList}
+          onQuotes={navigateQuotes}
           onChat={openChat}
           onProfile={navigateProfile}
           listCount={interests.length}
+          quotesCount={quotesNewCount}
           unread={chatUnread}
           chatLabel={chatLabel}
-          showList
+          showList={showCustomerList}
+          showQuotes={isStaffPortalUser}
         />
       )}
     </div>

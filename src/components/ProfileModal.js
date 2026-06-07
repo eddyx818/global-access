@@ -41,6 +41,7 @@ export default function ProfileModal({
   userType,
   setUserType,
   isStaff = false,
+  onOpenDashboard = null,
   onClose,
   variant = 'modal',
   profileGate = null,
@@ -187,7 +188,7 @@ export default function ProfileModal({
       if (!ok) { setError('Username is already taken.'); setSaving(false); return; }
     }
 
-    const appointmentCheck = (appointmentDate && appointmentTime)
+    const appointmentCheck = (!isStaff && appointmentDate && appointmentTime)
       ? validateAppointmentSlot(appointmentDate, appointmentTime)
       : { ok: true, iso: null };
     if (!appointmentCheck.ok) {
@@ -207,9 +208,15 @@ export default function ProfileModal({
         bio: bio.trim() || null,
         profile_avatar_url: avatarUrl.trim() || null,
         ...(isStaff ? { support_availability: supportAvailability } : { user_type: userType, role: userType }),
-        preferred_appointment_at: appointmentAt,
-        appointment_notes: appointmentNotes.trim() || null,
-        ...(appointmentAt ? { appointment_status: 'pending' } : {}),
+        ...(!isStaff && appointmentAt ? {
+          preferred_appointment_at: appointmentAt,
+          appointment_notes: appointmentNotes.trim() || null,
+          appointment_status: 'pending',
+        } : {}),
+        ...(isStaff ? {
+          preferred_appointment_at: null,
+          appointment_notes: null,
+        } : {}),
         address: addressParts.address_line1?.trim() || null,
         address_line2: addressParts.address_line2?.trim() || null,
         city: addressParts.city?.trim() || null,
@@ -246,6 +253,41 @@ export default function ProfileModal({
       {needsDetails && (
         <div style={{ background: t.warningBg, border: `0.5px solid ${t.warningBorder}`, borderRadius: 10, padding: '12px 14px', marginBottom: '1rem', fontSize: 13, color: t.warningText, lineHeight: 1.5 }}>
           {profileGateMessage} We will save them for future visits.
+        </div>
+      )}
+
+      {isStaff ? (
+        <div style={{ ...sectionStyle, marginBottom: '1rem' }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: t.gold, fontWeight: 700, marginBottom: 6 }}>
+            Staff account
+          </div>
+          <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.55, marginBottom: onOpenDashboard ? 12 : 0 }}>
+            This is your team profile — not a customer account. Scheduling a call and quote lists are customer-only; use the quote inbox tab or dashboard to manage requests.
+          </div>
+          {onOpenDashboard && (
+            <button
+              type="button"
+              onClick={onOpenDashboard}
+              style={{
+                width: '100%',
+                background: t.goldBg,
+                color: t.gold,
+                border: `0.5px solid ${t.gold}`,
+                borderRadius: 8,
+                padding: '11px 14px',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              Open admin dashboard →
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: '1rem', padding: '0 2px' }}>
+          Customer account — your team uses this info for quotes, chat, and scheduling.
         </div>
       )}
 
@@ -289,12 +331,10 @@ export default function ProfileModal({
       </div>
 
       {isStaff ? (
-        <details style={{ marginBottom: '1.25rem', ...sectionStyle, padding: '12px 14px' }}>
-          <summary style={{ fontSize: 12, fontWeight: 600, color: t.text, cursor: 'pointer' }}>
-            Preview portal as customer type
-          </summary>
-          <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, margin: '10px 0 12px' }}>
-            Switch how the portal looks for browsing only. This does not change your admin account.
+        <div style={{ ...sectionStyle, marginBottom: '1.25rem' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Preview portal as customer</div>
+          <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: 12 }}>
+            Browse brands and pricing as a retailer or distributor without leaving the portal. This only changes what you see — not your admin account.
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {['retailer', 'distributor'].map(typeKey => (
@@ -304,7 +344,7 @@ export default function ProfileModal({
               </button>
             ))}
           </div>
-        </details>
+        </div>
       ) : (
         <div style={{ marginBottom: '1.25rem' }}>
           <label style={labelStyle}>Account Type</label>
@@ -376,11 +416,12 @@ export default function ProfileModal({
       )}
 
       <div style={{ marginBottom: '1rem' }}>
-        <label style={labelStyle}>Notes for our team</label>
-        <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Optional notes about your business..."
+        <label style={labelStyle}>{isStaff ? 'Internal notes' : 'Notes for our team'}</label>
+        <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder={isStaff ? 'Optional internal notes…' : 'Optional notes about your business…'}
           style={{ ...inputStyle, height: 72, resize: 'none' }} />
       </div>
 
+      {!isStaff && (
       <div style={sectionStyle}>
         <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Schedule a call (optional)</div>
         <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: 12 }}>
@@ -401,6 +442,7 @@ export default function ProfileModal({
         <textarea value={appointmentNotes} onChange={e => setAppointmentNotes(e.target.value)}
           placeholder="What would you like to discuss?" style={{ ...inputStyle, height: 64, resize: 'none' }} />
       </div>
+      )}
 
       <div style={sectionStyle}>
         <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Message alerts</div>
@@ -531,7 +573,7 @@ export default function ProfileModal({
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem',
           position: 'sticky', top: 0, background: t.bgElevated, zIndex: 1, paddingBottom: 8,
         }}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: '0.04em', color: t.text }}>My Profile</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: '0.04em', color: t.text }}>{isStaff ? 'Staff Profile' : 'My Profile'}</div>
           <button type="button" onClick={onClose} aria-label="Close profile"
             style={{ background: t.bgMuted, border: 'none', borderRadius: 8, fontSize: 22, color: t.textSecondary, cursor: 'pointer', fontFamily: 'inherit', width: 40, height: 40, lineHeight: 1 }}>
             ×
