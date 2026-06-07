@@ -162,3 +162,21 @@ export async function setAccessRequestDismissed(id, dismissed) {
   }
   return { ok: true };
 }
+
+export async function deleteAccessRequest(id) {
+  if (!supabaseAdmin) {
+    return { ok: false, error: 'Admin service key not configured (REACT_APP_SUPABASE_SERVICE_KEY).' };
+  }
+  if (!id) {
+    return { ok: false, error: 'Request not found.' };
+  }
+  const { error } = await supabaseAdmin
+    .from('access_requests')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
+}

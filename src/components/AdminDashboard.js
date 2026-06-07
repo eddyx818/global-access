@@ -14,9 +14,9 @@ import QuoteStatusBadge from './QuoteStatusBadge';
 import AdminTabBar from './AdminTabBar';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
-import { approveAccessRequestAndCreateAccount, denyAccessRequest, setAccessRequestDismissed } from '../lib/accessApproval';
+import { approveAccessRequestAndCreateAccount, denyAccessRequest, deleteAccessRequest, setAccessRequestDismissed } from '../lib/accessApproval';
 import { whatsAppUrl } from '../lib/whatsapp';
-import { updateInquiryQuoteStatus, QUOTE_STATUSES } from '../lib/inquiries';
+import { updateInquiryQuoteStatus, QUOTE_STATUSES, deleteInquiry } from '../lib/inquiries';
 import { loadAppNavigation, saveAppNavigationPartial } from '../lib/appNavigation';
 import IndustryFactsPanel from './IndustryFactsPanel';
 
@@ -45,6 +45,8 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const [alert, setAlert] = useState(null);
   const [approvingId, setApprovingId] = useState(null);
   const [denyingId, setDenyingId] = useState(null);
+  const [removingId, setRemovingId] = useState(null);
+  const [removingInquiryId, setRemovingInquiryId] = useState(null);
   const [dismissingId, setDismissingId] = useState(null);
   const [approveMsg, setApproveMsg] = useState('');
   const [requestActionMsg, setRequestActionMsg] = useState('');
@@ -210,6 +212,33 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
       return;
     }
     loadRequests();
+  };
+
+  const handleRemoveRequest = async (req) => {
+    const label = req.email || req.name || 'this request';
+    if (!window.confirm(`Remove access request for ${label}? This cannot be undone.`)) return;
+    setRemovingId(req.id);
+    setRequestActionMsg('');
+    const result = await deleteAccessRequest(req.id);
+    setRemovingId(null);
+    if (!result.ok) {
+      setRequestActionMsg(result.error || 'Could not remove request.');
+      return;
+    }
+    loadRequests();
+  };
+
+  const handleRemoveInquiry = async (inq) => {
+    const label = inq.company || inq.name || 'this quote';
+    if (!window.confirm(`Remove quote request for ${label}? This cannot be undone.`)) return;
+    setRemovingInquiryId(inq.id);
+    const result = await deleteInquiry(inq.id);
+    setRemovingInquiryId(null);
+    if (!result.ok) {
+      setRequestActionMsg(result.error || 'Could not remove quote.');
+      return;
+    }
+    loadInquiries();
   };
 
   const pending = requests.filter(r => r.status === 'pending' && !r.dismissed_at);
@@ -448,10 +477,10 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
               >
                 <button
                   type="button"
-                  aria-label={req.dismissed_at ? 'Restore request' : 'Dismiss request'}
-                  title={req.dismissed_at ? 'Restore to list' : 'Dismiss from list'}
-                  disabled={dismissingId === req.id}
-                  onClick={() => handleDismiss(req)}
+                  aria-label="Remove request permanently"
+                  title="Remove request permanently"
+                  disabled={removingId === req.id || dismissingId === req.id}
+                  onClick={() => handleRemoveRequest(req)}
                   style={{
                     position: 'absolute',
                     top: 10,
@@ -464,7 +493,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
                     color: t.textMuted,
                     fontSize: 18,
                     lineHeight: 1,
-                    cursor: dismissingId === req.id ? 'wait' : 'pointer',
+                    cursor: (removingId === req.id || dismissingId === req.id) ? 'wait' : 'pointer',
                     fontFamily: 'inherit',
                     display: 'flex',
                     alignItems: 'center',
@@ -472,9 +501,68 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
                     padding: 0,
                   }}
                 >
-                  {req.dismissed_at ? '↩' : '×'}
+                  ×
                 </button>
-                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, paddingRight: 36 }}>
+                {req.dismissed_at ? (
+                  <button
+                    type="button"
+                    aria-label="Restore request"
+                    title="Restore to list"
+                    disabled={dismissingId === req.id || removingId === req.id}
+                    onClick={() => handleDismiss(req)}
+                    style={{
+                      position: 'absolute',
+                      top: 10,
+                      right: 44,
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      border: t.borderHairline,
+                      background: t.bgMuted,
+                      color: t.textFaint,
+                      fontSize: 14,
+                      lineHeight: 1,
+                      cursor: dismissingId === req.id ? 'wait' : 'pointer',
+                      fontFamily: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 0,
+                    }}
+                  >
+                    ↩
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label="Hide request"
+                    title="Hide from list (keep on file)"
+                    disabled={dismissingId === req.id || removingId === req.id}
+                    onClick={() => handleDismiss(req)}
+                    style={{
+                      position: 'absolute',
+                      top: 10,
+                      right: 44,
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      border: t.borderHairline,
+                      background: t.bgMuted,
+                      color: t.textFaint,
+                      fontSize: 14,
+                      lineHeight: 1,
+                      cursor: dismissingId === req.id ? 'wait' : 'pointer',
+                      fontFamily: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 0,
+                    }}
+                  >
+                    −
+                  </button>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, paddingRight: req.dismissed_at ? 36 : 72 }}>
                   <div>
                     <div style={{ fontWeight: 500, fontSize: 15 }}>{req.name} — {req.company}</div>
                     <div style={{ fontSize: 12, color: t.textFaint, marginTop: 2 }}>{req.email} · {req.phone}</div>
@@ -516,8 +604,36 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {inquiries.length === 0 && <div style={{ fontSize: 13, color: t.textFaint }}>No inquiries yet.</div>}
             {inquiries.map(inq => (
-              <div key={inq.id} style={ui.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+              <div key={inq.id} style={{ ...ui.card, position: 'relative' }}>
+                <button
+                  type="button"
+                  aria-label="Remove quote request"
+                  title="Remove permanently"
+                  disabled={removingInquiryId === inq.id}
+                  onClick={() => handleRemoveInquiry(inq)}
+                  style={{
+                    position: 'absolute',
+                    top: 10,
+                    right: 10,
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    border: t.borderHairline,
+                    background: t.bgMuted,
+                    color: t.textMuted,
+                    fontSize: 18,
+                    lineHeight: 1,
+                    cursor: removingInquiryId === inq.id ? 'wait' : 'pointer',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0,
+                  }}
+                >
+                  ×
+                </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8, paddingRight: 36 }}>
                   <div><div style={{ fontWeight: 500, fontSize: 15 }}>{inq.name} — {inq.company}</div><div style={{ fontSize: 12, color: t.textFaint, marginTop: 2 }}>{inq.phone || '—'} · {inq.email || '—'}</div></div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                     <select

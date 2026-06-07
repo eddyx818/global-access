@@ -77,7 +77,10 @@ export default function App() {
   const { canInstall, showIosHint, isInstalled, install } = usePwaInstall();
   const [quotesNewCount, setQuotesNewCount] = useState(0);
   const isStaffPortalUser = isPortalAdmin || isSalesRep;
-  const showCustomerList = !isStaffPortalUser;
+  const isAdminPortalPreview = authState === 'admin' && adminMode === 'portal';
+  const showCustomerShopping = !isStaffPortalUser || isAdminPortalPreview;
+  const showCustomerList = showCustomerShopping;
+  const showStaffTools = isStaffPortalUser && !isAdminPortalPreview;
 
   const inPortalView = authState === 'portal' || authState === 'browse' || (authState === 'admin' && adminMode === 'portal');
   const isMobileDevice = isMobile || /Android|iPhone|iPad|iPod|Mobile/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : '');
@@ -485,11 +488,11 @@ export default function App() {
   }, [view, activeBrand, authState, adminMode]);
 
   useEffect(() => {
-    if (isStaffPortalUser) setInterests([]);
-  }, [isStaffPortalUser]);
+    if (showStaffTools) setInterests([]);
+  }, [showStaffTools]);
 
   const toggleInterest = (sku, productName, brandName, flavor, qty = 1, orderMode = 'master_case', brandId = null, orderUnitLabel = null) => {
-    if (isStaffPortalUser) return;
+    if (!showCustomerShopping) return;
     const key = `${sku}__${flavor}`;
     const bid = brandId || activeBrand;
     trackEvent('click', bid ? `brand:${bid}` : view, { element: `interest:${sku}:${flavor}`, user_id: user?.id });
@@ -590,7 +593,7 @@ export default function App() {
   };
 
   const handleSubmitAttempt = () => {
-    if (isStaffPortalUser) return;
+    if (!showCustomerShopping) return;
     if (authState === 'browse') {
       setSignupPromptError('');
       setShowSignupPrompt(true);
@@ -606,7 +609,7 @@ export default function App() {
   };
 
   const doSubmit = async () => {
-    if (isStaffPortalUser) return;
+    if (!showCustomerShopping) return;
     const nameCheck = validatePersonName(form.name, { label: 'Name' });
     if (!nameCheck.ok) {
       const msg = nameCheck.error;
@@ -733,9 +736,16 @@ export default function App() {
 
       {/* Admin bar */}
       {authState === 'admin' && adminMode === 'portal' && (
-        <div className="app-top-chrome app-safe-top-chrome" style={{ background: '#1A1A1A', paddingLeft: isMobileDevice ? '0.75rem' : '1.25rem', paddingRight: isMobileDevice ? '0.75rem' : '1.25rem', paddingBottom: isMobileDevice ? 6 : 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: isMobileDevice ? 'wrap' : 'nowrap' }}>
-          <span style={{ fontSize: isMobileDevice ? 11 : 12, color: '#888' }}>Admin preview</span>
-          <select value={userType} onChange={e => setUserType(e.target.value)} style={{ background: '#2A2A2A', border: '0.5px solid #3A3A3A', borderRadius: 6, padding: isMobileDevice ? '3px 8px' : '4px 10px', fontSize: isMobileDevice ? 11 : 12, color: '#FFF', cursor: 'pointer', fontFamily: 'inherit', maxWidth: isMobileDevice ? 140 : undefined }}>
+        <div className="app-top-chrome app-safe-top-chrome" style={{ background: '#1A1A1A', paddingLeft: isMobileDevice ? '0.75rem' : '1.25rem', paddingRight: isMobileDevice ? '0.75rem' : '1.25rem', paddingTop: isMobileDevice ? 6 : 8, paddingBottom: isMobileDevice ? 6 : 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: isMobileDevice ? 11 : 12, color: '#AAA', fontWeight: 600 }}>
+              Preview · {userType === 'distributor' ? 'Distributor' : 'Retailer'}
+            </div>
+            <div style={{ fontSize: isMobileDevice ? 10 : 11, color: '#666', marginTop: 2, lineHeight: 1.35 }}>
+              {isMobileDevice ? 'Tap products to test · Dashboard for admin' : 'Browse and add items like a customer · use Dashboard for full admin tools'}
+            </div>
+          </div>
+          <select value={userType} onChange={e => setUserType(e.target.value)} style={{ background: '#2A2A2A', border: '0.5px solid #3A3A3A', borderRadius: 6, padding: isMobileDevice ? '3px 8px' : '4px 10px', fontSize: isMobileDevice ? 11 : 12, color: '#FFF', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
             <option value="retailer">View as Retailer</option>
             <option value="distributor">View as Distributor</option>
           </select>
@@ -851,7 +861,7 @@ export default function App() {
           userId={user?.id}
           userType={userType}
           masterPricingQualified={masterPricingQualified}
-          isStaff={isPortalAdmin || isSalesRep}
+          isStaff={showStaffTools}
           chatLabel={chatLabel}
         />
       )}
@@ -913,7 +923,7 @@ export default function App() {
           onSubmit={handleSubmitAttempt}
           isMobile={isMobile || isMobileDevice}
           hasBottomNav={showMobileNav}
-          enableQuoteFlow={showCustomerList}
+          enableQuoteFlow={showCustomerShopping}
           masterPricingQualified={masterPricingQualified}
           pricingVisible={authState !== 'browse'}
           onSignIn={authState === 'browse' ? () => setAuthState('login') : null}

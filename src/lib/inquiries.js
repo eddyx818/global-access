@@ -54,3 +54,12 @@ export function parseInquiryInterests(raw) {
   }
   return [];
 }
+
+export async function deleteInquiry(inquiryId) {
+  const { supabaseAdmin } = await import('./supabase');
+  const client = supabaseAdmin || supabase;
+  if (!inquiryId) return { ok: false, error: 'Inquiry not found.' };
+  const { error } = await client.from('inquiries').delete().eq('id', inquiryId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}

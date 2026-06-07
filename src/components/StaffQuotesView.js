@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { fetchRecentInquiries, updateInquiryQuoteStatus, QUOTE_STATUSES, parseInquiryInterests } from '../lib/inquiries';
+import { fetchRecentInquiries, updateInquiryQuoteStatus, QUOTE_STATUSES, parseInquiryInterests, deleteInquiry } from '../lib/inquiries';
 import QuoteStatusBadge from './QuoteStatusBadge';
 import { useTheme } from '../context/ThemeContext';
 
@@ -21,6 +21,7 @@ export default function StaffQuotesView({ onCountsChange, isMobile = true }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [updatingId, setUpdatingId] = useState(null);
+  const [removingId, setRemovingId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,6 +45,21 @@ export default function StaffQuotesView({ onCountsChange, isMobile = true }) {
       });
     }
     setUpdatingId(null);
+  };
+
+  const handleRemove = async (inq) => {
+    const label = inq.company || inq.name || 'this quote';
+    if (!window.confirm(`Remove quote request for ${label}? This cannot be undone.`)) return;
+    setRemovingId(inq.id);
+    const result = await deleteInquiry(inq.id);
+    if (result.ok) {
+      setInquiries(prev => {
+        const next = prev.filter(i => i.id !== inq.id);
+        onCountsChange?.(next.filter(i => (i.quote_status || 'new') === 'new').length);
+        return next;
+      });
+    }
+    setRemovingId(null);
   };
 
   const filtered = filter === 'new'
@@ -123,8 +139,36 @@ export default function StaffQuotesView({ onCountsChange, isMobile = true }) {
         {!loading && filtered.map(inq => {
           const interests = parseInquiryInterests(inq.interests);
           return (
-            <div key={inq.id} style={{ ...cardStyle, marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+            <div key={inq.id} style={{ ...cardStyle, marginBottom: 10, position: 'relative' }}>
+              <button
+                type="button"
+                aria-label="Remove quote request"
+                title="Remove permanently"
+                disabled={removingId === inq.id}
+                onClick={() => handleRemove(inq)}
+                style={{
+                  position: 'absolute',
+                  top: 12,
+                  right: 12,
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  border: t.borderHairline,
+                  background: t.bgMuted,
+                  color: t.textMuted,
+                  fontSize: 18,
+                  lineHeight: 1,
+                  cursor: removingId === inq.id ? 'wait' : 'pointer',
+                  fontFamily: 'inherit',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                }}
+              >
+                ×
+              </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8, paddingRight: 32 }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 15, color: t.text }}>{inq.name || '—'}</div>
                   <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{inq.company || '—'}</div>
