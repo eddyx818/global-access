@@ -103,7 +103,7 @@ export default function AccessWaitingRoom({
               fontWeight: 600,
               marginBottom: 10,
             }}>
-              While you wait — Aisle Runner™
+              While you wait — Champs Show Runner™
             </div>
             <LobbyRunnerGame playerName={firstName} theme={gameTheme} />
           </div>

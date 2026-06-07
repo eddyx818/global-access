@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { getPortalSessionToken } from './session';
+import { hasCallablePhone } from './whatsapp';
 
 const ADMIN_EMAILS = () => (process.env.REACT_APP_ADMIN_EMAIL || '')
   .split(',')
@@ -474,7 +475,7 @@ export function subscribeToMessages(conversationId, onMessage) {
 }
 
 export function isProfileComplete(fields = {}) {
-  return !!(fields.name?.trim() && fields.company?.trim() && fields.phone?.trim());
+  return !!(fields.name?.trim() && fields.company?.trim() && hasCallablePhone(fields.phone));
 }
 
 export async function saveProfile(userId, email, fields) {

@@ -27,6 +27,7 @@ import StaffNotesCell from '../StaffNotesCell';
 import QuoteStatusBadge from '../QuoteStatusBadge';
 import ChatStaffTools from '../ChatStaffTools';
 import ScheduleCallRequest from '../ScheduleCallRequest';
+import StaffWhatsAppCallButton from './StaffWhatsAppCallButton';
 import { useTheme } from '../../context/ThemeContext';
 
 async function loadProfileMap(userIds) {
@@ -477,9 +478,7 @@ export default function ChatSidebar({
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
                       {staffCustomerProfile.email && <span>📧 {staffCustomerProfile.email}</span>}
                       {staffCustomerProfile.phone && (
-                        <a href={`https://wa.me/${staffCustomerProfile.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ color: t.accent, textDecoration: 'none', fontWeight: 600 }}>
-                          WhatsApp {staffCustomerProfile.phone}
-                        </a>
+                        <span style={{ fontSize: 12, color: t.textSecondary }}>📱 {staffCustomerProfile.phone}</span>
                       )}
                       {isAdmin && customerInquiry && (
                         <select
@@ -502,6 +501,11 @@ export default function ChatSidebar({
                     {staffCustomerProfile.referral_code_used && (
                       <div style={{ fontSize: 11, color: t.gold, marginTop: 6 }}>Signed up with code: {staffCustomerProfile.referral_code_used}</div>
                     )}
+                    <StaffWhatsAppCallButton
+                      phone={staffCustomerProfile.phone}
+                      customerName={staffCustomerProfile.name}
+                      isMobile={isPage}
+                    />
                   </div>
                 )}
                 {isStaff && activeConvo && !isParticipant && (
@@ -589,6 +593,21 @@ export default function ChatSidebar({
                 chatLabel={customerChatLabel}
                 onSendMessage={(text) => handleSend(text)}
               />
+            )}
+            {isStaff && !activeIsGroup && staffCustomerProfile && (
+              <div style={{
+                padding: isPage ? '8px 14px 0' : '8px 12px 0',
+                borderTop: t.borderHairlineLight,
+                background: t.bgMuted,
+                flexShrink: 0,
+              }}>
+                <StaffWhatsAppCallButton
+                  phone={staffCustomerProfile.phone}
+                  customerName={staffCustomerProfile.name}
+                  isMobile={isPage}
+                  inline
+                />
+              </div>
             )}
             <MessageInput
               onSend={handleSend}

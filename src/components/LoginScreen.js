@@ -5,7 +5,7 @@ import { setPortalReferral } from '../lib/session';
 import { getRememberLogin, getSavedLogin, saveLogin, clearSavedLogin } from '../lib/loginPrefs';
 import { APP_SESSION_HINT } from '../lib/appSession';
 import { canAccessPortal, fetchProfileAccess } from '../lib/authGate';
-import { isValidRequestEmail, isHoneypotClean, canSubmitAccessRequest, savePendingAccess, readPendingAccess, fetchAccessRequestStatus } from '../lib/accessRequestGate';
+import { isValidRequestEmail, isValidPhone, getPhoneValidationError, isHoneypotClean, canSubmitAccessRequest, savePendingAccess, readPendingAccess, fetchAccessRequestStatus } from '../lib/accessRequestGate';
 import AccessWaitingRoom from './AccessWaitingRoom';
 import { useTheme } from '../context/ThemeContext';
 import AddressFields, { EMPTY_ADDRESS } from './AddressFields';
@@ -174,12 +174,16 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   };
  
   const handleRequest = async () => {
-    if (!reqForm.name || !reqForm.company || !reqForm.email) {
-      setError('Please fill in name, company, and email.');
+    if (!reqForm.name || !reqForm.company || !reqForm.email || !reqForm.phone?.trim()) {
+      setError('Please fill in name, company, email, and phone.');
       return;
     }
     if (!isValidRequestEmail(reqForm.email)) {
       setError('Please enter a valid email address.');
+      return;
+    }
+    if (!isValidPhone(reqForm.phone)) {
+      setError(getPhoneValidationError(reqForm.phone) || 'Please enter a valid mobile number.');
       return;
     }
     if (!isHoneypotClean(reqForm)) {
@@ -391,12 +395,15 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                 ))}
               </div>
               <div className="login-form-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 12 : 10, marginBottom: '1rem' }}>
-                {[['email', 'Email *'], ['phone', 'Phone / WhatsApp']].map(([field, label]) => (
+                {[['email', 'Email *'], ['phone', 'Phone / WhatsApp *']].map(([field, label]) => (
                   <div key={field}>
                     <label style={labelStyle}>{label}</label>
-                    <input value={reqForm[field]} onChange={e => setReq(field, e.target.value)} style={inputStyle} autoCapitalize={field === 'email' ? 'none' : 'words'} inputMode={field === 'email' ? 'email' : 'tel'} />
+                    <input value={reqForm[field]} onChange={e => setReq(field, e.target.value)} style={inputStyle} autoCapitalize={field === 'email' ? 'none' : 'words'} inputMode={field === 'email' ? 'email' : 'tel'} placeholder={field === 'phone' ? '(555) 123-4567' : undefined} />
                   </div>
                 ))}
+              </div>
+              <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginTop: -4, marginBottom: '1rem' }}>
+                Use your real mobile or WhatsApp number. Our team may reach out to verify your business before approval.
               </div>
  
               {/* Store type */}

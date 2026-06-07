@@ -1,131 +1,138 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { fetchLobbyLeaderboard, submitLobbyScore } from '../lib/lobbyGameScores';
+import {
+  CHECKOUT_GOAL,
+  GLOBAL_ACCESS_BRANDS,
+  SHOW_AISLES,
+  aisleIndexFromProgress,
+  chaseTierFromProgress,
+  repLinesForTier,
+  randomVendorPitch,
+} from '../lib/lobbyGame/champsShowData';
 
 const LIVES = 3;
-const GRAVITY = 0.38;
-const JUMP_V = -5.8;
-const GROUND = 0.84;
-const PLAYER_X = 0.15;
-const PLAYER_H = 0.13;
-const PLAYER_W = 0.11;
+const GRAVITY = 0.36;
+const JUMP_V = -5.4;
+const GROUND = 0.87;
+const PLAYER_X = 0.1;
+const PLAYER_H = 0.14;
+const PLAYER_W = 0.17;
 
-const BRAND_TAGS = ['GoldWhip', 'LuxGas', 'Sokka', 'numbz', 'Blizzy', 'Rise', 'Churros', 'Good Spirits'];
-const CHASE_LINES = [
-  'Hey! Wanna know more about my product?',
-  'Wait — special pricing on cases!',
-  'Can I tell you about our new SKU?',
-  'Hold up! Bulk deal if you stay!',
-  'You NEED to hear about this brand!',
-  'Quick demo? Just 30 seconds!',
-];
-
-function spawnEntity(distance) {
+function spawnEntity(aisleId) {
   const roll = Math.random();
-  if (roll < 0.48) {
+  if (roll < 0.44) {
     return {
-      type: 'product',
-      brand: BRAND_TAGS[Math.floor(Math.random() * BRAND_TAGS.length)],
-      x: 1.08,
-      y: 0.52 + Math.random() * 0.08,
-      w: 0.14,
-      h: 0.07,
+      type: 'brand',
+      brand: GLOBAL_ACCESS_BRANDS[Math.floor(Math.random() * GLOBAL_ACCESS_BRANDS.length)],
+      x: 1.06,
+      y: 0.48 + Math.random() * 0.1,
+      w: 0.15,
+      h: 0.065,
       bob: Math.random() * Math.PI * 2,
     };
   }
-  if (roll < 0.78) {
-    return {
-      type: 'employee',
-      x: 1.06,
-      y: GROUND - 0.12,
-      w: 0.07,
-      h: 0.12,
-    };
-  }
   return {
-    type: 'pallet',
-    x: 1.05,
-    y: GROUND - 0.09,
-    w: 0.09,
-    h: 0.09,
+    type: 'vendor',
+    pitch: randomVendorPitch(aisleId),
+    x: 1.04,
+    y: GROUND - 0.13,
+    w: 0.1,
+    h: 0.13,
   };
 }
 
-function drawWarehouseBg(ctx, w, h, scroll, palette) {
-  const py = (n) => n * h;
-
-  // Ceiling
-  const ceilGrad = ctx.createLinearGradient(0, 0, 0, py(0.2));
-  ceilGrad.addColorStop(0, '#2a2a2e');
-  ceilGrad.addColorStop(1, '#3d3d42');
-  ctx.fillStyle = ceilGrad;
-  ctx.fillRect(0, 0, w, py(0.2));
-
-  // Fluorescent lights
-  ctx.fillStyle = 'rgba(255,255,240,0.35)';
-  for (let i = 0; i < 4; i += 1) {
-    const lx = ((i * 0.28 - scroll * 0.00008) % 1.2) * w;
-    ctx.fillRect(lx, py(0.04), w * 0.12, py(0.018));
+function drawHuman(ctx, footX, footY, scale, facing, walkPhase, opts = {}) {
+  const {
+    shirt = '#444', pants = '#222', skin = '#c68642', hair = '#222',
+    alpha = 1, tie = null, badge = false,
+  } = opts;
+  const dir = facing === 'left' ? -1 : 1;
+  const legSwing = Math.sin(walkPhase * 0.011) * scale * 0.07;
+  ctx.globalAlpha = alpha;
+  ctx.save();
+  if (dir < 0) {
+    ctx.translate(footX, 0);
+    ctx.scale(-1, 1);
+    ctx.translate(-footX, 0);
   }
-
-  // Back wall / aisle depth
-  ctx.fillStyle = palette?.aisleBg || '#c8c4bc';
-  ctx.fillRect(0, py(0.18), w, py(GROUND - 0.18));
-
-  // Side racking
-  ctx.fillStyle = '#6b6560';
-  ctx.fillRect(0, py(0.22), w * 0.08, py(GROUND - 0.22));
-  ctx.fillRect(w * 0.92, py(0.22), w * 0.08, py(GROUND - 0.22));
-
-  // Pallet stacks (parallax sides)
-  const scrollPx = scroll * 0.00015;
-  for (let side = 0; side < 2; side += 1) {
-    const baseX = side === 0 ? 0.02 : 0.88;
-    for (let i = 0; i < 3; i += 1) {
-      const ox = ((i * 0.35 - scrollPx) % 1.05);
-      drawPallet(ctx, w * (baseX + ox * 0.05), py(GROUND - 0.11), w * 0.07, py(0.1), '#8B7355');
-    }
-  }
-
-  // Floor
-  ctx.fillStyle = palette?.floor || '#9a9590';
-  ctx.fillRect(0, py(GROUND), w, h - py(GROUND));
-
-  // Aisle yellow lines
-  ctx.strokeStyle = '#d4a017';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([12, 10]);
-  ctx.beginPath();
-  ctx.moveTo(w * 0.12, py(GROUND + 0.01));
-  ctx.lineTo(w * 0.12, h);
-  ctx.moveTo(w * 0.88, py(GROUND + 0.01));
-  ctx.lineTo(w * 0.88, h);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Floor perspective lines
-  ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 6; i += 1) {
-    const fx = ((i * 0.2 - scroll * 0.0002) % 1.2);
+  ctx.fillStyle = pants;
+  ctx.fillRect(footX + scale * 0.08, footY - scale * 0.22, scale * 0.07, scale * 0.22 + legSwing);
+  ctx.fillRect(footX + scale * 0.2, footY - scale * 0.22, scale * 0.07, scale * 0.22 - legSwing);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(footX + scale * 0.06, footY - 4, scale * 0.1, 4);
+  ctx.fillRect(footX + scale * 0.18, footY - 4, scale * 0.1, 4);
+  ctx.fillStyle = shirt;
+  ctx.fillRect(footX + scale * 0.06, footY - scale * 0.52, scale * 0.22, scale * 0.32);
+  if (tie) {
+    ctx.fillStyle = tie;
     ctx.beginPath();
-    ctx.moveTo(w * fx, py(GROUND));
-    ctx.lineTo(w * (fx - 0.06), h);
-    ctx.stroke();
+    ctx.moveTo(footX + scale * 0.17, footY - scale * 0.5);
+    ctx.lineTo(footX + scale * 0.14, footY - scale * 0.28);
+    ctx.lineTo(footX + scale * 0.2, footY - scale * 0.28);
+    ctx.fill();
   }
+  if (badge) {
+    ctx.fillStyle = '#C9A84C';
+    ctx.fillRect(footX + scale * 0.2, footY - scale * 0.46, scale * 0.06, scale * 0.08);
+    ctx.fillStyle = '#fff';
+    ctx.font = `700 ${Math.max(6, scale * 0.06)}px sans-serif`;
+    ctx.fillText('GA', footX + scale * 0.205, footY - scale * 0.4);
+  }
+  ctx.fillStyle = shirt;
+  ctx.fillRect(footX + scale * 0.22, footY - scale * 0.44, scale * 0.12, scale * 0.05);
+  ctx.fillStyle = skin;
+  ctx.beginPath();
+  ctx.arc(footX + scale * 0.32, footY - scale * 0.4, scale * 0.03, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = skin;
+  ctx.beginPath();
+  ctx.arc(footX + scale * 0.17, footY - scale * 0.6, scale * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = hair;
+  ctx.beginPath();
+  ctx.arc(footX + scale * 0.17, footY - scale * 0.64, scale * 0.095, Math.PI, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#222';
+  ctx.fillRect(footX + scale * 0.21, footY - scale * 0.62, scale * 0.02, scale * 0.02);
+  ctx.restore();
+  ctx.globalAlpha = 1;
 }
 
-function drawPallet(ctx, x, y, pw, ph, color = '#A08060') {
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y - ph, pw, ph);
-  ctx.fillStyle = 'rgba(0,0,0,0.15)';
-  ctx.fillRect(x, y - ph * 0.15, pw, ph * 0.12);
-  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x, y - ph, pw, ph);
+function drawCart(ctx, x, footY, scale, alpha) {
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(x - scale * 0.06, footY - scale * 0.82);
+  ctx.lineTo(x + scale * 0.2, footY - scale * 0.82);
+  ctx.stroke();
+  ctx.strokeStyle = '#999';
+  ctx.beginPath();
+  ctx.moveTo(x + scale * 0.04, footY - scale * 0.72);
+  ctx.lineTo(x + scale * 0.1, footY - scale * 0.38);
+  ctx.lineTo(x + scale * 0.55, footY - scale * 0.38);
+  ctx.lineTo(x + scale * 0.62, footY - scale * 0.72);
+  ctx.stroke();
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.arc(x + scale * 0.18, footY - 5, 5, 0, Math.PI * 2);
+  ctx.arc(x + scale * 0.5, footY - 5, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
 }
 
-function drawSpeechBubble(ctx, x, y, text, maxW) {
-  ctx.font = '600 9px "DM Sans", sans-serif';
+function drawBuyer(ctx, xNorm, yNorm, w, h, walkPhase, alpha) {
+  const footY = yNorm * h + PLAYER_H * h;
+  const scale = h * 0.105;
+  const footX = xNorm * w;
+  drawCart(ctx, footX + scale * 0.95, footY, scale, alpha);
+  drawHuman(ctx, footX, footY, scale, 'right', walkPhase, {
+    shirt: '#2c5282', pants: '#1a365d', skin: '#d4a574', badge: true, alpha,
+  });
+}
+
+function drawSpeechBubble(ctx, x, y, text, maxW, accent = '#C9A84C') {
+  ctx.font = '600 8px "DM Sans", Arial, sans-serif';
   const words = text.split(' ');
   const lines = [];
   let line = '';
@@ -134,109 +141,151 @@ function drawSpeechBubble(ctx, x, y, text, maxW) {
     if (ctx.measureText(test).width > maxW && line) {
       lines.push(line);
       line = word;
-    } else {
-      line = test;
-    }
+    } else line = test;
   });
   if (line) lines.push(line);
-
-  const lineH = 11;
+  const lineH = 10;
   const pad = 6;
-  const bw = Math.min(maxW + pad * 2, maxW + 20);
+  const bw = maxW + pad * 2;
   const bh = lines.length * lineH + pad * 2;
-
-  ctx.fillStyle = '#fff';
-  ctx.strokeStyle = '#C9A84C';
-  ctx.lineWidth = 1;
+  ctx.fillStyle = '#fffef5';
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.roundRect(x, y - bh, bw, bh, 6);
+  if (ctx.roundRect) ctx.roundRect(x, y - bh, bw, bh, 6);
+  else ctx.rect(x, y - bh, bw, bh);
   ctx.fill();
   ctx.stroke();
+  ctx.fillStyle = '#2a2a2a';
+  lines.forEach((ln, i) => ctx.fillText(ln, x + pad, y - bh + pad + 9 + i * lineH));
+}
 
-  ctx.fillStyle = '#333';
-  ctx.textAlign = 'left';
-  lines.forEach((ln, i) => {
-    ctx.fillText(ln, x + pad, y - bh + pad + 10 + i * lineH);
-  });
+function drawCrowd(ctx, w, h, scroll, aisle) {
+  const py = (n) => n * h;
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  for (let i = 0; i < 12; i += 1) {
+    const cx = ((i * 0.11 - scroll * 0.00004 + (i % 3) * 0.02) % 1.15) * w;
+    const cy = py(0.28 + (i % 4) * 0.04);
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4 + (i % 3), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(cx - 3, cy + 2, 6, 10);
+  }
+  ctx.fillStyle = aisle.banner;
+  ctx.globalAlpha = 0.85;
+  ctx.fillRect(0, py(0.2), w, py(0.055));
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#fff';
+  ctx.font = '700 10px "Bebas Neue", "DM Sans", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(aisle.bannerText, w / 2, py(0.238));
   ctx.textAlign = 'start';
 }
 
-function drawChaserRep(ctx, x, y, line, w, h) {
-  const px = (n) => n * w;
+function drawShowFloor(ctx, w, h, aisle, scroll) {
   const py = (n) => n * h;
-
-  drawSpeechBubble(ctx, px(x), py(y - 0.02), line, 120);
-
-  ctx.font = `${Math.floor(py(0.1))}px serif`;
-  ctx.fillText('🧑‍💼', px(x + 0.01), py(y + 0.1));
-
-  ctx.font = '600 8px sans-serif';
-  ctx.fillStyle = '#C0392B';
-  ctx.fillText('SALES REP', px(x), py(y + 0.13));
-}
-
-function drawPlayerCart(ctx, x, y, w, h, alpha = 1) {
-  const px = (n) => n * w;
-  const py = (n) => n * h;
-  ctx.globalAlpha = alpha;
-
-  // Cart
-  ctx.font = `${Math.floor(py(0.085))}px serif`;
-  ctx.fillText('🛒', px(x + 0.04), py(y + 0.11));
-
-  // Shopper
-  ctx.fillText('🧑', px(x - 0.01), py(y + 0.11));
-
-  ctx.globalAlpha = 1;
-}
-
-function drawProductTag(ctx, brand, x, y, bob, w, h, time) {
-  const px = (n) => n * w;
-  const py = (n) => n * h;
-  const floatY = y + Math.sin(time * 0.003 + bob) * 0.012;
-
-  ctx.fillStyle = 'rgba(201,168,76,0.25)';
+  const grad = ctx.createLinearGradient(0, 0, 0, py(0.25));
+  grad.addColorStop(0, aisle.sky);
+  grad.addColorStop(1, aisle.floor);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+  drawCrowd(ctx, w, h, scroll, aisle);
+  ctx.fillStyle = aisle.floor;
+  ctx.fillRect(0, py(GROUND), w, h - py(GROUND));
+  ctx.strokeStyle = aisle.lane;
+  ctx.lineWidth = 3;
+  ctx.setLineDash([16, 14]);
   ctx.beginPath();
-  ctx.roundRect(px(x), py(floatY), px(0.14), py(0.065), 4);
-  ctx.fill();
-
-  ctx.strokeStyle = '#C9A84C';
-  ctx.lineWidth = 1;
+  ctx.moveTo(w * 0.1, py(GROUND + 0.006));
+  ctx.lineTo(w * 0.1, h);
+  ctx.moveTo(w * 0.9, py(GROUND + 0.006));
+  ctx.lineTo(w * 0.9, h);
   ctx.stroke();
-
-  ctx.font = '600 9px "DM Sans", sans-serif';
-  ctx.fillStyle = '#5c4a1a';
-  ctx.fillText('📦', px(x + 0.01), py(floatY + 0.045));
-  ctx.fillText(brand.length > 11 ? `${brand.slice(0, 10)}…` : brand, px(x + 0.035), py(floatY + 0.045));
+  ctx.setLineDash([]);
+  for (let i = 0; i < 5; i += 1) {
+    const fx = ((i * 0.22 - scroll * 0.00018) % 1.2) * w;
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.beginPath();
+    ctx.moveTo(fx, py(GROUND));
+    ctx.lineTo(fx - w * 0.05, h);
+    ctx.stroke();
+  }
 }
 
-function drawEmployee(ctx, x, y, ew, eh, w, h) {
+function drawGlobalAccessBooth(ctx, xNorm, w, h, glow) {
+  const rx = xNorm * w;
+  const footY = GROUND * h;
+  const bw = w * 0.28;
+  const bh = h * 0.42;
+  ctx.shadowColor = '#C9A84C';
+  ctx.shadowBlur = glow ? 18 : 6;
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(rx, footY - bh, bw, bh);
+  ctx.fillStyle = '#C9A84C';
+  ctx.fillRect(rx + 4, footY - bh + 4, bw - 8, bh * 0.14);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.font = '700 11px "Bebas Neue", sans-serif';
+  ctx.fillText('GLOBAL ACCESS', rx + bw * 0.08, footY - bh * 0.88);
+  ctx.font = '600 8px sans-serif';
+  ctx.fillStyle = '#ddd';
+  ctx.fillText('★ OFFICIAL BOOTH ★', rx + bw * 0.1, footY - bh * 0.72);
+  for (let i = 0; i < 3; i += 1) {
+    drawHuman(ctx, rx + bw * (0.15 + i * 0.28), footY - bh * 0.08, h * 0.07, 'left', i * 20, {
+      shirt: i === 1 ? '#C9A84C' : '#333', pants: '#111', skin: '#8d5524',
+    });
+  }
+  ctx.font = '8px sans-serif';
+  ctx.fillStyle = '#C9A84C';
+  ctx.fillText('Welcome!', rx + bw * 0.35, footY - bh * 0.05);
+}
+
+function drawVendorRep(ctx, e, w, h, walkPhase, aisle) {
+  const footX = e.x * w;
+  const footY = (e.y + e.h) * h;
+  const scale = e.h * h * 0.75;
+  drawSpeechBubble(ctx, footX, footY - scale * 1.05, e.pitch, 100, aisle.lane);
+  drawHuman(ctx, footX, footY, scale, 'left', walkPhase + e.x * 100, {
+    shirt: aisle.vendorShirt, pants: '#222', skin: '#c68642', tie: '#e74c3c',
+  });
+  ctx.font = '700 7px sans-serif';
+  ctx.fillStyle = aisle.lane;
+  ctx.fillText('VENDOR', footX, footY + 3);
+}
+
+function drawBrandPickup(ctx, brand, x, y, bob, w, h, time, accent) {
   const px = (n) => n * w;
   const py = (n) => n * h;
-
-  ctx.fillStyle = '#4a6741';
-  ctx.fillRect(px(x), py(y), px(ew), py(eh * 0.55));
-  ctx.font = `${Math.floor(py(0.08))}px serif`;
-  ctx.fillText('👷', px(x + 0.005), py(y + eh * 0.85));
+  const fy = y + Math.sin(time * 0.0028 + bob) * 0.012;
+  ctx.fillStyle = 'rgba(201,168,76,0.4)';
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(px(x), py(fy), px(0.14), py(0.058), 5);
+  else ctx.rect(px(x), py(fy), px(0.14), py(0.058));
+  ctx.fill();
+  ctx.stroke();
+  ctx.font = '700 8px sans-serif';
+  ctx.fillStyle = '#fff';
+  const label = brand.length > 11 ? `${brand.slice(0, 10)}…` : brand;
+  ctx.fillText(`★ ${label}`, px(x + 0.01), py(fy + 0.04));
 }
 
 export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, theme }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const rafRef = useRef(null);
-  const themeRef = useRef(theme);
-  const hudSnapshotRef = useRef({ score: -1, lives: -1, products: -1 });
+  const hudSnapshotRef = useRef({ score: -1, lives: -1, products: -1, aisle: 0 });
   const endedRef = useRef(false);
-  themeRef.current = theme;
 
-  const [hud, setHud] = useState({ score: 0, lives: LIVES, products: 0, phase: 'ready' });
+  const [hud, setHud] = useState({ score: 0, lives: LIVES, products: 0, aisle: 0, phase: 'ready' });
   const [leaderboard, setLeaderboard] = useState([]);
   const [lastRun, setLastRun] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   const loadBoard = useCallback(async () => {
-    const result = await fetchLobbyLeaderboard(8);
-    if (result.ok) setLeaderboard(result.rows);
+    const r = await fetchLobbyLeaderboard(8);
+    if (r.ok) setLeaderboard(r.rows);
   }, []);
 
   useEffect(() => { loadBoard(); }, [loadBoard]);
@@ -244,27 +293,18 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
   const resetGame = useCallback(() => {
     stateRef.current = {
       playerY: GROUND - PLAYER_H,
-      vy: 0,
-      grounded: true,
-      entities: [],
-      spawnTimer: 800,
-      speed: 0.00085,
-      distance: 0,
-      score: 0,
-      products: 0,
-      lives: LIVES,
-      invuln: 0,
-      flash: 0,
-      flashText: '',
+      vy: 0, grounded: true,
+      entities: [], spawnTimer: 1000,
+      speed: 0.00075, distance: 0, score: 0, products: 0,
+      lives: LIVES, invuln: 0, flash: 0, flashText: '',
       running: true,
-      chaserLine: CHASE_LINES[0],
-      chaserLineAt: 0,
-      chaserOffset: 0,
-      registerProgress: 0,
+      chaserLine: repLinesForTier(1)[0],
+      chaserLineAt: 0, chaserOffset: 0,
+      registerProgress: 0, aisleIdx: 0, chaseTier: 1, walkPhase: 0,
     };
-    hudSnapshotRef.current = { score: -1, lives: -1, products: -1 };
+    hudSnapshotRef.current = { score: -1, lives: -1, products: -1, aisle: 0 };
     endedRef.current = false;
-    setHud({ score: 0, lives: LIVES, products: 0, phase: 'playing' });
+    setHud({ score: 0, lives: LIVES, products: 0, aisle: 0, phase: 'playing' });
     setLastRun(null);
   }, []);
 
@@ -272,234 +312,208 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
     if (endedRef.current) return;
     endedRef.current = true;
     finalState.running = false;
-    finalState.flashText = reason === 'checkout' ? 'YOU MADE IT TO CHECKOUT!' : 'CAUGHT BY THE REP!';
+    finalState.flashText = reason === 'checkout'
+      ? 'You made the Global Access booth!'
+      : 'Vendors caught you!';
     const run = {
       score: Math.floor(finalState.score),
       products: finalState.products,
       won: reason === 'checkout',
+      aisle: finalState.aisleIdx + 1,
     };
     setLastRun(run);
     setHud(h => ({
-      ...h,
-      phase: 'over',
-      score: run.score,
-      products: run.products,
-      lives: reason === 'checkout' ? h.lives : 0,
+      ...h, phase: 'over', score: run.score, products: run.products,
+      aisle: finalState.aisleIdx, lives: reason === 'checkout' ? h.lives : 0,
     }));
     onGameOver?.(run);
     setSubmitting(true);
-    await submitLobbyScore({
-      playerName,
-      score: run.score,
-      productsCollected: run.products,
-    });
+    await submitLobbyScore({ playerName, score: run.score, productsCollected: run.products });
     setSubmitting(false);
     loadBoard();
   }, [loadBoard, onGameOver, playerName]);
 
   const jump = useCallback(() => {
     const s = stateRef.current;
-    if (!s?.running) {
-      resetGame();
-      return;
-    }
-    if (s.grounded) {
-      s.vy = JUMP_V;
-      s.grounded = false;
-    }
+    if (!s?.running) { resetGame(); return; }
+    if (s.grounded) { s.vy = JUMP_V; s.grounded = false; }
   }, [resetGame]);
 
   useEffect(() => {
     resetGame();
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
-
     const ctx = canvas.getContext('2d');
     let last = performance.now();
 
     const draw = (now) => {
-      const dt = Math.min(24, now - last);
+      const dt = Math.min(22, now - last);
       last = now;
       const s = stateRef.current;
-      const palette = themeRef.current;
       if (!s || !ctx) return;
 
       const w = canvas.width;
       const h = canvas.height;
       const px = (n) => n * w;
       const py = (n) => n * h;
+      const aisle = SHOW_AISLES[s.aisleIdx] || SHOW_AISLES[0];
 
       ctx.clearRect(0, 0, w, h);
-      drawWarehouseBg(ctx, w, h, s.distance, palette);
+      drawShowFloor(ctx, w, h, aisle, s.distance);
 
-      // Checkout counter ahead
-      const registerX = 0.72 + (1 - Math.min(1, s.registerProgress / 1200)) * 0.35;
-      ctx.fillStyle = '#3d3d42';
-      ctx.fillRect(px(registerX), py(0.35), px(0.22), py(GROUND - 0.35));
-      ctx.fillStyle = '#C9A84C';
-      ctx.font = '600 10px sans-serif';
-      ctx.fillText('CHECKOUT', px(registerX + 0.03), py(0.42));
-      ctx.font = `${Math.floor(py(0.07))}px serif`;
-      ctx.fillText('🛎️', px(registerX + 0.08), py(GROUND - 0.04));
+      const boothX = 0.62 + (1 - Math.min(1, s.registerProgress / CHECKOUT_GOAL)) * 0.42;
+      const nearBooth = s.registerProgress / CHECKOUT_GOAL > 0.75;
+      drawGlobalAccessBooth(ctx, boothX, w, h, nearBooth);
 
       if (s.running) {
+        s.walkPhase += dt * (s.grounded ? 0.32 : 0.08);
         s.spawnTimer += dt;
-        const spawnGap = Math.max(1400, 2200 - s.distance * 0.08);
+        const spawnGap = Math.max(1600, 2400 - s.aisleIdx * 100);
         if (s.spawnTimer >= spawnGap) {
           s.spawnTimer = 0;
-          const lastOb = s.entities[s.entities.length - 1];
-          if (!lastOb || lastOb.x < 0.72) {
-            s.entities.push(spawnEntity(s.distance));
+          const last = s.entities[s.entities.length - 1];
+          if (!last || last.x < 0.68) {
+            s.entities.push(spawnEntity(aisle.id));
           }
         }
 
         s.vy += GRAVITY * (dt / 16);
-        s.playerY += s.vy * (dt / 16) * 0.009;
+        s.playerY += s.vy * (dt / 16) * 0.0085;
         const floorY = GROUND - PLAYER_H;
-        if (s.playerY >= floorY) {
-          s.playerY = floorY;
-          s.vy = 0;
-          s.grounded = true;
-        }
+        if (s.playerY >= floorY) { s.playerY = floorY; s.vy = 0; s.grounded = true; }
 
         s.distance += s.speed * dt;
-        s.speed = Math.min(0.00135, 0.00085 + s.distance * 0.00000035);
-        s.score += dt * 0.025;
-        s.registerProgress += dt * 0.04;
+        s.speed = Math.min(0.00115, 0.00075 + s.aisleIdx * 0.00006);
+        s.score += dt * 0.022;
+        s.registerProgress += dt * 0.038;
         if (s.invuln > 0) s.invuln -= dt;
         if (s.flash > 0) s.flash -= dt;
 
-        // Chaser rep dialogue
-        s.chaserLineAt += dt;
-        if (s.chaserLineAt > 3200) {
-          s.chaserLineAt = 0;
-          s.chaserLine = CHASE_LINES[Math.floor(Math.random() * CHASE_LINES.length)];
+        const nextAisle = aisleIndexFromProgress(s.registerProgress);
+        if (nextAisle !== s.aisleIdx) {
+          s.aisleIdx = nextAisle;
+          s.flash = 700;
+          s.flashText = `Entering ${SHOW_AISLES[nextAisle].name}`;
         }
-        const targetChaser = 0.02 + (LIVES - s.lives) * 0.025 + (s.invuln > 0 ? 0.04 : 0);
-        s.chaserOffset += (targetChaser - s.chaserOffset) * 0.02;
+        const nextTier = chaseTierFromProgress(s.registerProgress);
+        if (nextTier !== s.chaseTier) {
+          s.chaseTier = nextTier;
+          const pool = repLinesForTier(s.chaseTier);
+          s.chaserLine = pool[Math.floor(Math.random() * pool.length)];
+        }
 
-        const playerBox = {
-          x: PLAYER_X + 0.02,
-          y: s.playerY + 0.03,
-          w: PLAYER_W - 0.03,
-          h: PLAYER_H - 0.04,
-        };
+        s.chaserLineAt += dt;
+        if (s.chaserLineAt > 3600) {
+          s.chaserLineAt = 0;
+          const pool = repLinesForTier(s.chaseTier);
+          s.chaserLine = pool[Math.floor(Math.random() * pool.length)];
+        }
+
+        const targetChaser = 0.008 + (LIVES - s.lives) * 0.02 + (s.invuln > 0 ? 0.03 : 0);
+        s.chaserOffset += (targetChaser - s.chaserOffset) * 0.016;
+
+        const playerBox = { x: PLAYER_X + 0.05, y: s.playerY + 0.04, w: PLAYER_W - 0.06, h: PLAYER_H - 0.05 };
 
         s.entities = s.entities.filter((e) => {
-          e.x -= s.speed * dt * 0.95;
-          if (e.x < -0.2) return false;
-
-          if (e.type === 'product') {
-            if (hit(playerBox, { x: e.x, y: e.y, w: e.w, h: e.h })) {
-              s.products += 1;
-              s.score += 100;
-              s.flash = 400;
-              s.flashText = `+ ${e.brand}`;
-              s.chaserOffset = Math.max(0, s.chaserOffset - 0.015);
-              return false;
-            }
+          e.x -= s.speed * dt * 0.9;
+          if (e.x < -0.22) return false;
+          if (e.type === 'brand' && hit(playerBox, e)) {
+            s.products += 1;
+            s.score += 120;
+            s.flash = 450;
+            s.flashText = `+ ${e.brand}`;
+            s.chaserOffset = Math.max(0, s.chaserOffset - 0.02);
+            return false;
           }
-
-          if ((e.type === 'employee' || e.type === 'pallet') && s.invuln <= 0) {
-            const box = { x: e.x + 0.01, y: e.y, w: e.w - 0.02, h: e.h };
+          if (e.type === 'vendor' && s.invuln <= 0) {
+            const box = { x: e.x + 0.015, y: e.y + 0.01, w: e.w - 0.03, h: e.h - 0.02 };
             if (hit(playerBox, box)) {
               s.lives -= 1;
-              s.invuln = 1800;
-              s.chaserOffset += 0.035;
-              s.flash = 300;
-              s.flashText = 'Oof!';
-              if (s.lives <= 0) {
-                endGame(s, 'caught');
-              }
+              s.invuln = 2000;
+              s.chaserOffset += 0.045;
+              s.flash = 350;
+              s.flashText = 'Blocked by a vendor!';
+              if (s.lives <= 0) endGame(s, 'caught');
             }
           }
           return true;
         });
 
-        if (s.registerProgress >= 1200) {
-          s.score += 500;
+        if (s.registerProgress >= CHECKOUT_GOAL) {
+          s.score += 600;
           endGame(s, 'checkout');
         }
 
         const scoreInt = Math.floor(s.score);
         const snap = hudSnapshotRef.current;
-        if (scoreInt !== snap.score || s.lives !== snap.lives || s.products !== snap.products) {
-          hudSnapshotRef.current = { score: scoreInt, lives: s.lives, products: s.products };
-          setHud({ score: scoreInt, lives: s.lives, products: s.products, phase: 'playing' });
+        if (scoreInt !== snap.score || s.lives !== snap.lives || s.products !== snap.products || s.aisleIdx !== snap.aisle) {
+          hudSnapshotRef.current = { score: scoreInt, lives: s.lives, products: s.products, aisle: s.aisleIdx };
+          setHud({ score: scoreInt, lives: s.lives, products: s.products, aisle: s.aisleIdx, phase: 'playing' });
         }
       }
 
-      // Obstacles & collectibles
       s.entities.forEach((e) => {
-        if (e.type === 'product') {
-          drawProductTag(ctx, e.brand, e.x, e.y, e.bob, w, h, now);
-        } else if (e.type === 'employee') {
-          drawEmployee(ctx, e.x, e.y, e.w, e.h, w, h);
-        } else if (e.type === 'pallet') {
-          drawPallet(ctx, px(e.x), py(e.y), px(e.w), py(e.h));
-        }
+        if (e.type === 'brand') drawBrandPickup(ctx, e.brand, e.x, e.y, e.bob, w, h, now, aisle.lane);
+        else drawVendorRep(ctx, e, w, h, s.walkPhase, aisle);
       });
 
-      // Chasing sales rep (behind player)
-      drawChaserRep(ctx, s.chaserOffset, GROUND - 0.14, s.chaserLine, w, h);
+      const chaserFootX = s.chaserOffset * w;
+      const chaserFootYpx = py(GROUND - 0.01);
+      drawSpeechBubble(ctx, chaserFootX, chaserFootYpx - h * 0.02, s.chaserLine, 118, '#e74c3c');
+      drawHuman(ctx, chaserFootX, chaserFootYpx, h * 0.088, 'right', s.walkPhase + 30, {
+        shirt: '#222', pants: '#111', skin: '#c68642', tie: '#C0392B',
+      });
+      ctx.font = '700 7px sans-serif';
+      ctx.fillStyle = '#e74c3c';
+      ctx.fillText('CHASING REP', chaserFootX, chaserFootYpx + 4);
 
-      // Player + cart
-      const playerAlpha = s.invuln > 0 && Math.floor(s.invuln / 120) % 2 ? 0.5 : 1;
-      drawPlayerCart(ctx, PLAYER_X, s.playerY, w, h, playerAlpha);
+      const pa = s.invuln > 0 && Math.floor(s.invuln / 130) % 2 ? 0.4 : 1;
+      drawBuyer(ctx, PLAYER_X, s.playerY, w, h, s.walkPhase, pa);
 
       if (s.flash > 0 && s.flashText) {
-        ctx.fillStyle = 'rgba(201,168,76,0.9)';
-        ctx.font = '600 11px "DM Sans", sans-serif';
+        ctx.fillStyle = 'rgba(201,168,76,0.93)';
+        ctx.font = '700 12px "DM Sans", sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(s.flashText, w / 2, py(0.28));
+        ctx.fillText(s.flashText, w / 2, py(0.32));
         ctx.textAlign = 'start';
       }
 
-      // Progress to checkout
-      const prog = Math.min(100, Math.round((s.registerProgress / 1200) * 100));
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      ctx.fillRect(px(0.1), py(0.16), px(0.8), py(0.022));
-      ctx.fillStyle = '#C9A84C';
-      ctx.fillRect(px(0.1), py(0.16), px(0.8 * (prog / 100)), py(0.022));
-      ctx.font = '600 8px sans-serif';
+      const prog = Math.min(100, Math.round((s.registerProgress / CHECKOUT_GOAL) * 100));
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(px(0.06), py(0.165), px(0.88), py(0.026));
+      ctx.fillStyle = aisle.lane;
+      ctx.fillRect(px(0.06), py(0.165), px(0.88 * (prog / 100)), py(0.026));
+      ctx.font = '700 9px sans-serif';
       ctx.fillStyle = '#fff';
       ctx.textAlign = 'center';
-      ctx.fillText(`To checkout ${prog}%`, w / 2, py(0.175));
+      ctx.fillText(`${aisle.name} · GA Booth ${prog}%`, w / 2, py(0.184));
       ctx.textAlign = 'start';
 
       rafRef.current = requestAnimationFrame(draw);
     };
 
     rafRef.current = requestAnimationFrame(draw);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [endGame, resetGame]);
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.code === 'Space' || e.code === 'ArrowUp') {
-        e.preventDefault();
-        jump();
-      }
+      if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [jump]);
 
+  const aisleName = SHOW_AISLES[hud.aisle]?.name || SHOW_AISLES[0].name;
+
   return (
     <div>
       <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-        fontSize: 11,
-        color: theme?.textMuted || '#888',
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-        fontWeight: 600,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        marginBottom: 8, fontSize: 10, color: theme?.textMuted || '#888',
+        letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: 600, gap: 6, flexWrap: 'wrap',
       }}>
+        <span>{aisleName}</span>
         <span>Score {hud.score}</span>
         <span>Brands {hud.products}</span>
         <span>{'❤️'.repeat(Math.max(0, hud.lives)) || '💀'}</span>
@@ -509,59 +523,41 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
         type="button"
         onClick={jump}
         style={{
-          width: '100%',
-          padding: 0,
+          width: '100%', padding: 0,
           border: `0.5px solid ${theme?.border || '#E0DDD8'}`,
-          borderRadius: 12,
-          overflow: 'hidden',
-          cursor: 'pointer',
-          background: '#3d3d42',
-          touchAction: 'manipulation',
+          borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
+          background: '#0f0f12', touchAction: 'manipulation',
         }}
-        aria-label="Tap to jump — grab brands, dodge workers, reach checkout before the rep catches you"
+        aria-label="Champs trade show runner — dodge vendors, reach Global Access booth"
       >
-        <canvas
-          ref={canvasRef}
-          width={360}
-          height={220}
-          style={{ display: 'block', width: '100%', height: 'auto' }}
-        />
+        <canvas ref={canvasRef} width={360} height={250} style={{ display: 'block', width: '100%', height: 'auto' }} />
       </button>
 
       <p style={{ fontSize: 11, color: theme?.textFaint || '#AAA', margin: '8px 0 0', lineHeight: 1.45, textAlign: 'center' }}>
-        Push your cart · Tap to hop for brands · Jump workers & pallets · Outrun the rep to checkout
+        Champs show floor · Dodge vendor reps · Grab GA brands · Reach the booth
       </p>
 
       {hud.phase === 'over' && lastRun && (
         <div style={{
-          marginTop: 10,
-          padding: '10px 12px',
-          borderRadius: 10,
+          marginTop: 10, padding: '10px 12px', borderRadius: 10,
           background: theme?.mutedBg || '#F8F6F3',
           border: `0.5px solid ${theme?.border || '#E0DDD8'}`,
-          fontSize: 12,
-          color: theme?.textSecondary || '#555',
-          textAlign: 'center',
+          fontSize: 12, color: theme?.textSecondary || '#555', textAlign: 'center',
         }}>
-          {lastRun.won ? 'Made it to checkout! ' : 'Rep got you! '}
-          {lastRun.score} pts · {lastRun.products} brands
-          {submitting ? ' · Saving…' : ' · Tap to play again'}
+          {lastRun.won ? 'Welcome to the Global Access booth! ' : 'Too many vendors! '}
+          {lastRun.score} pts · {lastRun.products} brands · Aisle {lastRun.aisle}
+          {submitting ? ' · Saving…' : ' · Tap to replay'}
         </div>
       )}
 
       {leaderboard.length > 0 && (
         <div style={{ marginTop: 12 }}>
           <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: theme?.textFaint || '#AAA', marginBottom: 6, fontWeight: 600 }}>
-            Lobby high scores
+            Show floor high scores
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {leaderboard.map((row, i) => (
-              <div key={`${row.player_name}-${row.created_at}-${i}`} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: 11,
-                color: theme?.textMuted || '#777',
-              }}>
+              <div key={`${row.player_name}-${row.created_at}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: theme?.textMuted || '#777' }}>
                 <span>{i + 1}. {row.player_name}</span>
                 <span>{row.score} · 📦{row.products_collected}</span>
               </div>

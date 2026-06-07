@@ -1,6 +1,13 @@
 import { supabase } from './supabase';
+import { hasCallablePhone, getPhoneValidationError } from './whatsapp';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function isValidPhone(phone) {
+  return hasCallablePhone(phone);
+}
+
+export { getPhoneValidationError };
 
 export function isValidRequestEmail(email) {
   return EMAIL_RE.test((email || '').trim().toLowerCase());

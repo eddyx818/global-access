@@ -24,7 +24,8 @@ import { usePwaInstall } from './hooks/usePwaInstall';
 import { getNotificationPermission } from './lib/notificationPrefs';
 import { subscribeToPushNotifications } from './lib/pushNotifications';
 import { canAccessPortal, fetchProfileAccess } from './lib/authGate';
-import { isHoneypotClean } from './lib/accessRequestGate';
+import { isHoneypotClean, isValidPhone, getPhoneValidationError } from './lib/accessRequestGate';
+import { hasCallablePhone } from './lib/whatsapp';
 import { useTheme } from './context/ThemeContext';
 import {
   clearAppNavigation,
@@ -50,6 +51,7 @@ export default function App() {
   const [form, setForm] = useState({ name: '', company: '', phone: '', email: '', notes: '' });
   const [isMobile, setIsMobile] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
+  const [signupPromptError, setSignupPromptError] = useState('');
   const [showProfile, setShowProfile] = useState(false);
   const [profileGate, setProfileGate] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -115,12 +117,17 @@ export default function App() {
   };
 
   const handleProfileSaved = ({ profileComplete } = {}) => {
-    if (profileGate === 'chat' && profileComplete) {
+    if (profileGate && profileComplete) {
+      const gate = profileGate;
       setProfileGate(null);
       setShowProfile(false);
-      setOpenSupportOnLoad(n => n + 1);
-      if (mobileShell) setView('chat');
-      else setChatOpen(true);
+      if (gate === 'chat') {
+        setOpenSupportOnLoad(n => n + 1);
+        if (mobileShell) setView('chat');
+        else setChatOpen(true);
+      } else if (gate === 'quote') {
+        doSubmit();
+      }
     }
   };
 
@@ -544,11 +551,28 @@ export default function App() {
   };
 
   const handleSubmitAttempt = () => {
-    if (authState === 'browse') { setShowSignupPrompt(true); return; }
+    if (authState === 'browse') {
+      setSignupPromptError('');
+      setShowSignupPrompt(true);
+      return;
+    }
+    if (user && !isPortalAdmin && !isSalesRep && !isProfileComplete(form)) {
+      setProfileGate('quote');
+      if (mobileShell) setView('profile');
+      else setShowProfile(true);
+      return;
+    }
     doSubmit();
   };
 
   const doSubmit = async () => {
+    if (!form.name?.trim() || !form.company?.trim() || !hasCallablePhone(form.phone)) {
+      const msg = getPhoneValidationError(form.phone)
+        || 'Please enter your name, company, and a real mobile number.';
+      if (showSignupPrompt) setSignupPromptError(msg);
+      return;
+    }
+    setSignupPromptError('');
     const sessionId = await getSessionId();
     await supabase.from('inquiries').insert({
       session_id: sessionId,
@@ -576,6 +600,7 @@ export default function App() {
 
   const handleRequestAccess = async (data) => {
     if (!isHoneypotClean(data)) return;
+    if (!isValidPhone(data.phone)) return;
     const referral = await getPortalReferral();
     await supabase.from('access_requests').insert({
       name: data.name,
@@ -736,18 +761,21 @@ export default function App() {
           <div style={{ background: t.bgElevated, borderRadius: 20, padding: '2rem', maxWidth: 420, width: '100%', boxShadow: `0 24px 64px ${t.shadow}` }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: '0.04em', color: t.text, marginBottom: 6 }}>Ready to connect?</div>
             <p style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.6, marginBottom: '1.5rem' }}>Request a quote from your list here. Our team will follow up in {chatLabel} with pricing and availability.</p>
-            {[['name','Your name *'],['company','Company / Store *'],['phone','Phone / WhatsApp'],['email','Email']].map(([field, label]) => (
+            {[['name','Your name *'],['company','Company / Store *'],['phone','Phone / WhatsApp *'],['email','Email']].map(([field, label]) => (
               <div key={field} style={{ marginBottom: '0.875rem' }}>
                 <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
-                <input value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} style={{ width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '11px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} autoCapitalize={field === 'email' ? 'none' : 'words'} />
+                <input value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} style={{ width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '11px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} autoCapitalize={field === 'email' ? 'none' : 'words'} inputMode={field === 'phone' ? 'tel' : field === 'email' ? 'email' : 'text'} />
               </div>
             ))}
+            {signupPromptError && (
+              <div style={{ fontSize: 13, color: t.error || '#c44', marginBottom: '0.875rem', lineHeight: 1.45 }}>{signupPromptError}</div>
+            )}
             <div style={{ marginBottom: '0.875rem' }}>
               <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes (optional)</label>
               <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Questions, timeline, or extra info..." style={{ width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '10px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', height: 70, resize: 'none' }} />
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem' }}>
-              <button onClick={() => setShowSignupPrompt(false)} style={{ flex: 1, background: 'none', border: t.borderHairline, borderRadius: 10, padding: '12px', fontSize: 13, color: t.textFaint, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={() => { setShowSignupPrompt(false); setSignupPromptError(''); }} style={{ flex: 1, background: 'none', border: t.borderHairline, borderRadius: 10, padding: '12px', fontSize: 13, color: t.textFaint, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
               <button onClick={doSubmit} style={{ flex: 2, background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 10, padding: '12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Request quote</button>
             </div>
           </div>

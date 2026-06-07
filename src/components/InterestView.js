@@ -40,7 +40,7 @@ export function InterestView({ interests, toggleInterest, form, setForm, onSubmi
           {profileSaved ? 'Your saved details' : 'Your details'}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 12 }}>
-          {[['name','Name *'],['company','Company / Store *'],['phone','Phone / WhatsApp'],['email','Email']].map(([field, label]) => (
+          {[['name','Name *'],['company','Company / Store *'],['phone','Phone / WhatsApp *'],['email','Email']].map(([field, label]) => (
             <div key={field}>
               <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
               <input
@@ -49,6 +49,7 @@ export function InterestView({ interests, toggleInterest, form, setForm, onSubmi
                 readOnly={profileSaved && field !== 'email'}
                 style={profileSaved && field !== 'email' ? lockedStyle : inputStyle}
                 autoCapitalize={field === 'email' ? 'none' : 'words'}
+                inputMode={field === 'phone' ? 'tel' : field === 'email' ? 'email' : 'text'}
               />
             </div>
           ))}

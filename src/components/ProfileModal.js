@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { saveProfile, checkUsernameAvailable, isProfileComplete } from '../lib/community';
+import { getPhoneValidationError } from '../lib/accessRequestGate';
 import {
   getNotificationPrefs,
   saveNotificationPrefs,
@@ -118,7 +119,10 @@ export default function ProfileModal({
 
   const { canInstall = false, showIosHint = false, isInstalled = false, install, isMobileDevice = false } = pwa;
   const showInstallInSettings = isMobileDevice && !isInstalled && (canInstall || showIosHint);
-  const needsDetails = profileGate === 'chat' && !isProfileComplete(form);
+  const needsDetails = profileGate && !isProfileComplete(form);
+  const profileGateMessage = profileGate === 'quote'
+    ? 'Please add your name, company, and phone to request a quote.'
+    : 'Please add your name, company, and phone to use Support chat.';
 
   const toggleNotify = (key, value) => {
     const next = { ...notifyPrefs, [key]: value };
@@ -144,8 +148,11 @@ export default function ProfileModal({
     setSaving(true);
     setError('');
 
-    if (profileGate === 'chat' && !isProfileComplete(form)) {
-      setError('Please add your name, company, and phone to use Support chat.');
+    if (!isStaff && !isProfileComplete(form)) {
+      const phoneErr = getPhoneValidationError(form.phone);
+      setError(profileGate
+        ? profileGateMessage
+        : (phoneErr || 'Please add your name, company, and a real mobile number.'));
       setSaving(false);
       return;
     }
@@ -210,7 +217,7 @@ export default function ProfileModal({
     <>
       {needsDetails && (
         <div style={{ background: t.warningBg, border: `0.5px solid ${t.warningBorder}`, borderRadius: 10, padding: '12px 14px', marginBottom: '1rem', fontSize: 13, color: t.warningText, lineHeight: 1.5 }}>
-          Add your business details below to start Support chat. We will save them for future visits.
+          {profileGateMessage} We will save them for future visits.
         </div>
       )}
 
@@ -272,6 +279,7 @@ export default function ProfileModal({
             disabled={field === 'email'}
             style={{ ...inputStyle, opacity: field === 'email' ? 0.5 : 1 }}
             autoCapitalize={field === 'email' ? 'none' : 'words'}
+            inputMode={field === 'phone' ? 'tel' : field === 'email' ? 'email' : 'text'}
           />
         </div>
       ))}
