@@ -137,17 +137,45 @@ export default function App() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // If chat/profile view is active on desktop width, fall back to modal/sidebar UX
+  // Recover orphaned views (desktop width with mobile routes, brand without id, etc.)
   useEffect(() => {
-    if (!user || !inPortalView || mobileShell) return;
+    if (!user || !inPortalView) return;
+
     if (view === 'chat') {
-      setChatOpen(true);
-      setView(activeBrand ? 'brand' : 'home');
-    } else if (view === 'profile') {
-      setShowProfile(true);
-      setView(activeBrand ? 'brand' : 'home');
+      if (!mobileShell) {
+        setChatOpen(true);
+        setView(activeBrand ? 'brand' : 'home');
+      }
+      return;
+    }
+
+    if (view === 'profile') {
+      if (!mobileShell) {
+        setShowProfile(true);
+        setView(activeBrand ? 'brand' : 'home');
+      }
+      return;
+    }
+
+    if (view === 'brand' && !activeBrand) {
+      setView('home');
     }
   }, [view, mobileShell, user, inPortalView, activeBrand]);
+
+  const mobilePageShellStyle = {
+    flex: 1,
+    minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    // Explicit height for mobile browsers that don't flex-fill reliably
+    height: mobileShell ? 'calc(100dvh - 48px - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))' : undefined,
+  };
+
+  const requireProfileForChat = () => {
+    setProfileGate('chat');
+    if (mobileShell) setView('profile');
+    else setShowProfile(true);
+  };
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
@@ -338,6 +366,11 @@ export default function App() {
     setMasterPricingQualified(false);
     setMasterPricingInterest(false);
     setAdminMode('dashboard');
+    setView('home');
+    setActiveBrand(null);
+    setChatOpen(false);
+    setShowProfile(false);
+    setProfileGate(null);
   };
 
   const handleLoggedIn = async (sessionUser) => {
@@ -494,6 +527,8 @@ export default function App() {
           onClose={() => setChatOpen(false)}
           isAdmin={isPortalAdmin}
           onUnreadChange={refreshUnread}
+          profileComplete={isProfileComplete(form)}
+          onRequireProfile={requireProfileForChat}
         />
       )}
       {showProfile && !mobileShell && (
@@ -547,7 +582,7 @@ export default function App() {
         />
       )}
       {view === 'chat' && mobileShell && user && (
-        <div style={{ flex: 1, minHeight: 320, display: 'flex', flexDirection: 'column' }}>
+        <div style={mobilePageShellStyle}>
           <ChatSidebar
             user={user}
             open
@@ -556,12 +591,12 @@ export default function App() {
             isAdmin={isPortalAdmin}
             onUnreadChange={refreshUnread}
             profileComplete={isProfileComplete(form)}
-            onRequireProfile={() => { setProfileGate('chat'); setView('profile'); }}
+            onRequireProfile={requireProfileForChat}
           />
         </div>
       )}
       {view === 'profile' && mobileShell && user && (
-        <div style={{ flex: 1, minHeight: 320, display: 'flex', flexDirection: 'column' }}>
+        <div style={mobilePageShellStyle}>
           <ProfileModal
             user={user}
             form={form}
