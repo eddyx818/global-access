@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
-import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, clearPortalSession, getPortalReferral } from './lib/session';
+import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, getPortalReferral } from './lib/session';
+import { getSavedLogin } from './lib/loginPrefs';
 import { updateUserPresence, resolveAuthRole, ensurePortalAdminFlag, submitInterestToSupport, isProfileComplete } from './lib/community';
 import { useBrandContent } from './lib/content';
 import { getFontFamily } from './lib/design';
@@ -251,12 +252,25 @@ export default function App() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         await applySessionUser(session.user);
-      } else {
-        const verified = await isPortalCodeVerified();
-        const wantsAdmin = new URLSearchParams(window.location.search).get('admin') === '1'
-          || window.location.hash === '#admin';
-        setAuthState(wantsAdmin ? 'login' : (verified ? 'browse' : 'gate'));
+        return;
       }
+
+      const saved = getSavedLogin();
+      if (saved) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: saved.email,
+          password: saved.password,
+        });
+        if (!error && data?.user) {
+          await applySessionUser(data.user);
+          return;
+        }
+      }
+
+      const verified = await isPortalCodeVerified();
+      const wantsAdmin = new URLSearchParams(window.location.search).get('admin') === '1'
+        || window.location.hash === '#admin';
+      setAuthState(wantsAdmin ? 'login' : (verified ? 'browse' : 'gate'));
     };
     init();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_e, session) => {
@@ -361,12 +375,12 @@ export default function App() {
   const handleLogout = async () => {
     if (user?.id) await updateUserPresence(user.id, 'offline');
     await supabase.auth.signOut();
-    await clearPortalSession();
     setUser(null);
     setIsPortalAdmin(false);
     setIsSalesRep(false);
     setStaffProfile(null);
-    setAuthState('gate');
+    const verified = await isPortalCodeVerified();
+    setAuthState(verified ? 'login' : 'gate');
     setInterests([]);
     setMasterPricingQualified(false);
     setMasterPricingInterest(false);

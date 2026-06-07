@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { validateAccessCode } from '../lib/repCodes';
 import { setPortalReferral, getPortalReferral } from '../lib/session';
+import { getRememberLogin, getSavedLogin, saveLogin, clearSavedLogin } from '../lib/loginPrefs';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggle from './ThemeToggle';
  
@@ -26,7 +27,17 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(getRememberLogin);
   const [regForm, setRegForm] = useState({ username: '', email: '', password: '', name: '', company: '', account_type: 'retailer' });
+
+  useEffect(() => {
+    const saved = getSavedLogin();
+    if (saved) {
+      setEmail(saved.email);
+      setPassword(saved.password);
+      setRememberMe(true);
+    }
+  }, []);
  
   const inputStyle = { width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '11px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
   const labelStyle = { fontSize: 11, color: t.textFaint, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 };
@@ -76,10 +87,19 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
  
   const handleLogin = async () => {
     setLoading(true); setError('');
-    const { data, error: err } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+    const trimmedEmail = email.trim().toLowerCase();
+    const { data, error: err } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password });
     setLoading(false);
-    if (err) setError('Invalid email or password.');
-    else onLoggedIn(data.user);
+    if (err) {
+      setError('Invalid email or password.');
+      return;
+    }
+    if (rememberMe) {
+      saveLogin({ email: trimmedEmail, password, remember: true });
+    } else {
+      clearSavedLogin();
+    }
+    onLoggedIn(data.user);
   };
  
   const handleReset = async () => {
@@ -195,6 +215,18 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                   </button>
                 </div>
               </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '1rem', fontSize: 13, color: t.textSecondary, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => {
+                    const next = e.target.checked;
+                    setRememberMe(next);
+                    if (!next) clearSavedLogin();
+                  }}
+                />
+                Remember me on this device
+              </label>
               {error && <ErrBox msg={error} />}
               <button onClick={handleLogin} disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.6 : 1 }}>{loading ? 'Signing in...' : 'Sign In →'}</button>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
