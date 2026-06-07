@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { fetchLobbyLeaderboard, submitLobbyScore } from '../lib/lobbyGameScores';
 import {
-  BOOTH_SIGNAGE,
   BOOTH_STYLES,
   CHECKOUT_GOAL,
   GLOBAL_ACCESS_BRANDS,
@@ -16,12 +15,15 @@ import {
 } from '../lib/lobbyGame/champsShowData';
 
 const LIVES = 3;
-const GRAVITY = 0.36;
-const JUMP_V = -6.2;
-const GROUND = 0.84;
-const PLAYER_X = 0.12;
-const PLAYER_H = 0.19;
-const PLAYER_W = 0.2;
+const GRAVITY = 0.38;
+const JUMP_V = -7.4;
+const GROUND = 0.86;
+const PLAYER_X = 0.22;
+const PLAYER_H = 0.17;
+const PLAYER_W = 0.18;
+/** Low counter / table obstacles in the aisle — jumpable. */
+const LANE_OBSTACLE_H = 0.1;
+const LANE_OBSTACLE_Y = GROUND - LANE_OBSTACLE_H;
 
 function spawnEntity(aisleId) {
   const roll = Math.random();
@@ -40,21 +42,21 @@ function spawnEntity(aisleId) {
       bob: Math.random() * Math.PI * 2,
     };
   }
-  if (roll < 0.58) {
-    const chinese = Math.random() < (chineseHeavy ? 0.55 : 0.28);
+  if (roll < 0.55) {
+    const chinese = Math.random() < (chineseHeavy ? 0.5 : 0.25);
     return {
       type: 'booth',
       knockoff: boothStyle.id === 'knockoff_import' ? knockoff : null,
       boothStyle,
       chinese,
       pitch: randomObstaclePitch(aisleId, boothStyle, knockoff, chinese),
-      x: 1.1,
-      y: GROUND - 0.36,
-      w: 0.18,
-      h: 0.36,
+      x: 1.08,
+      y: LANE_OBSTACLE_Y,
+      w: 0.13,
+      h: LANE_OBSTACLE_H,
     };
   }
-  const chinese = Math.random() < (chineseHeavy ? 0.5 : 0.25);
+  const chinese = Math.random() < (chineseHeavy ? 0.45 : 0.22);
   return {
     type: 'vendor',
     knockoff: aisleId === 'vape' ? knockoff : null,
@@ -62,9 +64,9 @@ function spawnEntity(aisleId) {
     chinese,
     pitch: randomObstaclePitch(aisleId, boothStyle, knockoff, chinese),
     x: 1.04,
-    y: GROUND - 0.14,
-    w: 0.11,
-    h: 0.14,
+    y: GROUND - 0.13,
+    w: 0.09,
+    h: 0.13,
   };
 }
 
@@ -190,17 +192,6 @@ function drawSpeechBubble(ctx, x, y, text, maxW, accent = '#C9A84C') {
   lines.forEach((ln, i) => ctx.fillText(ln, x + pad, y - bh + pad + 9 + i * lineH));
 }
 
-function drawLedStrip(ctx, x, y, w, colors, time) {
-  const segW = w / colors.length;
-  colors.forEach((color, i) => {
-    const pulse = 0.65 + Math.sin(time * 0.004 + i * 1.2) * 0.35;
-    ctx.fillStyle = color;
-    ctx.globalAlpha = pulse;
-    ctx.fillRect(x + i * segW, y, segW + 1, 5);
-  });
-  ctx.globalAlpha = 1;
-}
-
 function drawSmileyPattern(ctx, bx, by, bw, bh) {
   const cols = 4;
   const rows = 3;
@@ -224,20 +215,6 @@ function drawSmileyPattern(ctx, bx, by, bw, bh) {
       ctx.stroke();
     }
   }
-}
-
-function drawRingLight(ctx, cx, cy, r, time) {
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 2;
-  ctx.globalAlpha = 0.85 + Math.sin(time * 0.006) * 0.15;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,0.15)';
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
 }
 
 function drawNeonSilhouette(ctx, bx, by, bw, bh) {
@@ -267,74 +244,39 @@ function drawMushroomIcon(ctx, cx, cy, size) {
   ctx.fillRect(cx - size * 0.12, cy - size * 0.05, size * 0.24, size * 0.45);
 }
 
-function drawStyledBoothWall(ctx, bx, by, bw, bh, style, time) {
+function drawStyledBoothWall(ctx, bx, by, bw, bh, style, time, { backdrop = false } = {}) {
   const grad = ctx.createLinearGradient(bx, by, bx, by + bh);
   grad.addColorStop(0, style.top);
-  grad.addColorStop(0.45, style.mid);
+  grad.addColorStop(0.5, style.mid);
   grad.addColorStop(1, style.bottom);
   ctx.fillStyle = grad;
   ctx.fillRect(bx, by, bw, bh);
-  drawLedStrip(ctx, bx, by, bw, style.led, time);
 
-  if (style.id === 'smiley_wall') drawSmileyPattern(ctx, bx, by, bw, bh);
-  if (style.id === 'neon_beast') drawNeonSilhouette(ctx, bx, by, bw, bh);
-  if (style.id === 'mushroom_psyche') {
-    drawMushroomIcon(ctx, bx + bw * 0.5, by + bh * 0.45, bw * 0.35);
+  if (!backdrop) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
   }
-  if (style.id === 'preroll_lab') {
-    drawRingLight(ctx, bx + bw * 0.5, by + bh * 0.38, bw * 0.14, time);
-    ctx.fillStyle = '#00AAFF';
-    ctx.globalAlpha = 0.4;
-    ctx.fillRect(bx + 4, by + bh - bh * 0.15, bw - 8, 4);
-    ctx.globalAlpha = 1;
-  }
-  if (style.id === 'sunset_tower') {
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.fillRect(bx + bw * 0.75, by + bh * 0.15, bw * 0.18, bh * 0.55);
-  }
-  if (style.id === 'seven_oh') {
-    ctx.font = '600 5px sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.textAlign = 'center';
-    ctx.fillText('hydroxymitragynine', bx + bw / 2, by + bh * 0.32);
-    ctx.textAlign = 'start';
-  }
-  if (style.id === 'euphoric_blend') {
-    ctx.font = '700 8px "Bebas Neue", sans-serif';
-    ctx.fillStyle = '#FFD700';
-    ctx.textAlign = 'center';
-    ctx.fillText('™', bx + bw * 0.82, by + bh * 0.14);
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    ctx.font = '600 5px sans-serif';
-    ctx.fillText('(rebranded)', bx + bw / 2, by + bh * 0.32);
-    ctx.textAlign = 'start';
+
+  if (style.id === 'smiley_wall' && !backdrop) drawSmileyPattern(ctx, bx, by, bw, bh);
+  if (style.id === 'neon_beast' && !backdrop) drawNeonSilhouette(ctx, bx, by, bw, bh * 0.5);
+  if (style.id === 'mushroom_psyche' && !backdrop) {
+    drawMushroomIcon(ctx, bx + bw * 0.5, by + bh * 0.35, bw * 0.22);
   }
 
   ctx.fillStyle = '#fff';
-  ctx.font = `700 ${Math.max(7, bw * 0.09)}px "Bebas Neue", sans-serif`;
+  ctx.font = `700 ${Math.max(6, bw * (backdrop ? 0.07 : 0.09))}px "Bebas Neue", sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText(style.title, bx + bw / 2, by + bh * 0.16);
-  ctx.font = '600 5px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillText(style.subtitle, bx + bw / 2, by + bh * 0.24);
+  ctx.fillText(style.title, bx + bw / 2, by + bh * (backdrop ? 0.12 : 0.2));
+  if (!backdrop) {
+    ctx.font = '600 5px sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillText(style.subtitle, bx + bw / 2, by + bh * 0.28);
+  }
   ctx.textAlign = 'start';
 
   ctx.fillStyle = style.counter;
-  ctx.fillRect(bx + 2, by + bh - bh * 0.14, bw - 4, bh * 0.14);
-}
-
-function drawExpoBooth(ctx, bx, by, bw, bh, aisle, signage, time, depth = 1) {
-  const styleKeys = AISLE_BOOTH_STYLE_KEYS[aisle.id] || ['sunset_tower'];
-  const style = BOOTH_STYLES[styleKeys[Math.floor(bx) % styleKeys.length]] || BOOTH_STYLES.sunset_tower;
-  ctx.globalAlpha = 0.55 + depth * 0.2;
-  drawStyledBoothWall(ctx, bx, by, bw, bh, style, time);
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = '#fff';
-  ctx.font = `700 ${Math.max(6, bw * 0.09)}px "Bebas Neue", sans-serif`;
-  ctx.textAlign = 'center';
-  const label = signage.length > 10 ? `${signage.slice(0, 9)}…` : signage;
-  ctx.fillText(label, bx + bw / 2, by + bh * 0.97);
-  ctx.textAlign = 'start';
+  ctx.fillRect(bx + 2, by + bh - bh * 0.12, bw - 4, bh * 0.12);
 }
 
 const AISLE_BOOTH_STYLE_KEYS = {
@@ -346,154 +288,138 @@ const AISLE_BOOTH_STYLE_KEYS = {
   home: ['seven_oh', 'preroll_lab'],
 };
 
-function drawParallaxBooths(ctx, w, h, scroll, aisle, time) {
-  const signs = BOOTH_SIGNAGE[aisle.id] || BOOTH_SIGNAGE.tobacco;
-  const layers = [
-    { y: 0.08, bh: 0.28, speed: 0.00006, bw: 0.19, alpha: 0.55 },
-    { y: 0.14, bh: 0.34, speed: 0.0001, bw: 0.22, alpha: 0.75 },
-    { y: 0.2, bh: 0.4, speed: 0.00016, bw: 0.25, alpha: 1 },
-  ];
-
-  layers.forEach((layer, li) => {
-    const count = 5 + li;
-    for (let i = 0; i < count; i += 1) {
-      const slot = i / count;
-      const offset = (scroll * layer.speed + slot) % 1.15;
-      const bx = (offset - 0.08) * w;
-      if (bx < -w * layer.bw || bx > w * 1.05) continue;
-      const by = layer.y * h;
-      const boothH = layer.bh * h;
-      const boothW = layer.bw * w;
-      ctx.globalAlpha = layer.alpha;
-      drawExpoBooth(ctx, bx, by, boothW, boothH, aisle, signs[i % signs.length], time + i * 200, li / 2);
-    }
-    ctx.globalAlpha = 1;
-  });
-}
-
-function drawCeiling(ctx, w, h, aisle, time) {
-  const grad = ctx.createLinearGradient(0, 0, 0, h * 0.22);
-  grad.addColorStop(0, aisle.skyTop);
-  grad.addColorStop(1, aisle.skyBottom);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, w, h * 0.22);
-
+function drawConventionCeiling(ctx, w, h) {
+  ctx.fillStyle = '#2a2a30';
+  ctx.fillRect(0, 0, w, h * 0.12);
+  ctx.fillStyle = '#383840';
   for (let i = 0; i < 6; i += 1) {
-    const lx = (i + 0.5) * (w / 6);
-    const flicker = 0.7 + Math.sin(time * 0.002 + i) * 0.15;
-    ctx.fillStyle = `rgba(255,255,240,${flicker})`;
-    ctx.fillRect(lx - w * 0.04, 4, w * 0.08, h * 0.025);
-    ctx.fillStyle = aisle.neon;
-    ctx.globalAlpha = 0.15;
-    ctx.fillRect(lx - w * 0.04, 4, w * 0.08, h * 0.025);
-    ctx.globalAlpha = 1;
+    ctx.fillRect(i * (w / 5.5), 0, w * 0.04, h * 0.12);
+  }
+  for (let i = 0; i < 4; i += 1) {
+    const lx = (i + 0.55) * (w / 4);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(lx - 18, 10, 36, 4);
   }
 }
 
-function drawCrowd(ctx, w, h, scroll, aisle) {
-  const shirtColors = [...aisle.boothPalette, aisle.neon, '#fff', '#333'];
-  for (let i = 0; i < 14; i += 1) {
-    const cx = ((i * 0.09 - scroll * 0.00005 + (i % 4) * 0.015) % 1.12) * w;
-    const cy = h * (0.52 + (i % 5) * 0.025);
-    ctx.fillStyle = shirtColors[i % shirtColors.length];
-    ctx.fillRect(cx - 4, cy + 2, 8, 11);
-    ctx.fillStyle = '#e8b896';
-    ctx.beginPath();
-    ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
-    ctx.fill();
+function drawSideBoothColumn(ctx, side, w, h, scroll, aisle, time) {
+  const isLeft = side === 'left';
+  const styleKeys = AISLE_BOOTH_STYLE_KEYS[aisle.id] || ['sunset_tower'];
+  const colX = isLeft ? 0 : w * 0.8;
+  const colW = w * 0.2;
+
+  for (let i = 0; i < 5; i += 1) {
+    const slot = ((scroll * 0.00008 + i * 0.22) % 1.05);
+    const by = h * (0.1 + slot * 0.58);
+    if (by > h * 0.72) continue;
+    const style = BOOTH_STYLES[styleKeys[i % styleKeys.length]] || BOOTH_STYLES.sunset_tower;
+    const boothH = h * (0.22 + (i % 3) * 0.04);
+    drawStyledBoothWall(ctx, colX + 3, by, colW - 6, boothH, style, time, { backdrop: true });
   }
+
+  const shade = ctx.createLinearGradient(
+    isLeft ? colX + colW : colX - w * 0.05, 0,
+    isLeft ? colX + colW + w * 0.07 : colX,
+    0,
+  );
+  shade.addColorStop(0, 'rgba(0,0,0,0.4)');
+  shade.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = shade;
+  ctx.fillRect(
+    isLeft ? colX + colW - 1 : colX - w * 0.05,
+    h * 0.1,
+    w * 0.07,
+    h * 0.68,
+  );
 }
 
-function drawShowFloor(ctx, w, h, aisle, scroll, time) {
+function drawShowFloor(ctx, w, h, aisle, scroll) {
   const py = (n) => n * h;
 
-  drawCeiling(ctx, w, h, aisle, time);
-  drawParallaxBooths(ctx, w, h, scroll, aisle, time);
-  drawCrowd(ctx, w, h, scroll, aisle);
+  drawConventionCeiling(ctx, w, h);
 
-  ctx.fillStyle = aisle.banner;
-  ctx.fillRect(0, py(0.58), w, py(0.048));
-  ctx.strokeStyle = aisle.neon;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(0, py(0.58), w, py(0.048));
-  ctx.fillStyle = '#fff';
-  ctx.font = '700 11px "Bebas Neue", "DM Sans", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(aisle.bannerText, w / 2, py(0.612));
-  ctx.textAlign = 'start';
+  ctx.fillStyle = '#484850';
+  ctx.fillRect(0, py(0.12), w, py(0.62));
 
-  const carpetGrad = ctx.createLinearGradient(0, py(GROUND - 0.02), 0, h);
-  carpetGrad.addColorStop(0, aisle.carpet);
-  carpetGrad.addColorStop(0.4, aisle.floor);
-  carpetGrad.addColorStop(1, '#1a1a1a');
-  ctx.fillStyle = carpetGrad;
-  ctx.fillRect(0, py(GROUND - 0.02), w, h - py(GROUND - 0.02));
+  drawSideBoothColumn(ctx, 'left', w, h, scroll, aisle, 0);
+  drawSideBoothColumn(ctx, 'right', w, h, scroll + 400, aisle, 0);
 
-  ctx.strokeStyle = aisle.lane;
-  ctx.lineWidth = 4;
-  ctx.setLineDash([18, 12]);
-  ctx.beginPath();
-  ctx.moveTo(w * 0.08, py(GROUND + 0.004));
-  ctx.lineTo(w * 0.08, h);
-  ctx.moveTo(w * 0.92, py(GROUND + 0.004));
-  ctx.lineTo(w * 0.92, h);
-  ctx.stroke();
-  ctx.setLineDash([]);
+  const aisleGrad = ctx.createLinearGradient(w * 0.2, 0, w * 0.8, 0);
+  aisleGrad.addColorStop(0, '#56565e');
+  aisleGrad.addColorStop(0.5, '#72727c');
+  aisleGrad.addColorStop(1, '#56565e');
+  ctx.fillStyle = aisleGrad;
+  ctx.fillRect(w * 0.2, py(0.12), w * 0.6, py(0.68));
 
   for (let i = 0; i < 6; i += 1) {
-    const fx = ((i * 0.2 - scroll * 0.0002) % 1.25) * w;
-    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-    ctx.lineWidth = 2;
+    const fx = w * 0.2 + (((i * 0.16 - scroll * 0.00012) % 0.85) / 0.85) * w * 0.6;
+    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(fx, py(GROUND));
-    ctx.lineTo(fx - w * 0.06, h);
+    ctx.lineTo(fx - w * 0.025, h);
     ctx.stroke();
   }
 
-  ctx.fillStyle = aisle.neon;
-  ctx.globalAlpha = 0.08;
-  ctx.fillRect(0, py(GROUND - 0.02), w, py(0.04));
-  ctx.globalAlpha = 1;
+  ctx.strokeStyle = '#c9a227';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.22, py(GROUND));
+  ctx.lineTo(w * 0.22, h);
+  ctx.moveTo(w * 0.78, py(GROUND));
+  ctx.lineTo(w * 0.78, h);
+  ctx.stroke();
+
+  ctx.fillStyle = '#3a3a42';
+  ctx.fillRect(0, py(GROUND), w, h - py(GROUND));
+
+  ctx.fillStyle = '#2e2e34';
+  ctx.fillRect(w * 0.26, py(0.125), w * 0.48, py(0.028));
+  ctx.fillStyle = '#bbb';
+  ctx.font = '600 8px "Bebas Neue", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(aisle.bannerText, w / 2, py(0.145));
+  ctx.textAlign = 'start';
 }
 
-function drawGlobalAccessBooth(ctx, xNorm, w, h, glow, time, progress) {
+function drawGlobalAccessBooth(ctx, xNorm, w, h, glow, progress) {
   const rx = xNorm * w;
   const footY = GROUND * h;
-  const bw = w * 0.34;
-  const bh = h * 0.5;
+  const bw = w * 0.3;
+  const bh = h * 0.42;
   const prog = Math.min(1, progress / CHECKOUT_GOAL);
 
-  ctx.shadowColor = '#C9A84C';
-  ctx.shadowBlur = glow ? 28 : 12;
-  ctx.fillStyle = '#111';
+  ctx.fillStyle = '#1a1a1e';
   ctx.fillRect(rx, footY - bh, bw, bh);
-  drawLedStrip(ctx, rx, footY - bh, bw, ['#FFD700', '#C9A84C', '#FFF8DC', '#FFD700'], time);
+  ctx.strokeStyle = glow ? '#C9A84C' : '#666';
+  ctx.lineWidth = glow ? 3 : 1.5;
+  ctx.strokeRect(rx, footY - bh, bw, bh);
+
   ctx.fillStyle = '#C9A84C';
-  ctx.fillRect(rx + 4, footY - bh + 8, bw - 8, bh * 0.16);
-  ctx.shadowBlur = 0;
+  ctx.fillRect(rx + 4, footY - bh + 6, bw - 8, bh * 0.14);
   ctx.fillStyle = '#111';
-  ctx.font = '700 14px "Bebas Neue", sans-serif';
-  ctx.fillText('GLOBAL ACCESS', rx + bw * 0.06, footY - bh * 0.86);
-  ctx.font = '600 8px sans-serif';
-  ctx.fillStyle = '#333';
-  ctx.fillText('REAL BRANDS · LEGIT DISTRIBUTOR', rx + bw * 0.07, footY - bh * 0.68);
-  ctx.fillStyle = '#FFD700';
-  ctx.globalAlpha = 0.35;
-  ctx.fillRect(rx + 8, footY - bh * 0.58, bw - 16, bh * 0.3);
-  ctx.globalAlpha = 1;
-  for (let i = 0; i < 3; i += 1) {
-    drawHuman(ctx, rx + bw * (0.1 + i * 0.28), footY - bh * 0.06, h * 0.085, 'left', i * 25 + time * 0.05, {
-      shirt: i === 1 ? '#C9A84C' : '#2563eb', pants: '#111', skin: '#8d5524',
+  ctx.font = '700 13px "Bebas Neue", sans-serif';
+  ctx.fillText('GLOBAL ACCESS', rx + bw * 0.07, footY - bh * 0.88);
+  ctx.font = '600 7px sans-serif';
+  ctx.fillStyle = '#444';
+  ctx.fillText('REAL BRANDS · LEGIT DISTRIBUTOR', rx + bw * 0.08, footY - bh * 0.72);
+
+  ctx.fillStyle = '#2a2a30';
+  ctx.fillRect(rx + 6, footY - bh * 0.62, bw - 12, bh * 0.48);
+
+  for (let i = 0; i < 2; i += 1) {
+    drawHuman(ctx, rx + bw * (0.15 + i * 0.38), footY - bh * 0.08, h * 0.08, 'left', i * 20, {
+      shirt: i === 0 ? '#C9A84C' : '#2563eb', pants: '#111', skin: '#8d5524',
     });
   }
-  ctx.font = '700 9px sans-serif';
+  ctx.font = '700 8px sans-serif';
   ctx.fillStyle = '#C9A84C';
-  ctx.fillText('YOU MADE IT →', rx + bw * 0.22, footY - bh * 0.04);
+  ctx.fillText('YOU MADE IT →', rx + bw * 0.24, footY - bh * 0.04);
 
-  if (prog > 0.5) {
-    ctx.font = '700 10px "Bebas Neue", sans-serif';
-    ctx.fillStyle = '#2ecc71';
-    ctx.fillText(`${Math.round(prog * 100)}%`, rx + bw * 0.78, footY - bh * 0.5);
+  if (prog > 0.45) {
+    ctx.font = '700 9px "Bebas Neue", sans-serif';
+    ctx.fillStyle = '#8bc34a';
+    ctx.fillText(`${Math.round(prog * 100)}%`, rx + bw * 0.82, footY - bh * 0.48);
   }
 }
 
@@ -518,81 +444,45 @@ function drawVendorRep(ctx, e, w, h, walkPhase, aisle) {
 
 function drawKnockoffBooth(ctx, e, w, h, aisle, time) {
   const bx = e.x * w;
-  const by = e.y * h;
-  const bw = e.w * w;
-  const bh = e.h * h;
-  const footY = GROUND * h;
+  const cy = e.y * h;
+  const cw = e.w * w;
+  const ch = e.h * h;
   const style = e.boothStyle || BOOTH_STYLES.knockoff_import;
+  const signH = h * 0.11;
 
-  ctx.fillStyle = '#1a1a1a';
-  ctx.fillRect(bx, by, bw, footY - by);
-  drawStyledBoothWall(ctx, bx, by, bw, bh * 0.92, style, time);
+  drawStyledBoothWall(ctx, bx - cw * 0.08, cy - signH, cw * 1.16, signH, style, time, { backdrop: true });
+
+  ctx.fillStyle = '#d8d8dc';
+  ctx.fillRect(bx, cy, cw, ch);
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx, cy, cw, ch);
+  ctx.fillStyle = '#aaa';
+  ctx.fillRect(bx + 3, cy + 2, cw - 6, ch * 0.35);
 
   if (e.knockoff) {
-    ctx.font = '700 7px sans-serif';
-    ctx.fillStyle = '#ff6b6b';
+    ctx.font = '600 6px sans-serif';
+    ctx.fillStyle = '#c0392b';
     ctx.textAlign = 'center';
-    ctx.fillText(`FAKE: ${e.knockoff.name}`, bx + bw / 2, by + bh * 0.72);
-    ctx.font = '600 5px sans-serif';
-    ctx.fillText(`(not ${e.knockoff.mimics})`, bx + bw / 2, by + bh * 0.8);
+    ctx.fillText(`fake ${e.knockoff.name}`, bx + cw / 2, cy - signH * 0.35);
     ctx.textAlign = 'start';
   }
 
-  if (style.id === 'preroll_lab') {
-    for (let i = 0; i < 3; i += 1) {
-      ctx.fillStyle = '#333';
-      ctx.fillRect(bx + 4 + i * (bw / 3.2), footY - bh * 0.1, bw / 4, bh * 0.08);
-    }
-  }
-
-  drawSpeechBubble(ctx, bx, by - 4, e.pitch, 102, style.led[0] || aisle.neon);
-
-  ctx.font = '700 6px sans-serif';
-  ctx.fillStyle = style.led[0] || '#ff4757';
-  ctx.fillText('JUMP OVER', bx + 4, footY - 2);
+  drawSpeechBubble(ctx, bx, cy - signH - 2, e.pitch, 100, '#888');
 }
 
-function drawChasingRep(ctx, footX, footY, scale, walkPhase, line, time, w, h) {
-  const pulse = 0.5 + Math.sin(time * 0.012) * 0.5;
-  const pulse2 = 0.5 + Math.sin(time * 0.018 + 1) * 0.5;
-
-  ctx.save();
-  const beamGrad = ctx.createLinearGradient(0, footY - scale, w * 0.35, footY);
-  beamGrad.addColorStop(0, `rgba(255,60,60,${0.35 * pulse})`);
-  beamGrad.addColorStop(0.5, `rgba(255,200,0,${0.12 * pulse2})`);
-  beamGrad.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = beamGrad;
-  ctx.beginPath();
-  ctx.moveTo(0, footY - scale * 0.3);
-  ctx.lineTo(footX + scale * 0.5, footY - scale * 0.5);
-  ctx.lineTo(footX + scale * 0.5, footY);
-  ctx.lineTo(0, footY);
-  ctx.fill();
-  ctx.restore();
-
-  drawSpeechBubble(ctx, footX, footY - scale * 1.1, line, 118, '#e74c3c');
+function drawChasingRep(ctx, footX, footY, scale, walkPhase, line) {
+  drawSpeechBubble(ctx, footX, footY - scale * 1.05, line, 112, '#888');
   drawHuman(ctx, footX, footY, scale, 'right', walkPhase + 30, {
-    shirt: '#222', pants: '#111', skin: '#c68642', tie: '#C0392B',
+    shirt: '#444', pants: '#222', skin: '#c68642', tie: '#a93226',
   });
-
-  const lights = ['#ff0000', '#00ff88', '#0088ff', '#ffaa00'];
-  lights.forEach((color, i) => {
-    ctx.fillStyle = color;
-    ctx.globalAlpha = i % 2 === 0 ? pulse : pulse2;
-    ctx.beginPath();
-    ctx.arc(footX + scale * 0.08 + i * scale * 0.05, footY - scale * 0.48, 3, 0, Math.PI * 2);
-    ctx.fill();
-  });
-  ctx.globalAlpha = 1;
-
-  ctx.fillStyle = '#FFD700';
-  ctx.globalAlpha = pulse;
-  ctx.fillRect(footX + scale * 0.14, footY - scale * 0.55, scale * 0.06, scale * 0.04);
-  ctx.globalAlpha = 1;
-
+  ctx.fillStyle = '#c0392b';
+  ctx.beginPath();
+  ctx.arc(footX + scale * 0.16, footY - scale * 0.52, 2.5, 0, Math.PI * 2);
+  ctx.fill();
   ctx.font = '700 7px sans-serif';
-  ctx.fillStyle = '#e74c3c';
-  ctx.fillText('CHASING REP', footX, footY + 4);
+  ctx.fillStyle = '#888';
+  ctx.fillText('SALES REP', footX, footY + 4);
 }
 
 function drawBrandPickup(ctx, brand, x, y, bob, w, h, time, aisle) {
@@ -642,18 +532,22 @@ function drawBrandPickup(ctx, brand, x, y, bob, w, h, time, aisle) {
 }
 
 function obstacleBox(e) {
+  if (e.type === 'booth') {
+    return { x: e.x + 0.008, y: e.y + 0.005, w: e.w - 0.016, h: e.h - 0.01 };
+  }
   return { x: e.x + 0.01, y: e.y + 0.01, w: e.w - 0.02, h: e.h - 0.02 };
 }
 
-function isJumpingOver(playerY, playerH, obsTop) {
-  return (playerY + playerH) < obsTop + 0.03;
+function isJumpingOver(playerY, playerH, obsTop, grounded) {
+  if (grounded) return false;
+  return (playerY + playerH * 0.9) < obsTop + 0.055;
 }
 
 function handleObstacleCollision(s, e, playerBox) {
   if (s.invuln > 0) return false;
   const box = obstacleBox(e);
   if (!hit(playerBox, box)) return false;
-  if (isJumpingOver(playerBox.y, playerBox.h, box.y)) return false;
+  if (isJumpingOver(playerBox.y, playerBox.h, box.y, s.grounded)) return false;
 
   s.lives -= 1;
   s.invuln = 2000;
@@ -704,6 +598,7 @@ function LivesDisplay({ lives, max = LIVES, color = '#C9A84C', emptyColor = '#55
 
 export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, theme }) {
   const canvasRef = useRef(null);
+  const [canvasReady, setCanvasReady] = useState(false);
   const stateRef = useRef(null);
   const rafRef = useRef(null);
   const hudSnapshotRef = useRef({ score: -1, lives: -1, products: -1, aisle: 0 });
@@ -770,11 +665,18 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
     if (s.grounded) { s.vy = JUMP_V; s.grounded = false; }
   }, [resetGame]);
 
+  const attachCanvas = useCallback((node) => {
+    canvasRef.current = node;
+    setCanvasReady(!!node);
+  }, []);
+
   useEffect(() => {
+    if (!canvasReady) return undefined;
     resetGame();
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
     const ctx = canvas.getContext('2d');
+    if (!ctx) return undefined;
     let last = performance.now();
 
     const draw = (now) => {
@@ -790,12 +692,12 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
       const aisle = SHOW_AISLES[s.aisleIdx] || SHOW_AISLES[0];
 
       ctx.clearRect(0, 0, w, h);
-      drawShowFloor(ctx, w, h, aisle, s.distance, now);
+      drawShowFloor(ctx, w, h, aisle, s.distance);
 
       const progRatio = Math.min(1, s.registerProgress / CHECKOUT_GOAL);
       const boothX = 0.62 + (1 - progRatio) * 0.42;
       const nearBooth = progRatio > 0.72;
-      drawGlobalAccessBooth(ctx, boothX, w, h, nearBooth, now, s.registerProgress);
+      drawGlobalAccessBooth(ctx, boothX, w, h, nearBooth, s.registerProgress);
 
       ctx.font = '700 10px "Bebas Neue", sans-serif';
       ctx.fillStyle = '#C9A84C';
@@ -816,7 +718,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
         }
 
         s.vy += GRAVITY * (dt / 16);
-        s.playerY += s.vy * (dt / 16) * 0.0085;
+        s.playerY += s.vy * (dt / 16) * 0.0095;
         const floorY = GROUND - PLAYER_H;
         if (s.playerY >= floorY) { s.playerY = floorY; s.vy = 0; s.grounded = true; }
 
@@ -890,7 +792,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
 
       const chaserFootX = s.chaserOffset * w;
       const chaserFootYpx = py(GROUND - 0.01);
-      drawChasingRep(ctx, chaserFootX, chaserFootYpx, h * 0.105, s.walkPhase, s.chaserLine, now, w, h);
+      drawChasingRep(ctx, chaserFootX, chaserFootYpx, h * 0.1, s.walkPhase, s.chaserLine);
 
       const pa = s.invuln > 0 && Math.floor(s.invuln / 130) % 2 ? 0.4 : 1;
       drawBuyer(ctx, PLAYER_X, s.playerY, w, h, s.walkPhase, pa);
@@ -926,7 +828,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
 
     rafRef.current = requestAnimationFrame(draw);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [endGame, resetGame]);
+  }, [canvasReady, endGame, resetGame]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -964,11 +866,11 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
         }}
         aria-label="Champs trade show runner — dodge vendors, reach Global Access booth"
       >
-        <canvas ref={canvasRef} width={360} height={280} style={{ display: 'block', width: '100%', height: 'auto' }} />
+        <canvas ref={attachCanvas} width={360} height={280} style={{ display: 'block', width: '100%', height: 'auto', minHeight: 200 }} />
       </button>
 
       <p style={{ fontSize: 11, color: theme?.textFaint || '#AAA', margin: '8px 0 0', lineHeight: 1.45, textAlign: 'center' }}>
-        Run right to Global Access · Jump pre-roll labs, shroom walls & knockoff booths · Dodge every rep pitching 7-OH
+        Walk the expo aisle · Tap to jump over counters & reps · Reach Global Access on the right
       </p>
 
       {hud.phase === 'over' && lastRun && (

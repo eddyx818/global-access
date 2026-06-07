@@ -383,9 +383,26 @@ export function repLinesForTier(tier) {
   return pool.length ? pool : CHASE_LINES[0];
 }
 
+/** Rare casual aisle greetings — mixed floor slang, not tied to any one vendor type (~12% of lines). */
+export const FLOOR_CASUAL_GREETINGS = [
+  'Hey bhai, how are you? Quick look at my line!',
+  'Assalamualaikum — good show? Got a minute?',
+  'What\'s good boss — you stocking up today?',
+  'Hey friend, thirty seconds — best margin on the row!',
+  'How\'s the show treating you? Sample before you run!',
+  'Yo chief — catch this deal before aisle closes!',
+  'Hey neighbor booth sent you — want a carton price?',
+  'What\'s up — you look like a serious buyer!',
+];
+
 export function randomVendorPitch(aisleId) {
   const list = VENDOR_PITCHES[aisleId] || VENDOR_PITCHES.tobacco;
   return list[Math.floor(Math.random() * list.length)];
+}
+
+export function withRareCasualGreeting(pitch) {
+  if (Math.random() > 0.12) return pitch;
+  return FLOOR_CASUAL_GREETINGS[Math.floor(Math.random() * FLOOR_CASUAL_GREETINGS.length)];
 }
 
 export function randomKnockoffBrand() {
@@ -408,25 +425,26 @@ export function randomBoothStyle(aisleId) {
 }
 
 export function randomObstaclePitch(aisleId, boothStyle, knockoff, chinese) {
-  if (chinese) return randomChinesePitch();
-  if (knockoff && (aisleId === 'vape' || boothStyle?.id === 'knockoff_import')) {
-    return randomKnockoffBoothPitch(knockoff);
+  let pitch;
+  if (chinese) pitch = randomChinesePitch();
+  else if (knockoff && (aisleId === 'vape' || boothStyle?.id === 'knockoff_import')) {
+    pitch = randomKnockoffBoothPitch(knockoff);
+  } else {
+    const styleId = boothStyle?.id;
+    if (styleId === 'preroll_lab') {
+      pitch = PREROLL_PITCHES[Math.floor(Math.random() * PREROLL_PITCHES.length)];
+    } else if (styleId === 'mushroom_psyche' || styleId === 'smiley_wall') {
+      pitch = MUSHROOM_PITCHES[Math.floor(Math.random() * MUSHROOM_PITCHES.length)];
+    } else if (styleId === 'seven_oh') {
+      const pool = [...SEVEN_OH_PITCHES, ...EUPHORIC_BLEND_PITCHES];
+      pitch = pool[Math.floor(Math.random() * pool.length)];
+    } else if (styleId === 'euphoric_blend') {
+      pitch = EUPHORIC_BLEND_PITCHES[Math.floor(Math.random() * EUPHORIC_BLEND_PITCHES.length)];
+    } else {
+      pitch = randomVendorPitch(aisleId);
+    }
   }
-  const styleId = boothStyle?.id;
-  if (styleId === 'preroll_lab') {
-    return PREROLL_PITCHES[Math.floor(Math.random() * PREROLL_PITCHES.length)];
-  }
-  if (styleId === 'mushroom_psyche' || styleId === 'smiley_wall') {
-    return MUSHROOM_PITCHES[Math.floor(Math.random() * MUSHROOM_PITCHES.length)];
-  }
-  if (styleId === 'seven_oh') {
-    const pool = [...SEVEN_OH_PITCHES, ...EUPHORIC_BLEND_PITCHES];
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
-  if (styleId === 'euphoric_blend') {
-    return EUPHORIC_BLEND_PITCHES[Math.floor(Math.random() * EUPHORIC_BLEND_PITCHES.length)];
-  }
-  return randomVendorPitch(aisleId);
+  return withRareCasualGreeting(pitch);
 }
 
 export function brandCrateStyle(brandName) {
