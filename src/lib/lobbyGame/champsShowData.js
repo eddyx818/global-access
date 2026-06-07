@@ -1,6 +1,6 @@
 /** Champs trade show — aisle themes, satirical dialogue, booth styles. */
 
-export const CHECKOUT_GOAL = 1400;
+export const CHECKOUT_GOAL = 2800;
 
 /** Legit Global Access portfolio — collect these. */
 export const GLOBAL_ACCESS_BRANDS = [

@@ -19,20 +19,30 @@ const LIVES = 3;
 const GRAVITY = 0.38;
 const JUMP_V = -7.4;
 const GROUND = 0.86;
-const PLAYER_X = 0.22;
-const PLAYER_H = 0.17;
-const PLAYER_W = 0.18;
+const PLAYER_X = 0.2;
+const PLAYER_H = 0.21;
+const PLAYER_W = 0.2;
+/** Character draw scale — tuned for desktop + mobile readability. */
+const CHAR_SCALE = 0.19;
 /** Low counter / table obstacles in the aisle — jumpable. */
-const LANE_OBSTACLE_H = 0.1;
+const LANE_OBSTACLE_H = 0.11;
 const LANE_OBSTACLE_Y = GROUND - LANE_OBSTACLE_H;
 
-function spawnEntity(aisleId) {
+function characterScale(canvasH, mult = 1) {
+  return canvasH * CHAR_SCALE * mult;
+}
+
+function spawnEntity(aisleId, progressRatio = 0) {
+  const p = Math.min(1, Math.max(0, progressRatio));
   const roll = Math.random();
   const knockoff = randomKnockoffBrand();
   const boothStyle = randomBoothStyle(aisleId);
   const chineseHeavy = aisleId === 'vape' || boothStyle.id === 'knockoff_import';
+  const brandCut = Math.max(0.06, 0.16 - p * 0.1);
+  const boothCut = Math.min(0.58, 0.44 + p * 0.14);
+  const securityCut = Math.min(0.74, 0.58 + p * 0.12);
 
-  if (roll < 0.18) {
+  if (roll < brandCut) {
     return {
       type: 'brand',
       brand: GLOBAL_ACCESS_BRANDS[Math.floor(Math.random() * GLOBAL_ACCESS_BRANDS.length)],
@@ -43,7 +53,7 @@ function spawnEntity(aisleId) {
       bob: Math.random() * Math.PI * 2,
     };
   }
-  if (roll < 0.48) {
+  if (roll < boothCut) {
     const chinese = Math.random() < (chineseHeavy ? 0.5 : 0.25);
     return {
       type: 'booth',
@@ -57,14 +67,14 @@ function spawnEntity(aisleId) {
       h: LANE_OBSTACLE_H,
     };
   }
-  if (roll < 0.6) {
+  if (roll < securityCut) {
     return {
       type: 'security',
       pitch: randomSecurityPitch(),
       x: 1.04,
-      y: GROUND - 0.12,
-      w: 0.1,
-      h: 0.12,
+      y: GROUND - 0.15,
+      w: 0.11,
+      h: 0.15,
     };
   }
   const chinese = Math.random() < (chineseHeavy ? 0.45 : 0.22);
@@ -75,9 +85,9 @@ function spawnEntity(aisleId) {
     chinese,
     pitch: randomObstaclePitch(aisleId, boothStyle, knockoff, chinese),
     x: 1.04,
-    y: GROUND - 0.13,
-    w: 0.09,
-    h: 0.13,
+    y: GROUND - 0.16,
+    w: 0.11,
+    h: 0.16,
   };
 }
 
@@ -173,7 +183,7 @@ function drawCart(ctx, x, footY, scale, alpha) {
 
 function drawBuyer(ctx, xNorm, yNorm, w, h, walkPhase, alpha) {
   const footY = yNorm * h + PLAYER_H * h;
-  const scale = h * 0.135;
+  const scale = characterScale(h, 1.05);
   const footX = xNorm * w;
   drawCart(ctx, footX + scale * 0.95, footY, scale, alpha);
   drawHuman(ctx, footX, footY, scale, 'right', walkPhase, {
@@ -320,79 +330,144 @@ function drawConventionCeiling(ctx, w, h) {
   }
 }
 
-function drawSideBoothColumn(ctx, side, w, h, scroll, aisle, time) {
-  const isLeft = side === 'left';
-  const styleKeys = AISLE_BOOTH_STYLE_KEYS[aisle.id] || ['sunset_tower'];
-  const colX = isLeft ? 0 : w * 0.8;
-  const colW = w * 0.2;
+function drawTradeShowBooth(ctx, bx, by, bw, bh, style) {
+  const floorY = by + bh;
 
-  for (let i = 0; i < 5; i += 1) {
-    const slot = ((scroll * 0.00008 + i * 0.22) % 1.05);
-    const by = h * (0.1 + slot * 0.58);
-    if (by > h * 0.72) continue;
-    const style = BOOTH_STYLES[styleKeys[i % styleKeys.length]] || BOOTH_STYLES.sunset_tower;
-    const boothH = h * (0.22 + (i % 3) * 0.04);
-    drawStyledBoothWall(ctx, colX + 3, by, colW - 6, boothH, style, time, { backdrop: true });
+  ctx.fillStyle = '#252530';
+  ctx.fillRect(bx, by, bw, bh * 0.1);
+
+  ctx.fillStyle = style.top;
+  ctx.fillRect(bx + 2, by + bh * 0.025, bw - 4, bh * 0.075);
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx + 2, by + bh * 0.025, bw - 4, bh * 0.075);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = `700 ${Math.max(8, bw * 0.12)}px "Bebas Neue", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText(style.title, bx + bw / 2, by + bh * 0.085);
+
+  const wallY = by + bh * 0.11;
+  const wallH = bh * 0.58;
+  const grad = ctx.createLinearGradient(bx, wallY, bx, wallY + wallH);
+  grad.addColorStop(0, style.top);
+  grad.addColorStop(0.5, style.mid);
+  grad.addColorStop(1, style.bottom);
+  ctx.fillStyle = grad;
+  ctx.fillRect(bx, wallY, bw, wallH);
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.strokeRect(bx, wallY, bw, wallH);
+
+  if (style.id === 'smiley_wall') drawSmileyPattern(ctx, bx, wallY, bw, wallH * 0.85);
+  if (style.id === 'neon_beast') drawNeonSilhouette(ctx, bx, wallY, bw, wallH * 0.55);
+  if (style.id === 'mushroom_psyche') drawMushroomIcon(ctx, bx + bw * 0.5, wallY + wallH * 0.42, bw * 0.28);
+
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(bx + 2, wallY + wallH * 0.72, bw - 4, bh * 0.07);
+  ctx.font = `600 ${Math.max(5, bw * 0.06)}px sans-serif`;
+  ctx.fillStyle = '#fff';
+  const sub = style.subtitle.length > 22 ? `${style.subtitle.slice(0, 21)}…` : style.subtitle;
+  ctx.fillText(sub, bx + bw / 2, wallY + wallH * 0.78);
+
+  const counterY = floorY - bh * 0.16;
+  ctx.fillStyle = style.counter;
+  ctx.fillRect(bx + 1, counterY, bw - 2, bh * 0.16);
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx + 1, counterY, bw - 2, bh * 0.16);
+
+  ctx.fillStyle = '#555';
+  ctx.fillRect(bx + bw * 0.08, counterY + bh * 0.04, bw * 0.84, bh * 0.03);
+
+  const repScale = bh * 0.11;
+  drawHuman(ctx, bx + bw * 0.55, floorY - 2, repScale, 'left', 0, {
+    shirt: style.mid, pants: '#222', skin: '#c68642', alpha: 0.85,
+  });
+
+  ctx.font = '700 5px sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText('VENDOR', bx + bw / 2, floorY - 1);
+  ctx.textAlign = 'start';
+}
+
+function boothStylePool(aisleId) {
+  const keys = AISLE_BOOTH_STYLE_KEYS[aisleId] || ['sunset_tower'];
+  const extra = ['preroll_lab', 'smiley_wall', 'seven_oh', 'euphoric_blend', 'mushroom_psyche', 'neon_beast'];
+  const merged = [...new Set([...keys, ...extra])];
+  return merged.map((k) => BOOTH_STYLES[k]).filter(Boolean);
+}
+
+function drawSideVendorBooths(ctx, side, w, h, scroll, aisle) {
+  const isLeft = side === 'left';
+  const colX = isLeft ? 0 : w * 0.77;
+  const colW = w * 0.23;
+  const topY = h * 0.12;
+  const floorY = GROUND * h;
+  const boothH = floorY - topY;
+  const styles = boothStylePool(aisle.id);
+  const segmentH = boothH * 0.92;
+  const offset = (scroll * 0.000045) % segmentH;
+  const styleOffset = Math.floor(scroll * 0.000008);
+
+  for (let i = -1; i < 3; i += 1) {
+    const by = topY + i * segmentH - offset;
+    if (by + segmentH * 0.5 < topY || by > floorY) continue;
+    const style = styles[(i + styleOffset + (isLeft ? 0 : 2)) % styles.length];
+    drawTradeShowBooth(ctx, colX + 3, by, colW - 6, Math.min(segmentH, floorY - by), style);
   }
 
-  const shade = ctx.createLinearGradient(
-    isLeft ? colX + colW : colX - w * 0.05, 0,
-    isLeft ? colX + colW + w * 0.07 : colX,
-    0,
-  );
-  shade.addColorStop(0, 'rgba(0,0,0,0.4)');
-  shade.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = shade;
-  ctx.fillRect(
-    isLeft ? colX + colW - 1 : colX - w * 0.05,
-    h * 0.1,
-    w * 0.07,
-    h * 0.68,
-  );
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 2;
+  const edgeX = isLeft ? colX + colW : colX;
+  ctx.beginPath();
+  ctx.moveTo(edgeX, topY);
+  ctx.lineTo(edgeX, floorY);
+  ctx.stroke();
 }
 
 function drawShowFloor(ctx, w, h, aisle, scroll) {
   const py = (n) => n * h;
+  const floorY = py(GROUND);
 
   drawConventionCeiling(ctx, w, h);
 
-  ctx.fillStyle = '#484850';
-  ctx.fillRect(0, py(0.12), w, py(0.62));
+  ctx.fillStyle = '#35353c';
+  ctx.fillRect(0, py(0.12), w, floorY - py(0.12));
 
-  drawSideBoothColumn(ctx, 'left', w, h, scroll, aisle, 0);
-  drawSideBoothColumn(ctx, 'right', w, h, scroll + 400, aisle, 0);
+  drawSideVendorBooths(ctx, 'left', w, h, scroll, aisle);
+  drawSideVendorBooths(ctx, 'right', w, h, scroll + 600, aisle);
 
-  const aisleGrad = ctx.createLinearGradient(w * 0.2, 0, w * 0.8, 0);
-  aisleGrad.addColorStop(0, '#56565e');
-  aisleGrad.addColorStop(0.5, '#72727c');
-  aisleGrad.addColorStop(1, '#56565e');
+  const aisleGrad = ctx.createLinearGradient(w * 0.23, 0, w * 0.77, 0);
+  aisleGrad.addColorStop(0, '#5c5c66');
+  aisleGrad.addColorStop(0.5, '#787882');
+  aisleGrad.addColorStop(1, '#5c5c66');
   ctx.fillStyle = aisleGrad;
-  ctx.fillRect(w * 0.2, py(0.12), w * 0.6, py(0.68));
+  ctx.fillRect(w * 0.23, py(0.12), w * 0.54, floorY - py(0.12));
 
-  for (let i = 0; i < 6; i += 1) {
-    const fx = w * 0.2 + (((i * 0.16 - scroll * 0.00012) % 0.85) / 0.85) * w * 0.6;
-    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+  for (let i = 0; i < 5; i += 1) {
+    const fx = w * 0.23 + (((i * 0.2 - scroll * 0.0001) % 1) / 1) * w * 0.54;
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(fx, py(GROUND));
-    ctx.lineTo(fx - w * 0.025, h);
+    ctx.moveTo(fx, floorY);
+    ctx.lineTo(fx - w * 0.02, h);
     ctx.stroke();
   }
 
   ctx.strokeStyle = '#c9a227';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(w * 0.22, py(GROUND));
-  ctx.lineTo(w * 0.22, h);
-  ctx.moveTo(w * 0.78, py(GROUND));
-  ctx.lineTo(w * 0.78, h);
+  ctx.moveTo(w * 0.23, floorY);
+  ctx.lineTo(w * 0.23, h);
+  ctx.moveTo(w * 0.77, floorY);
+  ctx.lineTo(w * 0.77, h);
   ctx.stroke();
 
   ctx.fillStyle = '#3a3a42';
-  ctx.fillRect(0, py(GROUND), w, h - py(GROUND));
+  ctx.fillRect(0, floorY, w, h - floorY);
 
   ctx.fillStyle = '#2e2e34';
-  ctx.fillRect(w * 0.26, py(0.125), w * 0.48, py(0.028));
+  ctx.fillRect(w * 0.28, py(0.125), w * 0.44, py(0.028));
   ctx.fillStyle = '#bbb';
   ctx.font = '600 8px "Bebas Neue", sans-serif';
   ctx.textAlign = 'center';
@@ -426,7 +501,7 @@ function drawGlobalAccessBooth(ctx, xNorm, w, h, glow, progress) {
   ctx.fillRect(rx + 6, footY - bh * 0.62, bw - 12, bh * 0.48);
 
   for (let i = 0; i < 2; i += 1) {
-    drawHuman(ctx, rx + bw * (0.15 + i * 0.38), footY - bh * 0.08, h * 0.08, 'left', i * 20, {
+    drawHuman(ctx, rx + bw * (0.15 + i * 0.38), footY - bh * 0.08, characterScale(h, 0.75), 'left', i * 20, {
       shirt: i === 0 ? '#C9A84C' : '#2563eb', pants: '#111', skin: '#8d5524',
     });
   }
@@ -444,7 +519,7 @@ function drawGlobalAccessBooth(ctx, xNorm, w, h, glow, progress) {
 function drawSecurityGuard(ctx, e, w, h, walkPhase) {
   const footX = e.x * w;
   const footY = (e.y + e.h) * h;
-  const scale = e.h * h * 0.82;
+  const scale = characterScale(h);
   drawSpeechBubble(ctx, footX, footY - scale * 1.05, e.pitch, 108, '#2c3e50');
   drawHuman(ctx, footX, footY, scale, 'left', walkPhase + e.x * 100, {
     shirt: '#2c3e50', pants: '#1a1a1a', skin: '#c68642', securityVest: true,
@@ -457,7 +532,7 @@ function drawSecurityGuard(ctx, e, w, h, walkPhase) {
 function drawVendorRep(ctx, e, w, h, walkPhase, aisle) {
   const footX = e.x * w;
   const footY = (e.y + e.h) * h;
-  const scale = e.h * h * 0.82;
+  const scale = characterScale(h);
   drawSpeechBubble(ctx, footX, footY - scale * 1.05, e.pitch, 108, e.chinese ? '#e74c3c' : aisle.neon);
   drawHuman(ctx, footX, footY, scale, 'left', walkPhase + e.x * 100, {
     shirt: e.chinese ? '#c0392b' : aisle.vendorShirt,
@@ -479,9 +554,19 @@ function drawKnockoffBooth(ctx, e, w, h, aisle, time) {
   const cw = e.w * w;
   const ch = e.h * h;
   const style = e.boothStyle || BOOTH_STYLES.knockoff_import;
-  const signH = h * 0.11;
+  const signH = h * 0.13;
 
-  drawStyledBoothWall(ctx, bx - cw * 0.08, cy - signH, cw * 1.16, signH, style, time, { backdrop: true });
+  ctx.fillStyle = style.top;
+  ctx.fillRect(bx - cw * 0.06, cy - signH, cw * 1.12, signH);
+  ctx.strokeStyle = '#444';
+  ctx.strokeRect(bx - cw * 0.06, cy - signH, cw * 1.12, signH);
+  ctx.fillStyle = '#fff';
+  ctx.font = `700 ${Math.max(7, cw * 0.09)}px "Bebas Neue", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText(style.title, bx + cw / 2, cy - signH * 0.35);
+  ctx.font = '600 5px sans-serif';
+  ctx.fillText('POP-UP BOOTH', bx + cw / 2, cy - signH * 0.12);
+  ctx.textAlign = 'start';
 
   ctx.fillStyle = '#d8d8dc';
   ctx.fillRect(bx, cy, cw, ch);
@@ -495,7 +580,7 @@ function drawKnockoffBooth(ctx, e, w, h, aisle, time) {
     ctx.font = '600 6px sans-serif';
     ctx.fillStyle = '#c0392b';
     ctx.textAlign = 'center';
-    ctx.fillText(`fake ${e.knockoff.name}`, bx + cw / 2, cy - signH * 0.35);
+    ctx.fillText(`fake ${e.knockoff.name}`, bx + cw / 2, cy + ch * 0.55);
     ctx.textAlign = 'start';
   }
 
@@ -543,16 +628,10 @@ function drawBrandPickup(ctx, brand, x, y, bob, w, h, time, aisle) {
   ctx.lineTo(px(x + 0.138), py(fy + 0.018));
   ctx.stroke();
 
-  ctx.font = '700 8px "DM Sans", sans-serif';
+  ctx.font = '700 9px "DM Sans", sans-serif';
   ctx.fillStyle = style.label;
   const label = brand.length > 10 ? `${brand.slice(0, 9)}…` : brand;
-  ctx.fillText(label, px(x + 0.014), py(fy + 0.042));
-
-  ctx.font = '600 6px sans-serif';
-  ctx.fillStyle = style.label;
-  ctx.globalAlpha = 0.7;
-  ctx.fillText('GA BRAND', px(x + 0.014), py(fy + 0.056));
-  ctx.globalAlpha = 1;
+  ctx.fillText(label, px(x + 0.014), py(fy + 0.045));
 
   ctx.fillStyle = aisle.neon;
   ctx.globalAlpha = 0.5 + Math.sin(time * 0.005 + bob) * 0.3;
@@ -741,12 +820,14 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
       if (s.running) {
         s.walkPhase += dt * (s.grounded ? 0.32 : 0.08);
         s.spawnTimer += dt;
-        const spawnGap = Math.max(1600, 2400 - s.aisleIdx * 100);
+        const progressRatio = s.registerProgress / CHECKOUT_GOAL;
+        const spawnGap = Math.max(1300, 2800 - progressRatio * 1100 - s.aisleIdx * 45);
+        const minSpacing = Math.max(0.5, 0.74 - progressRatio * 0.18);
         if (s.spawnTimer >= spawnGap) {
           s.spawnTimer = 0;
           const lastEnt = s.entities[s.entities.length - 1];
-          if (!lastEnt || lastEnt.x < 0.68) {
-            s.entities.push(spawnEntity(aisle.id));
+          if (!lastEnt || lastEnt.x < minSpacing) {
+            s.entities.push(spawnEntity(aisle.id, progressRatio));
           }
         }
 
@@ -756,9 +837,9 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
         if (s.playerY >= floorY) { s.playerY = floorY; s.vy = 0; s.grounded = true; }
 
         s.distance += s.speed * dt;
-        s.speed = Math.min(0.00115, 0.00075 + s.aisleIdx * 0.00006);
+        s.speed = Math.min(0.00105, 0.00062 + s.aisleIdx * 0.000035 + progressRatio * 0.0002);
         s.score += dt * 0.022;
-        s.registerProgress += dt * 0.038;
+        s.registerProgress += dt * 0.021;
         if (s.invuln > 0) s.invuln -= dt;
         if (s.flash > 0) s.flash -= dt;
 
@@ -788,13 +869,13 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
         const playerBox = { x: PLAYER_X + 0.05, y: s.playerY + 0.04, w: PLAYER_W - 0.06, h: PLAYER_H - 0.05 };
 
         s.entities = s.entities.filter((e) => {
-          e.x -= s.speed * dt * 0.9;
+          e.x -= s.speed * dt * 0.82;
           if (e.x < -0.22) return false;
           if (e.type === 'brand' && hit(playerBox, e)) {
             s.products += 1;
             s.score += 120;
             s.flash = 450;
-            s.flashText = `+ ${e.brand} (real GA brand)`;
+            s.flashText = `+ ${e.brand}`;
             s.chaserOffset = Math.max(0, s.chaserOffset - 0.02);
             return false;
           }
@@ -826,7 +907,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
 
       const chaserFootX = s.chaserOffset * w;
       const chaserFootYpx = py(GROUND - 0.01);
-      drawChasingRep(ctx, chaserFootX, chaserFootYpx, h * 0.1, s.walkPhase, s.chaserLine);
+      drawChasingRep(ctx, chaserFootX, chaserFootYpx, characterScale(h, 0.95), s.walkPhase, s.chaserLine);
 
       const pa = s.invuln > 0 && Math.floor(s.invuln / 130) % 2 ? 0.4 : 1;
       drawBuyer(ctx, PLAYER_X, s.playerY, w, h, s.walkPhase, pa);
@@ -900,7 +981,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
         }}
         aria-label="Champs trade show runner — dodge vendors, reach Global Access booth"
       >
-        <canvas ref={attachCanvas} width={360} height={280} style={{ display: 'block', width: '100%', height: 'auto', minHeight: 200 }} />
+        <canvas ref={attachCanvas} width={360} height={320} style={{ display: 'block', width: '100%', height: 'auto', minHeight: 220 }} />
       </button>
 
       <p style={{ fontSize: 11, color: theme?.textFaint || '#AAA', margin: '8px 0 0', lineHeight: 1.45, textAlign: 'center' }}>
