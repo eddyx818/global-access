@@ -14,7 +14,7 @@ export default function ProductCommerceInfo({
   const prices = getVisiblePrices(product, userType, orderMode, { masterPricingQualified, pricingVisible, brand });
   const promo = getActivePromo(product, userType, { pricingVisible });
   const shipping = getShippingSummary(product);
-  const moq = getMoqLabel(product);
+  const moq = getMoqLabel(product, userType);
   const packLines = getPackConfigLines(product);
   const masterQuoteOnly = masterPricingIsQuoteOnly(brand, { masterPricingQualified, userType });
 

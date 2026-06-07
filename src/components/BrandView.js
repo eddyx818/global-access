@@ -74,7 +74,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
   const syncLineToInterest = (product, flavor, mode, qty) => {
     const key = `${product.sku}__${flavor}`;
     if (!isInterested(product.sku, flavor) || !updateInterestLine) return;
-    const n = qty ?? quantities[key] ?? minQtyForProduct(product);
+    const n = qty ?? quantities[key] ?? minQtyForProduct(product, userType);
     updateInterestLine(key, {
       qty: n,
       orderMode: mode,
@@ -103,7 +103,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
   };
 
   const setQty = (key, val, product, flavor) => {
-    const min = minQtyForProduct(product);
+    const min = minQtyForProduct(product, userType);
     const n = Math.max(min, parseInt(val, 10) || min);
     setQuantities(prev => ({ ...prev, [key]: n }));
     if (flavor && isInterested(product.sku, flavor)) {
@@ -118,7 +118,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
     const key = `${product.sku}__${flavor}`;
     const wasSelected = isInterested(product.sku, flavor);
     const mode = getOrderMode(product, key);
-    const qty = quantities[key] || minQtyForProduct(product);
+    const qty = quantities[key] || minQtyForProduct(product, userType);
     const orderUnitLabel = formatOrderUnitLabel(product, userType, mode, qty);
     toggleInterest(product.sku, product.name, brand.name, flavor, qty, mode, brand.id, orderUnitLabel);
     if (!wasSelected) {
@@ -266,6 +266,21 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
           )}
         </div>
       </div>
+
+      {(isDistributor ? brand.distributorOrderNote : brand.retailerOrderNote) && (
+        <div style={{
+          background: isDistributor ? t.warningBg : t.successBg,
+          border: `0.5px solid ${isDistributor ? t.warningBorder : t.successBorder}`,
+          borderRadius: 12,
+          padding: '12px 14px',
+          marginBottom: '1.25rem',
+          fontSize: 12,
+          color: isDistributor ? t.warningText : t.successText,
+          lineHeight: 1.55,
+        }}>
+          {isDistributor ? brand.distributorOrderNote : brand.retailerOrderNote}
+        </div>
+      )}
 
       {/* Gallery — only show slots with valid photos */}
       {galleryImages.length > 0 && (
@@ -540,11 +555,11 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
                             )}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                               <span style={{ fontSize: 11, color: t.textFaint }}>Qty:</span>
-                              <button type="button" onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product)) - 1, product, flavor)} style={{ width: 24, height: 24, background: t.bgElevated, border: t.borderHairline, borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textSecondary }}>−</button>
-                              <input type="number" min={minQtyForProduct(product)} value={quantities[key] || minQtyForProduct(product)} onChange={e => setQty(key, e.target.value, product, flavor)}
+                              <button type="button" onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product, userType)) - 1, product, flavor)} style={{ width: 24, height: 24, background: t.bgElevated, border: t.borderHairline, borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textSecondary }}>−</button>
+                              <input type="number" min={minQtyForProduct(product, userType)} value={quantities[key] || minQtyForProduct(product, userType)} onChange={e => setQty(key, e.target.value, product, flavor)}
                                 style={{ width: 44, textAlign: 'center', background: t.inputBg, border: t.borderHairline, borderRadius: 6, padding: '4px', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: t.text }} />
-                              <button type="button" onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product)) + 1, product, flavor)} style={{ width: 24, height: 24, background: brand.color, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' }}>+</button>
-                              <span style={{ fontSize: 11, color: t.textFaint, fontWeight: 500 }}>{unitLabel(product, quantities[key] || minQtyForProduct(product), key)}</span>
+                              <button type="button" onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product, userType)) + 1, product, flavor)} style={{ width: 24, height: 24, background: brand.color, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' }}>+</button>
+                              <span style={{ fontSize: 11, color: t.textFaint, fontWeight: 500 }}>{unitLabel(product, quantities[key] || minQtyForProduct(product, userType), key)}</span>
                             </div>
                           </div>
                         )}

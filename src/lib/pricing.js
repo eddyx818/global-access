@@ -76,7 +76,7 @@ function inferDistroOrderOptions(product) {
 function inferRetailOrderOptions(product) {
   const single = product.retail_order_unit || product.inner_pack_label || 'box';
   const options = [{ id: slugOrderUnit(single), label: single }];
-  if (product.inners_per_case && single.toLowerCase() !== 'case') {
+  if (product.inners_per_case && slugOrderUnit(single) !== 'case') {
     options.push({ id: 'case', label: 'case' });
   }
   return options;
@@ -98,7 +98,12 @@ export function getProductOrderOptions(product, userType) {
 }
 
 export function defaultOrderMode(product, userType) {
-  return getProductOrderOptions(product, userType)[0]?.id || 'case';
+  const options = getProductOrderOptions(product, userType);
+  if (userType === 'distributor') {
+    const caseOpt = options.find(o => ['case', 'master_case', 'pallet'].includes(o.id));
+    if (caseOpt) return caseOpt.id;
+  }
+  return options[0]?.id || 'case';
 }
 
 export function getOrderOptionLabel(product, userType, orderMode) {
@@ -170,6 +175,7 @@ export function parseCommerceFields(po = {}) {
     price_msrp: po.price_msrp ?? null,
     moq_qty: po.moq_qty ?? null,
     moq_unit: po.moq_unit || 'case',
+    moq_scope: po.moq_scope || null,
     shipping_included: !!po.shipping_included,
     shipping_free_after_moq: !!po.shipping_free_after_moq,
     free_shipping_moq_qty: po.free_shipping_moq_qty ?? null,
@@ -182,15 +188,25 @@ export function parseCommerceFields(po = {}) {
 }
 
 export function mergeProductCommerce(product, po = {}) {
-  const merged = { ...product, ...po };
-  return { ...product, ...parseCommerceFields(po), ...parsePackFields(merged) };
+  const pack = mergePackFields(product, po);
+  return { ...product, ...parseCommerceFields(po), ...pack };
+}
+
+function mergePackFields(product, po = {}) {
+  const base = parsePackFields(product);
+  const over = parsePackFields(po);
+  const out = { ...base };
+  for (const [key, value] of Object.entries(over)) {
+    if (value !== '' && value !== null && value !== undefined) out[key] = value;
+  }
+  return out;
 }
 
 export function getPackConfigLines(product) {
   const lines = [];
   const unitLabel = product.inner_unit_label || 'units';
-  const packLabel = product.inner_pack_label || 'boxes';
-  const packLabelPlural = product.inners_per_case === 1 ? packLabel : `${packLabel}s`;
+  const packLabel = product.inner_pack_label || product.retail_order_unit || 'unit';
+  const packLabelPlural = product.inners_per_case === 1 ? packLabel : pluralizeUnit(packLabel, 2);
 
   if (product.units_per_inner && product.inners_per_case) {
     lines.push(`${product.units_per_inner} ${unitLabel} per ${packLabel}`);
@@ -310,13 +326,18 @@ export function getShippingSummary(product) {
   return parts.join(' · ');
 }
 
-export function getMoqLabel(product) {
+export function getMoqLabel(product, userType = 'retailer') {
   if (!product.moq_qty) return null;
   const unit = product.moq_unit || 'case';
-  return `MOQ: ${product.moq_qty} ${unit}${product.moq_qty !== 1 ? 's' : ''}`;
+  const plural = product.moq_qty !== 1 ? 's' : '';
+  if (product.moq_scope === 'order' && userType === 'distributor') {
+    return `MOQ: ${product.moq_qty} ${unit}${plural} total · mix & match jars and flavors`;
+  }
+  return `MOQ: ${product.moq_qty} ${unit}${plural}`;
 }
 
-export function minQtyForProduct(product) {
+export function minQtyForProduct(product, userType = 'retailer') {
+  if (product.moq_scope === 'order' && userType === 'distributor') return 1;
   return product.moq_qty && product.moq_qty > 0 ? product.moq_qty : 1;
 }
 
@@ -350,6 +371,7 @@ export function commercePayloadFromForm(data) {
     price_msrp: num(data.price_msrp),
     moq_qty: int(data.moq_qty),
     moq_unit: data.moq_unit || 'case',
+    moq_scope: data.moq_scope || null,
     shipping_included: !!data.shipping_included,
     shipping_free_after_moq: !!data.shipping_free_after_moq,
     free_shipping_moq_qty: int(data.free_shipping_moq_qty),
