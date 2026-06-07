@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useBrandContent } from '../lib/content';
-import { getButtonRadius } from '../lib/design';
 import { applyBrandOrder, saveUserBrandOrder } from '../lib/userBrandOrder';
 
 import MasterPricingNotice from './MasterPricingNotice';
@@ -22,7 +21,7 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
   const galleryTimer = useRef(null);
   const heroRef = useRef(null);
   const preloadedHeroImages = useRef(new Set());
-  const { getMergedBrands, loading, heroConfig, globalStyles } = useBrandContent();
+  const { getMergedBrands, loading, heroConfig } = useBrandContent();
   const allBrands = getMergedBrands();
 
   // Per-user brand order (saved on this device)
@@ -33,11 +32,6 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
 
   const brands = brandOrder || allBrands;
   const heroBg = heroConfig.background_color || '#0D0D0D';
-  const heroCtaGlass = heroConfig.cta_color
-    ? `${heroConfig.cta_color}99`
-    : 'rgba(255,255,255,0.14)';
-  const heroCtaColor = '#FFFFFF';
-  const ctaRadius = getButtonRadius(globalStyles.button_style);
 
   useEffect(() => {
     if (!brands.length) return undefined;
@@ -256,12 +250,28 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
           const isActive = i === slideIdx;
           const slideHeadline = heroConfig.headline || brand.name;
           const slideSubheadline = heroConfig.subheadline || brand.tagline;
-          const slideCta = heroConfig.cta_text || `Explore ${brand.name}`;
+          const heroPillStyle = {
+            background: `${brand.color}28`,
+            border: `1px solid ${brand.color}66`,
+            borderRadius: 20,
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+          };
           return (
             <div
               key={`copy-${brand.id}`}
               className={`hero-slide-copy ${isActive ? 'hero-slide-copy--active' : 'hero-slide-copy--inactive'}`}
+              role="button"
+              tabIndex={isActive ? 0 : -1}
+              aria-hidden={!isActive}
+              aria-label={`View ${brand.name}`}
               onClick={() => onBrandClick(brand.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onBrandClick(brand.id);
+                }
+              }}
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -276,8 +286,8 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
                 transition: 'transform 0.35s ease-out',
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: 520, gap: 16 }}>
-                <div style={{ display: 'inline-block', background: brand.color + '28', border: `1px solid ${brand.color}66`, borderRadius: 20, padding: '5px 16px', fontSize: 10, color: brand.color, letterSpacing: '0.25em', textTransform: 'uppercase', fontWeight: 700, backdropFilter: 'blur(6px)' }}>{brand.category}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: 520, gap: 14 }}>
+                <div style={{ ...heroPillStyle, display: 'inline-block', padding: '5px 16px', fontSize: 10, color: brand.color, letterSpacing: '0.25em', textTransform: 'uppercase', fontWeight: 700 }}>{brand.category}</div>
                 <div style={{
                   fontFamily: "'Bebas Neue', sans-serif",
                   fontSize: isMobile ? 54 : 88,
@@ -294,37 +304,56 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
                 }}>
                   {slideHeadline}
                 </div>
-                <div style={{ fontSize: isMobile ? 13 : 15, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.04em', maxWidth: 360, minHeight: isMobile ? 36 : 40, lineHeight: 1.5 }}>{slideSubheadline}</div>
-                <div style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  background: heroCtaGlass,
-                  color: heroCtaColor,
-                  borderRadius: ctaRadius,
-                  padding: isMobile ? '12px 22px' : '14px 30px',
-                  fontSize: isMobile ? 13 : 14,
-                  fontWeight: 600,
-                  letterSpacing: '0.04em',
-                  flexShrink: 0,
-                  backdropFilter: 'blur(14px)',
-                  WebkitBackdropFilter: 'blur(14px)',
-                  border: '1px solid rgba(255,255,255,0.28)',
-                  boxShadow: '0 8px 28px rgba(0,0,0,0.25)',
-                  marginTop: 4,
-                }}>
-                  {slideCta} <span style={{ fontSize: 16, opacity: 0.9 }}>→</span>
-                </div>
+                {slideSubheadline && (
+                  <div style={{
+                    ...heroPillStyle,
+                    padding: isMobile ? '10px 18px' : '12px 22px',
+                    fontSize: isMobile ? 13 : 15,
+                    color: 'rgba(255,255,255,0.88)',
+                    letterSpacing: '0.04em',
+                    maxWidth: 380,
+                    lineHeight: 1.5,
+                    fontWeight: 500,
+                  }}>
+                    {slideSubheadline}
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
-        <div className="hero-arrow-zone" onClick={(e) => { e.stopPropagation(); changeSlide((slideIdx - 1 + brands.length) % brands.length); }}
-          style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: isMobile ? 56 : 72, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+        <div
+          className="hero-arrow-zone"
+          role="button"
+          tabIndex={0}
+          aria-label="Previous brand"
+          onClick={(e) => { e.stopPropagation(); changeSlide((slideIdx - 1 + brands.length) % brands.length); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              changeSlide((slideIdx - 1 + brands.length) % brands.length);
+            }
+          }}
+          style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: isMobile ? 56 : 72, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+        >
           <div className="arrow-inner" style={{ width: 38, height: 38, background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: 18 }}>‹</div>
         </div>
-        <div className="hero-arrow-zone" onClick={(e) => { e.stopPropagation(); changeSlide((slideIdx + 1) % brands.length); }}
-          style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: isMobile ? 56 : 72, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+        <div
+          className="hero-arrow-zone"
+          role="button"
+          tabIndex={0}
+          aria-label="Next brand"
+          onClick={(e) => { e.stopPropagation(); changeSlide((slideIdx + 1) % brands.length); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              changeSlide((slideIdx + 1) % brands.length);
+            }
+          }}
+          style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: isMobile ? 56 : 72, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+        >
           <div className="arrow-inner" style={{ width: 38, height: 38, background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: 18 }}>›</div>
         </div>
         <div style={{ position: 'absolute', top: 14, right: 14, zIndex: 10, background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)', borderRadius: 20, padding: '3px 10px', fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.08em' }}>
