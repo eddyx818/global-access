@@ -123,7 +123,7 @@ export default function ProfileModal({
     const appointmentAt = combineAppointment(appointmentDate, appointmentTime);
 
     try {
-      await saveProfile(user.id, user.email, {
+      const ok = await saveProfile(user.id, user.email, {
         username: cleanUsername || null,
         name: form.name,
         company: form.company,
@@ -131,9 +131,15 @@ export default function ProfileModal({
         bio: bio.trim() || null,
         profile_avatar_url: avatarUrl.trim() || null,
         user_type: userType,
+        role: userType,
         preferred_appointment_at: appointmentAt,
         appointment_notes: appointmentNotes.trim() || null,
       });
+      if (!ok) {
+        setError('Could not save profile.');
+        setSaving(false);
+        return;
+      }
       setSaved(true);
       setTimeout(() => {
         setSaved(false);

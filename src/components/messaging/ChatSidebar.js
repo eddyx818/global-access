@@ -16,10 +16,11 @@ import CustomerBadges from '../CustomerBadges';
 
 async function loadProfileMap(userIds) {
   if (!userIds.length) return {};
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('user_profiles')
-    .select('user_id, username, name, company, profile_avatar_url, status, is_portal_admin, is_sales_rep, email, phone, role, user_type, crm_tier, master_brand_ids, master_pricing_qualified')
+    .select('*')
     .in('user_id', userIds);
+  if (error) return {};
   const m = {};
   (data || []).forEach(p => { m[p.user_id] = p; });
   return m;

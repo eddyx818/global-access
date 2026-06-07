@@ -50,44 +50,47 @@ export default function App() {
 
   const inPortalView = authState === 'portal' || authState === 'browse' || (authState === 'admin' && adminMode === 'portal');
   const isMobileDevice = isMobile || /Android|iPhone|iPad|iPod|Mobile/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : '');
+  // Phone/PWA layout: use UA detection, not only viewport width (landscape can exceed 768px)
+  const mobileShell = isMobileDevice && inPortalView;
   const showInstallPrompt = isMobileDevice && !isInstalled;
   const showInstallBanner = showInstallPrompt && inPortalView;
-  const showMobileNav = isMobile && user && inPortalView;
+  const showMobileNav = mobileShell && !!user;
   const chatLabel = isPortalAdmin ? 'Messages' : 'Support';
 
   const openChat = () => {
     if (user && !isPortalAdmin && !isProfileComplete(form)) {
       setProfileGate('chat');
-      if (isMobile) setView('profile');
+      if (mobileShell) setView('profile');
       else setShowProfile(true);
       return;
     }
     setShowProfile(false);
     setProfileGate(null);
-    if (isMobile) setView('chat');
+    if (mobileShell) setView('chat');
     else setChatOpen(true);
   };
 
   const closeChat = () => {
-    if (isMobile) setView(activeBrand ? 'brand' : 'home');
-    else setChatOpen(false);
+    setChatOpen(false);
+    if (view === 'chat') setView(activeBrand ? 'brand' : 'home');
   };
 
   const closeProfile = () => {
     setProfileGate(null);
-    if (isMobile) setView('home');
-    else setShowProfile(false);
+    setShowProfile(false);
+    if (view === 'profile') setView('home');
   };
 
   const openProfile = () => {
-    if (isMobile) setView('profile');
+    if (mobileShell) setView('profile');
     else setShowProfile(true);
   };
 
   const handleProfileSaved = ({ profileComplete } = {}) => {
     if (profileGate === 'chat' && profileComplete) {
       setProfileGate(null);
-      if (isMobile) setView('chat');
+      setShowProfile(false);
+      if (mobileShell) setView('chat');
       else setChatOpen(true);
     }
   };
@@ -112,7 +115,7 @@ export default function App() {
     openProfile();
   };
 
-  const chatActive = (isMobile && view === 'chat') || chatOpen;
+  const chatActive = (mobileShell && view === 'chat') || chatOpen;
 
   useMessageAlerts({
     userId: user?.id,
@@ -133,6 +136,18 @@ export default function App() {
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
+
+  // If chat/profile view is active on desktop width, fall back to modal/sidebar UX
+  useEffect(() => {
+    if (!user || !inPortalView || mobileShell) return;
+    if (view === 'chat') {
+      setChatOpen(true);
+      setView(activeBrand ? 'brand' : 'home');
+    } else if (view === 'profile') {
+      setShowProfile(true);
+      setView(activeBrand ? 'brand' : 'home');
+    }
+  }, [view, mobileShell, user, inPortalView, activeBrand]);
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
@@ -419,7 +434,7 @@ export default function App() {
   if (authState === 'admin' && adminMode === 'dashboard') return <AdminDashboard user={user} onLogout={handleLogout} onViewPortal={() => setAdminMode('portal')} />;
 
   return (
-    <div className="app-viewport" style={{ background: bgColor || '#F5F2ED', fontFamily: getFontFamily(globalStyles.font_family), color: globalStyles.primary_color || '#1A1A1A', transition: 'background 0.5s ease' }}>
+    <div className="app-viewport" style={{ background: bgColor || '#F5F2ED', fontFamily: getFontFamily(globalStyles.font_family), color: globalStyles.primary_color || '#1A1A1A', transition: 'background 0.5s ease', display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: '100dvh' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
 
       {/* Admin bar */}
@@ -464,14 +479,15 @@ export default function App() {
         navigation={navigation}
         globalStyles={globalStyles}
         onNavClick={handleNavClick}
+        onHome={navigateHome}
         onProfile={user && !showMobileNav ? openProfile : null}
         onChat={user && !showMobileNav ? openChat : null}
         chatLabel={chatLabel}
-        isMobile={isMobile}
+        isMobile={isMobile || isMobileDevice}
         hideMobileActions={showMobileNav}
         unread={chatUnread}
       />
-      {user && !isMobile && (
+      {user && !mobileShell && (
         <ChatSidebar
           user={user}
           open={chatOpen}
@@ -480,7 +496,7 @@ export default function App() {
           onUnreadChange={refreshUnread}
         />
       )}
-      {showProfile && !isMobile && (
+      {showProfile && !mobileShell && (
         <ProfileModal
           user={user}
           form={form}
@@ -494,7 +510,7 @@ export default function App() {
         />
       )}
 
-      <div style={mobileContentPad}>
+      <div style={{ ...mobileContentPad, flex: mobileShell ? 1 : undefined, display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: mobileShell ? 0 : undefined }}>
 
       {/* Signup prompt overlay */}
       {showSignupPrompt && (
@@ -530,8 +546,8 @@ export default function App() {
           onSetMasterPricingInterest={user?.id && userType === 'distributor' ? setMasterPricingInterestFlag : null}
         />
       )}
-      {view === 'chat' && isMobile && user && (
-        <div style={{ height: 'calc(100dvh - 48px - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))', minHeight: 320 }}>
+      {view === 'chat' && mobileShell && user && (
+        <div style={{ flex: 1, minHeight: 320, display: 'flex', flexDirection: 'column' }}>
           <ChatSidebar
             user={user}
             open
@@ -544,8 +560,8 @@ export default function App() {
           />
         </div>
       )}
-      {view === 'profile' && isMobile && user && (
-        <div style={{ height: 'calc(100dvh - 48px - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))', minHeight: 320 }}>
+      {view === 'profile' && mobileShell && user && (
+        <div style={{ flex: 1, minHeight: 320, display: 'flex', flexDirection: 'column' }}>
           <ProfileModal
             user={user}
             form={form}
