@@ -47,6 +47,10 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const rafRef = useRef(null);
+  const themeRef = useRef(theme);
+  const hudSnapshotRef = useRef({ score: -1, lives: -1, products: -1 });
+  const endedRef = useRef(false);
+  themeRef.current = theme;
   const [hud, setHud] = useState({ score: 0, lives: LIVES, products: 0, phase: 'ready' });
   const [leaderboard, setLeaderboard] = useState([]);
   const [lastRun, setLastRun] = useState(null);
@@ -76,11 +80,15 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
       running: true,
       cleared: 0,
     };
+    hudSnapshotRef.current = { score: -1, lives: -1, products: -1 };
+    endedRef.current = false;
     setHud({ score: 0, lives: LIVES, products: 0, phase: 'playing' });
     setLastRun(null);
   }, []);
 
   const endGame = useCallback(async (finalState) => {
+    if (endedRef.current) return;
+    endedRef.current = true;
     finalState.running = false;
     const run = {
       score: Math.floor(finalState.score),
@@ -123,6 +131,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
       const dt = Math.min(32, now - last);
       last = now;
       const s = stateRef.current;
+      const palette = themeRef.current;
       if (!s || !ctx) return;
 
       const w = canvas.width;
@@ -133,9 +142,9 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
       ctx.clearRect(0, 0, w, h);
 
       // Aisle background
-      ctx.fillStyle = theme?.aisleBg || '#F3F0EA';
+      ctx.fillStyle = palette?.aisleBg || '#F3F0EA';
       ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = theme?.aisleLine || 'rgba(0,0,0,0.06)';
+      ctx.strokeStyle = palette?.aisleLine || 'rgba(0,0,0,0.06)';
       for (let i = 0; i < 8; i += 1) {
         const x = ((i * 0.18 - (s.distance * 0.3) % 0.18) + 0.18) % 1.2;
         ctx.beginPath();
@@ -145,11 +154,11 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
       }
 
       // Shelves top
-      ctx.fillStyle = theme?.shelf || '#E8E4DC';
+      ctx.fillStyle = palette?.shelf || '#E8E4DC';
       ctx.fillRect(0, py(0.08), w, py(0.12));
 
       // Floor
-      ctx.fillStyle = theme?.floor || '#DED8CE';
+      ctx.fillStyle = palette?.floor || '#DED8CE';
       ctx.fillRect(0, py(GROUND), w, h - py(GROUND));
 
       if (s.running) {
@@ -196,7 +205,6 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
               if (s.lives <= 0) {
                 endGame(s);
               }
-              setHud({ score: Math.floor(s.score), lives: s.lives, products: s.products, phase: 'playing' });
             }
           }
           return true;
@@ -207,8 +215,11 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
           s.flash = 500;
         }
 
-        if (Math.floor(s.score) % 30 === 0) {
-          setHud({ score: Math.floor(s.score), lives: s.lives, products: s.products, phase: 'playing' });
+        const scoreInt = Math.floor(s.score);
+        const snap = hudSnapshotRef.current;
+        if (scoreInt !== snap.score || s.lives !== snap.lives || s.products !== snap.products) {
+          hudSnapshotRef.current = { score: scoreInt, lives: s.lives, products: s.products };
+          setHud({ score: scoreInt, lives: s.lives, products: s.products, phase: s.running ? 'playing' : 'over' });
         }
       }
 
@@ -218,16 +229,16 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
           ctx.font = `${Math.floor(py(0.07))}px serif`;
           ctx.fillText(e.emoji, px(e.x), py(e.y + 0.05));
         } else if (e.type === 'rep') {
-          ctx.fillStyle = theme?.repBg || '#1A1A1A';
+          ctx.fillStyle = palette?.repBg || '#1A1A1A';
           ctx.fillRect(px(e.x), py(e.y), px(e.w), py(e.h));
           ctx.font = `600 ${Math.max(10, Math.floor(py(0.025)))}px sans-serif`;
           ctx.fillStyle = '#FFF';
           ctx.fillText('🧑‍💼', px(e.x + 0.01), py(e.y + (e.tall ? 0.12 : 0.08)));
           ctx.font = `600 ${Math.max(8, Math.floor(py(0.018)))}px sans-serif`;
-          ctx.fillStyle = theme?.repLabel || '#C9A84C';
+          ctx.fillStyle = palette?.repLabel || '#C9A84C';
           ctx.fillText(e.label, px(e.x - 0.01), py(e.y - 0.02));
         } else {
-          ctx.fillStyle = theme?.obstacle || '#B8A898';
+          ctx.fillStyle = palette?.obstacle || '#B8A898';
           ctx.fillRect(px(e.x), py(e.y), px(e.w), py(e.h));
         }
       });
@@ -256,7 +267,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [endGame, resetGame, theme]);
+  }, [endGame, resetGame]);
 
   useEffect(() => {
     const onKey = (e) => {

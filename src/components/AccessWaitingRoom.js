@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import LobbyRunnerGame from './LobbyRunnerGame';
 import { fetchAccessRequestStatus, clearPendingAccess } from '../lib/accessRequestGate';
 
@@ -44,7 +44,7 @@ export default function AccessWaitingRoom({
   }, [checkStatus]);
 
   const firstName = (name || 'there').split(' ')[0];
-  const gameTheme = {
+  const gameTheme = useMemo(() => ({
     aisleBg: theme?.bgMuted || '#F3F0EA',
     aisleLine: theme?.borderSubtle || 'rgba(0,0,0,0.06)',
     shelf: theme?.border || '#E8E4DC',
@@ -58,7 +58,17 @@ export default function AccessWaitingRoom({
     textMuted: theme?.textMuted || '#888',
     textFaint: theme?.textFaint || '#AAA',
     textSecondary: theme?.textSecondary || '#555',
-  };
+  }), [
+    theme?.bgMuted,
+    theme?.borderSubtle,
+    theme?.border,
+    theme?.btnPrimaryBg,
+    theme?.gold,
+    theme?.bgElevated,
+    theme?.textMuted,
+    theme?.textFaint,
+    theme?.textSecondary,
+  ]);
 
   return (
     <div>
