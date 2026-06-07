@@ -382,22 +382,116 @@ const AISLE_BOOTH_STYLE_KEYS = {
   home: ['seven_oh', 'preroll_lab'],
 };
 
-function drawSimpleBoothFront(ctx, bx, by, bw, bh, style) {
+/** Background parallax — keep slower than obstacle speed so the hall feels like a walk, not a slide. */
+const BG_SCROLL_WALK = 0.38;
+const BG_SCROLL_PROGRESS = 0.12;
+const BG_BOOTH_PARALLAX = 0.42;
+const BG_FLOOR_PARALLAX = 0.65;
+const BG_CEILING_PARALLAX = 0.1;
+
+/** Varied far-wall booth silhouettes (width/height ratios relative to a base unit). */
+const FAR_WALL_BOOTH_LAYOUT = [
+  { w: 0.92, h: 0.86, variant: 'standard', gap: 0.06 },
+  { w: 1.18, h: 1.0, variant: 'tower', gap: 0.04 },
+  { w: 0.72, h: 0.68, variant: 'compact', gap: 0.07 },
+  { w: 1.32, h: 0.92, variant: 'wide', gap: 0.03 },
+  { w: 0.88, h: 0.78, variant: 'awning', gap: 0.05 },
+  { w: 1.05, h: 0.94, variant: 'split', gap: 0.04 },
+  { w: 0.8, h: 0.72, variant: 'popup', gap: 0.06 },
+  { w: 1.15, h: 0.88, variant: 'ledge', gap: 0.04 },
+];
+
+function drawVariedBoothFront(ctx, bx, by, bw, bh, style, variant) {
+  const pad = Math.max(1, bw * 0.04);
+  const innerX = bx + pad;
+  const innerW = bw - pad * 2;
+  const signH = bh * (variant === 'compact' ? 0.14 : variant === 'tower' ? 0.22 : 0.18);
+  const bodyTop = by + signH;
+  const bodyH = bh - signH - bh * 0.22;
+  const counterH = bh * (variant === 'wide' ? 0.16 : 0.22);
+  const counterY = by + bh - counterH;
+
   ctx.fillStyle = '#252530';
-  ctx.fillRect(bx, by, bw, bh * 0.18);
-  ctx.fillStyle = style.top;
-  ctx.fillRect(bx + 1, by + bh * 0.03, bw - 2, bh * 0.13);
+  ctx.fillRect(bx, by, bw, bh);
+
+  if (variant === 'awning') {
+    ctx.fillStyle = style.top;
+    ctx.beginPath();
+    ctx.moveTo(bx, by + signH * 0.35);
+    ctx.lineTo(bx + bw * 0.5, by);
+    ctx.lineTo(bx + bw, by + signH * 0.35);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = style.mid;
+    ctx.fillRect(innerX, bodyTop, innerW, bodyH);
+  } else if (variant === 'tower') {
+    ctx.fillStyle = style.top;
+    ctx.fillRect(innerX, by + bh * 0.02, innerW * 0.72, signH);
+    ctx.fillStyle = style.mid;
+    ctx.fillRect(innerX + innerW * 0.08, bodyTop, innerW * 0.84, bodyH * 1.05);
+    for (let i = 0; i < 3; i += 1) {
+      ctx.fillStyle = style.led?.[i % 3] || style.top;
+      ctx.fillRect(innerX + innerW * 0.12, bodyTop + bodyH * 0.12 + i * bodyH * 0.22, innerW * 0.76, bodyH * 0.08);
+    }
+  } else if (variant === 'wide') {
+    ctx.fillStyle = style.top;
+    ctx.fillRect(bx, by + bh * 0.04, bw, signH * 0.85);
+    ctx.fillStyle = style.mid;
+    ctx.fillRect(innerX, bodyTop, innerW, bodyH * 0.92);
+    ctx.fillStyle = style.bottom || style.mid;
+    ctx.fillRect(innerX + innerW * 0.08, bodyTop + bodyH * 0.15, innerW * 0.84, bodyH * 0.55);
+  } else if (variant === 'split') {
+    ctx.fillStyle = style.top;
+    ctx.fillRect(innerX, by + bh * 0.03, innerW, signH);
+    const colW = innerW * 0.46;
+    ctx.fillStyle = style.mid;
+    ctx.fillRect(innerX, bodyTop, colW, bodyH);
+    ctx.fillStyle = style.bottom || style.counter;
+    ctx.fillRect(innerX + innerW * 0.54, bodyTop, colW, bodyH);
+  } else if (variant === 'compact') {
+    ctx.fillStyle = style.top;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(innerX, by + bh * 0.06, innerW, signH, 3);
+    else ctx.rect(innerX, by + bh * 0.06, innerW, signH);
+    ctx.fill();
+    ctx.fillStyle = style.mid;
+    ctx.fillRect(innerX + innerW * 0.1, bodyTop, innerW * 0.8, bodyH * 0.85);
+  } else if (variant === 'popup') {
+    ctx.fillStyle = '#d8d8dc';
+    ctx.fillRect(innerX, bodyTop + bodyH * 0.08, innerW, bodyH * 0.78);
+    ctx.strokeStyle = '#888';
+    ctx.strokeRect(innerX, bodyTop + bodyH * 0.08, innerW, bodyH * 0.78);
+    ctx.fillStyle = style.top;
+    ctx.fillRect(innerX - pad * 0.5, by + bh * 0.05, innerW + pad, signH);
+  } else if (variant === 'ledge') {
+    ctx.fillStyle = style.top;
+    ctx.fillRect(innerX, by + bh * 0.03, innerW, signH);
+    ctx.fillStyle = style.mid;
+    ctx.fillRect(innerX, bodyTop, innerW, bodyH);
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillRect(innerX, bodyTop + bodyH * 0.62, innerW, bodyH * 0.12);
+  } else {
+    ctx.fillStyle = style.top;
+    ctx.fillRect(innerX, by + bh * 0.03, innerW, signH * 0.9);
+    ctx.fillStyle = style.mid;
+    ctx.fillRect(innerX, bodyTop, innerW, bodyH);
+  }
+
   ctx.fillStyle = '#fff';
-  ctx.font = `700 ${Math.max(6, bw * 0.09)}px "Bebas Neue", sans-serif`;
+  ctx.font = `700 ${Math.max(5, Math.min(9, bw * 0.085))}px "Bebas Neue", sans-serif`;
   ctx.textAlign = 'center';
-  const title = style.title.length > 11 ? `${style.title.slice(0, 10)}…` : style.title;
-  ctx.fillText(title, bx + bw / 2, by + bh * 0.13);
-  ctx.fillStyle = style.mid;
-  ctx.fillRect(bx + 1, by + bh * 0.2, bw - 2, bh * 0.52);
+  const title = style.title.length > 12 ? `${style.title.slice(0, 11)}…` : style.title;
+  ctx.fillText(title, bx + bw / 2, by + signH * 0.72);
+
   ctx.fillStyle = style.counter;
-  ctx.fillRect(bx + 1, by + bh * 0.74, bw - 2, bh * 0.26);
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.fillRect(bx + 2, by + bh * 0.78, bw - 4, bh * 0.05);
+  if (variant === 'split') {
+    ctx.fillRect(innerX, counterY, innerW * 0.46, counterH);
+    ctx.fillRect(innerX + innerW * 0.54, counterY, innerW * 0.46, counterH);
+  } else {
+    ctx.fillRect(innerX, counterY, innerW, counterH);
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillRect(innerX + 2, counterY + counterH * 0.15, innerW - 4, counterH * 0.22);
   ctx.textAlign = 'start';
 }
 
@@ -413,37 +507,47 @@ function boothStylePool(aisleId) {
 
 const boothStripCache = { key: '', canvas: null, stripW: 0, stripH: 0 };
 
-function getHorizontalBoothStrip(aisleId, boothW, boothH, styles) {
-  const key = `${aisleId}:h:${Math.round(boothW)}:${Math.round(boothH)}`;
+function getHorizontalBoothStrip(aisleId, baseBoothW, wallH, styles) {
+  const key = `${aisleId}:v2:${Math.round(baseBoothW)}:${Math.round(wallH)}`;
   if (boothStripCache.key === key && boothStripCache.canvas) return boothStripCache;
-  const count = 5;
-  const stripW = boothW * count;
+
+  let stripW = 0;
+  FAR_WALL_BOOTH_LAYOUT.forEach((slot) => {
+    stripW += baseBoothW * slot.w + baseBoothW * slot.gap;
+  });
+
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.ceil(stripW));
-  canvas.height = Math.max(1, Math.ceil(boothH));
+  canvas.height = Math.max(1, Math.ceil(wallH));
   const sctx = canvas.getContext('2d');
   if (sctx) {
-    for (let i = 0; i < count; i += 1) {
-      drawSimpleBoothFront(sctx, i * boothW, 0, boothW, boothH, styles[i % styles.length]);
-    }
+    let x = 0;
+    FAR_WALL_BOOTH_LAYOUT.forEach((slot, i) => {
+      const bw = baseBoothW * slot.w;
+      const bh = wallH * slot.h;
+      const by = wallH - bh;
+      const style = styles[i % styles.length];
+      drawVariedBoothFront(sctx, x, by, bw, bh, style, slot.variant);
+      x += bw + baseBoothW * slot.gap;
+    });
   }
   boothStripCache.key = key;
   boothStripCache.canvas = canvas;
   boothStripCache.stripW = stripW;
-  boothStripCache.stripH = boothH;
+  boothStripCache.stripH = wallH;
   return boothStripCache;
 }
 
 function drawConventionCeiling(ctx, w, h, scroll) {
   ctx.fillStyle = '#2a2a30';
   ctx.fillRect(0, 0, w, h * 0.12);
-  const trussOffset = (scroll * 0.35) % (w / 4);
+  const trussOffset = (scroll * BG_CEILING_PARALLAX) % (w / 4);
   ctx.fillStyle = '#383840';
   for (let i = -1; i < 7; i += 1) {
     ctx.fillRect(i * (w / 4) - trussOffset, 0, w * 0.035, h * 0.12);
   }
   for (let i = 0; i < 5; i += 1) {
-    const lx = ((i * (w / 4.5) - scroll * 0.2) % (w + 40)) - 20;
+    const lx = ((i * (w / 4.5) - scroll * BG_CEILING_PARALLAX * 0.65) % (w + 40)) - 20;
     ctx.fillStyle = 'rgba(255,255,255,0.1)';
     ctx.fillRect(lx, 8, 36, 4);
   }
@@ -470,9 +574,9 @@ function drawFarBoothWall(ctx, w, h, scroll, aisle) {
   ctx.fillRect(0, wallTop, w, wallH);
 
   const styles = boothStylePool(aisle.id);
-  const boothW = w * 0.3;
-  const strip = getHorizontalBoothStrip(aisle.id, boothW, wallH, styles);
-  blitHorizontalStrip(ctx, strip, 0, wallTop, w, wallH, scroll * 1.25);
+  const baseBoothW = w * 0.24;
+  const strip = getHorizontalBoothStrip(aisle.id, baseBoothW, wallH, styles);
+  blitHorizontalStrip(ctx, strip, 0, wallTop, w, wallH, scroll * BG_BOOTH_PARALLAX);
 
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.fillRect(0, wallBottom - 4, w, 4);
@@ -519,7 +623,7 @@ function drawAisleFloor(ctx, w, h, scroll) {
   const dashW = w * 0.08;
   const lineY = floorTop + floorH * 0.62;
   for (let t = -1; t < 16; t += 1) {
-    const tx = ((t * dashW * 1.55 - scroll * 2.4) % (w + dashW * 2) + w + dashW * 2) % (w + dashW * 2) - dashW;
+    const tx = ((t * dashW * 1.55 - scroll * BG_FLOOR_PARALLAX) % (w + dashW * 2) + w + dashW * 2) % (w + dashW * 2) - dashW;
     ctx.strokeStyle = 'rgba(255,255,255,0.09)';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -561,9 +665,9 @@ function drawShowFloor(ctx, w, h, aisle, scroll) {
   ctx.textAlign = 'start';
 }
 
-/** Scroll distance — kept moderate for smooth mobile performance. */
+/** Scroll distance — gentle parallax, slower than lane obstacles. */
 function aisleScrollDistance(s) {
-  return s.registerProgress * 0.4 + s.walkPhase * 1.6;
+  return s.registerProgress * BG_SCROLL_PROGRESS + s.walkPhase * BG_SCROLL_WALK;
 }
 
 function playerCollisionBox(s) {
