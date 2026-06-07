@@ -1,8 +1,6 @@
 import React from 'react';
 
-export function InterestView({ interests, masterPricingBrands = {}, toggleInterest, form, setForm, onSubmit, onBack, isMobile }) {
-  const masterBrands = Object.entries(masterPricingBrands);
-  const canSubmit = interests.length > 0 || masterBrands.length > 0;
+export function InterestView({ interests, toggleInterest, form, setForm, onSubmit, onBack, isMobile }) {
   const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
 
   return (
@@ -12,29 +10,16 @@ export function InterestView({ interests, masterPricingBrands = {}, toggleIntere
       <div style={{ fontSize: 13, color: '#AAA', marginBottom: '1.75rem', lineHeight: 1.6 }}>Tell us who you are and we'll reach out with pricing and availability before your meeting.</div>
       <div style={{ background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 12, padding: '1.25rem', marginBottom: '1rem' }}>
         <div style={{ fontSize: 11, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Selected items</div>
-        {interests.length === 0 && masterBrands.length === 0 && <div style={{ fontSize: 13, color: '#CCC' }}>No items selected.</div>}
+        {interests.length === 0 && <div style={{ fontSize: 13, color: '#CCC' }}>No items selected.</div>}
         {interests.map(item => (
           <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: '0.5px solid #F0EDE8' }}>
             <div>
               <div style={{ fontSize: 13, color: '#333', fontWeight: 500 }}>{item.brandName} - {item.productName}</div>
-              <div style={{ fontSize: 12, color: '#AAA', marginTop: 2 }}>
-                {item.flavor} · SKU: {item.sku}
-                {item.wantsMasterPricing && (
-                  <span style={{ marginLeft: 8, color: '#A07A20', fontWeight: 600 }}>· Master Distributor pricing</span>
-                )}
-              </div>
+              <div style={{ fontSize: 12, color: '#AAA', marginTop: 2 }}>{item.flavor} · SKU: {item.sku}</div>
             </div>
             <button onClick={() => toggleInterest(item.sku, item.productName, item.brandName, item.flavor)} style={{ background: 'none', border: 'none', color: '#CCC', cursor: 'pointer', fontSize: 20, padding: '0 4px', lineHeight: 1 }}>×</button>
           </div>
         ))}
-        {masterBrands.length > 0 && (
-          <div style={{ marginTop: interests.length ? 12 : 0, paddingTop: interests.length ? 12 : 0, borderTop: interests.length ? '0.5px solid #F0EDE8' : 'none' }}>
-            <div style={{ fontSize: 11, color: '#A07A20', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8, fontWeight: 600 }}>Master Distributor pricing</div>
-            {masterBrands.map(([id, name]) => (
-              <div key={id} style={{ fontSize: 12, color: '#666', padding: '4px 0' }}>{name} — premium tier requested</div>
-            ))}
-          </div>
-        )}
       </div>
       <div style={{ background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 12, padding: '1.25rem', marginBottom: '1rem' }}>
         <div style={{ fontSize: 11, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Your details</div>
@@ -49,7 +34,7 @@ export function InterestView({ interests, masterPricingBrands = {}, toggleIntere
         <label style={{ fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes (optional)</label>
         <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Questions, timeline, or extra info..." style={{ ...inputStyle, height: 80, resize: 'none' }} />
       </div>
-      <button onClick={onSubmit} disabled={!canSubmit} style={{ width: '100%', background: canSubmit ? '#1A1A1A' : '#E0DDD8', color: canSubmit ? '#FFF' : '#AAA', border: 'none', borderRadius: 10, padding: '15px', fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', cursor: canSubmit ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontFamily: 'inherit' }}>
+      <button onClick={onSubmit} disabled={interests.length === 0} style={{ width: '100%', background: interests.length > 0 ? '#1A1A1A' : '#E0DDD8', color: interests.length > 0 ? '#FFF' : '#AAA', border: 'none', borderRadius: 10, padding: '15px', fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', cursor: interests.length > 0 ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontFamily: 'inherit' }}>
         Submit inquiry →
       </button>
       <div style={{ textAlign: 'center', fontSize: 12, color: '#CCC', marginTop: 10 }}>Saved to our team. Use Support chat for follow-up — WhatsApp is shared after we confirm.</div>

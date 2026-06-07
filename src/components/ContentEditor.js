@@ -223,12 +223,21 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
 
           {activeProductTab === 'pricing' && (
             <div>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 12, lineHeight: 1.5 }}>Retailers see wholesale + MSRP. Distributors also see unit/case/pallet and retailer tier pricing.</div>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 12, lineHeight: 1.5 }}>Retailers see wholesale + MSRP. Distributors see unit/case/pallet and retailer tier pricing. Master Distributor rates (below) are only shown to qualified accounts.</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 14 }}>
                 {[['price_per_unit', 'Per unit'], ['price_per_case', 'Per case'], ['price_per_pallet', 'Per pallet'], ['price_wholesale', 'Wholesale'], ['price_retail', 'Retailer tier'], ['price_msrp', 'MSRP']].map(([field, label]) => (
                   <div key={field}>
                     <label style={labelStyle}>{label}</label>
                     <input type="number" step="0.01" min="0" value={productForms[product.sku]?.[field] ?? ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], [field]: e.target.value } }))} style={inputStyle} placeholder="0.00" />
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: '#A07A20', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8, fontWeight: 600 }}>Master Distributor (qualified accounts only)</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 14 }}>
+                {[['price_master_per_unit', 'Per unit'], ['price_master_per_case', 'Per case'], ['price_master_per_pallet', 'Per pallet']].map(([field, label]) => (
+                  <div key={field}>
+                    <label style={labelStyle}>{label}</label>
+                    <input type="number" step="0.01" min="0" value={productForms[product.sku]?.[field] ?? ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], [field]: e.target.value } }))} style={{ ...inputStyle, borderColor: '#F5D87A' }} placeholder="0.00" />
                   </div>
                 ))}
               </div>

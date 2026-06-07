@@ -415,17 +415,16 @@ export async function confirmConversationContact(conversationId, adminUserId) {
   return data;
 }
 
-export async function submitInterestToSupport(userId, { form, interests, userType, masterPricingBrands = {} }) {
+export async function submitInterestToSupport(userId, { form, interests, userType, masterPricingInterest = false }) {
   const convo = await getOrCreateSupportConversation(userId);
   const itemsList = interests.map(i =>
-    `• ${i.brandName} — ${i.productName}\n  ${i.flavor} · Qty ${i.qty || 1} ${i.orderMode === 'pallet' ? 'pallet(s)' : 'case(s)'}${i.wantsMasterPricing ? ' · **Master Distributor pricing requested**' : ''}`
+    `• ${i.brandName} — ${i.productName}\n  ${i.flavor} · Qty ${i.qty || 1} ${i.orderMode === 'pallet' ? 'pallet(s)' : 'case(s)'}`
   ).join('\n');
-  const masterLines = Object.entries(masterPricingBrands).map(([, name]) => `• ${name} — Master Distributor pricing (premium tier)`);
   const text = [
     'New interest list submitted',
     '',
-    itemsList || '(No line items — master pricing only)',
-    masterLines.length ? ['', 'Master Distributor pricing:', ...masterLines].join('\n') : '',
+    itemsList || '(No line items)',
+    masterPricingInterest ? '\nAccount flagged for Master Distributor volume review (high-volume qualification).' : '',
     '',
     `Notes: ${form.notes || '—'}`,
     `Account type: ${userType}`,

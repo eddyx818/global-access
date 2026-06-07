@@ -62,7 +62,13 @@ export default function UserManager() {
 
   const handleEdit = (user) => {
     setEditing(user.id);
-    setEditForm({ name: user.name || '', company: user.company || '', role: user.role || 'retailer', new_password: '' });
+    setEditForm({
+      name: user.name || '',
+      company: user.company || '',
+      role: user.role || 'retailer',
+      new_password: '',
+      master_pricing_qualified: !!user.master_pricing_qualified,
+    });
   };
 
   const handleSaveEdit = async (user) => {
@@ -79,6 +85,7 @@ export default function UserManager() {
           company,
           role,
           is_portal_admin: role === 'admin',
+          master_pricing_qualified: role === 'distributor' ? !!editForm.master_pricing_qualified : false,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
@@ -240,6 +247,24 @@ export default function UserManager() {
                   </button>
                 </div>
               </div>
+              {editForm.role === 'distributor' && (
+                <div style={{ marginBottom: '1rem', padding: '12px 14px', background: '#FDF6E3', border: '0.5px solid #F5D87A', borderRadius: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 13, color: '#555' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!editForm.master_pricing_qualified}
+                      onChange={e => setEditForm(f => ({ ...f, master_pricing_qualified: e.target.checked }))}
+                      style={{ marginTop: 2 }}
+                    />
+                    <span>
+                      <strong style={{ color: '#A07A20' }}>Master Distributor qualified</strong>
+                      <span style={{ display: 'block', fontSize: 11, color: '#888', marginTop: 4, lineHeight: 1.45 }}>
+                        Unlocks the private Master price list on brand pages for this account.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => handleSaveEdit(user)} style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Save</button>
                 <button onClick={() => setEditing(null)} style={{ background: 'none', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '9px 16px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', color: '#AAA' }}>Cancel</button>
@@ -252,6 +277,12 @@ export default function UserManager() {
                   <div style={{ fontWeight: 500, fontSize: 15 }}>{user.name || 'Unnamed'}</div>
                   <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: (ROLE_COLORS[user.role] || '#888') + '18', color: ROLE_COLORS[user.role] || '#888', fontWeight: 600, textTransform: 'capitalize', letterSpacing: '0.06em' }}>{user.role || 'unknown'}</span>
                   {user.disabled && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#FEF0F0', color: '#E05A5A', fontWeight: 600 }}>Disabled</span>}
+                  {user.role === 'distributor' && user.master_pricing_qualified && (
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#FDF6E3', color: '#A07A20', fontWeight: 600 }}>Master pricing</span>
+                  )}
+                  {user.role === 'distributor' && user.master_pricing_interest && !user.master_pricing_qualified && (
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#F8F6F3', color: '#888', fontWeight: 600 }}>Volume interest</span>
+                  )}
                 </div>
                 <div style={{ fontSize: 13, color: '#888' }}>{user.company || '—'}</div>
                 <div style={{ fontSize: 12, color: '#AAA', marginTop: 2 }}>{user.email}</div>

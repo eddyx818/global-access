@@ -1,8 +1,8 @@
 import React from 'react';
 import { formatPrice, getVisiblePrices, getActivePromo, getShippingSummary, getMoqLabel } from '../lib/pricing';
 
-export default function ProductCommerceInfo({ product, userType, orderMode }) {
-  const prices = getVisiblePrices(product, userType, orderMode);
+export default function ProductCommerceInfo({ product, userType, orderMode, masterPricingQualified = false }) {
+  const prices = getVisiblePrices(product, userType, orderMode, { masterPricingQualified });
   const promo = getActivePromo(product, userType);
   const shipping = getShippingSummary(product);
   const moq = getMoqLabel(product);
@@ -19,9 +19,15 @@ export default function ProductCommerceInfo({ product, userType, orderMode }) {
       )}
       {prices.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-          {prices.map(({ label, value }) => (
-            <div key={label} style={{ background: '#F8F6F3', border: '0.5px solid #E8E4DF', borderRadius: 8, padding: '6px 10px', minWidth: 88 }}>
-              <div style={{ fontSize: 9, color: '#AAA', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</div>
+          {prices.map(({ label, value, tier }) => (
+            <div key={label} style={{
+              background: tier === 'master' ? '#FDF6E3' : '#F8F6F3',
+              border: tier === 'master' ? '0.5px solid #F5D87A' : '0.5px solid #E8E4DF',
+              borderRadius: 8,
+              padding: '6px 10px',
+              minWidth: 88,
+            }}>
+              <div style={{ fontSize: 9, color: tier === 'master' ? '#A07A20' : '#AAA', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</div>
               <div style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A', marginTop: 2 }}>{formatPrice(value)}</div>
             </div>
           ))}

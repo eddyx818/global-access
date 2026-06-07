@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import ProductCommerceInfo from './ProductCommerceInfo';
 import { minQtyForProduct } from '../lib/pricing';
 
-export default function BrandView({ brand, userType, onBack, toggleInterest, isInterested, interests, onSubmit, isMobile, masterPricingOn, onToggleMasterPricing }) {
+export default function BrandView({ brand, userType, onBack, toggleInterest, isInterested, interests, onSubmit, isMobile, masterPricingQualified = false }) {
   const [lightbox, setLightbox] = useState(null);
   const [lightboxIdx, setLightboxIdx] = useState(0);
   const [orderMode, setOrderMode] = useState({}); // per sku: 'master_case' | 'pallet'
@@ -231,53 +231,6 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
         👆 Tap any option you are interested in — we will reach out before your meeting with full details.
       </div>
 
-      {isDistributor && onToggleMasterPricing && (
-        <button
-          type="button"
-          onClick={() => onToggleMasterPricing(brand.id, brand.name)}
-          style={{
-            width: '100%',
-            textAlign: 'left',
-            background: masterPricingOn ? '#FDF6E3' : '#FFF',
-            border: `1.5px solid ${masterPricingOn ? '#C9A84C' : '#E8E4DF'}`,
-            borderRadius: 12,
-            padding: '14px 16px',
-            marginBottom: '1.25rem',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            transition: 'all 0.15s',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-            <div style={{
-              width: 22,
-              height: 22,
-              borderRadius: 6,
-              flexShrink: 0,
-              marginTop: 1,
-              background: masterPricingOn ? '#C9A84C' : '#F8F6F3',
-              border: masterPricingOn ? 'none' : '0.5px solid #E0DDD8',
-              color: '#FFF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 13,
-              fontWeight: 700,
-            }}>
-              {masterPricingOn ? '✓' : ''}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>
-                Interested in Master Distributor pricing?
-              </div>
-              <div style={{ fontSize: 12, color: '#888', lineHeight: 1.5 }}>
-                Premium tier below standard distributor rates for {brand.name}. We will flag this on your inquiry and discuss in Support chat.
-              </div>
-            </div>
-          </div>
-        </button>
-      )}
-
       {/* Products */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {brand.products.map(product => {
@@ -311,7 +264,7 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
               )}
 
               <div style={{ padding: '1rem 1.25rem 1.25rem' }}>
-                <ProductCommerceInfo product={product} userType={userType} orderMode={currentMode} />
+                <ProductCommerceInfo product={product} userType={userType} orderMode={currentMode} masterPricingQualified={masterPricingQualified} />
 
                 {/* Order unit toggle for distributors with 'both' option */}
                 {showToggle && (
@@ -379,12 +332,10 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
       </div>
 
       {/* Sticky submit */}
-      {(interests.length > 0 || (isDistributor && masterPricingOn)) && (
+      {interests.length > 0 && (
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '1rem', background: 'rgba(245,242,237,0.95)', backdropFilter: 'blur(12px)', borderTop: '0.5px solid #E0DDD8', zIndex: 50 }}>
-          <button onClick={onSubmit} style={{ width: '100%', maxWidth: 760, margin: '0 auto', display: 'block', background: interests.length === 0 ? '#C9A84C' : '#1A1A1A', color: interests.length === 0 ? '#1A1A1A' : '#FFF', border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em', fontFamily: 'inherit' }}>
-            {interests.length > 0
-              ? `Submit Interest List (${interests.length} item${interests.length !== 1 ? 's' : ''}${masterPricingOn ? ' · Master pricing' : ''}) →`
-              : 'Submit Master Distributor pricing request →'}
+          <button onClick={onSubmit} style={{ width: '100%', maxWidth: 760, margin: '0 auto', display: 'block', background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em', fontFamily: 'inherit' }}>
+            Submit Interest List ({interests.length} item{interests.length !== 1 ? 's' : ''}) →
           </button>
         </div>
       )}

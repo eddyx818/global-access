@@ -42,7 +42,7 @@ You have access to these actions. When the user asks you to do something, respon
 Available actions:
 - update_brand_content: Update brand tagline, description, color. data: {brand_id, tagline?, description?, color?}
 - update_product_content: Update product name, detail, flavors. data: {brand_id, sku, name?, detail?, flavors_retail?, flavors_distro?}
-- update_product_pricing: Update SKU pricing, MOQ, shipping, and promotions. data: {brand_id, sku, price_per_unit?, price_per_case?, price_per_pallet?, price_wholesale?, price_retail?, price_msrp?, moq_qty?, moq_unit?, shipping_included?, shipping_free_after_moq?, free_shipping_moq_qty?, shipping_note?, promo_label?, promo_detail?, promo_active?, promo_audience?}
+- update_product_pricing: Update SKU pricing, MOQ, shipping, and promotions. data: {brand_id, sku, price_per_unit?, price_per_case?, price_per_pallet?, price_master_per_unit?, price_master_per_case?, price_master_per_pallet?, price_wholesale?, price_retail?, price_msrp?, moq_qty?, moq_unit?, shipping_included?, shipping_free_after_moq?, free_shipping_moq_qty?, shipping_note?, promo_label?, promo_detail?, promo_active?, promo_audience?}
 - toggle_flavor_soldout: Mark a flavor sold out or in stock. data: {brand_id, sku, flavor, flavor_type, sold_out}
 - add_flavor: Add a new flavor to a product. data: {brand_id, sku, flavor, flavor_type}
 - remove_flavor: Remove a flavor from a product. data: {brand_id, sku, flavor, flavor_type}

@@ -10,6 +10,9 @@ export function parseCommerceFields(po = {}) {
     price_per_unit: po.price_per_unit ?? null,
     price_per_case: po.price_per_case ?? null,
     price_per_pallet: po.price_per_pallet ?? null,
+    price_master_per_unit: po.price_master_per_unit ?? null,
+    price_master_per_case: po.price_master_per_case ?? null,
+    price_master_per_pallet: po.price_master_per_pallet ?? null,
     price_wholesale: po.price_wholesale ?? null,
     price_retail: po.price_retail ?? null,
     price_msrp: po.price_msrp ?? null,
@@ -38,17 +41,33 @@ export function getOrderPrice(product, orderMode) {
   return product.price_wholesale;
 }
 
-export function getVisiblePrices(product, userType, orderMode = 'master_case') {
+export function getMasterOrderPrice(product, orderMode) {
+  if (orderMode === 'pallet' && product.price_master_per_pallet != null) return product.price_master_per_pallet;
+  if (orderMode === 'master_case' && product.price_master_per_case != null) return product.price_master_per_case;
+  if (product.price_master_per_unit != null) return product.price_master_per_unit;
+  return null;
+}
+
+export function getVisiblePrices(product, userType, orderMode = 'master_case', { masterPricingQualified = false } = {}) {
   const isDistributor = userType === 'distributor';
   const lines = [];
+
+  if (isDistributor && masterPricingQualified) {
+    const masterPrice = getMasterOrderPrice(product, orderMode);
+    const masterLabel = orderMode === 'pallet' ? 'Per pallet' : orderMode === 'master_case' ? 'Per case' : 'Per unit';
+    if (masterPrice != null) lines.push({ label: masterLabel, value: masterPrice, tier: 'master' });
+    if (product.price_master_per_unit != null && orderMode === 'master_case') {
+      lines.push({ label: 'Per unit', value: product.price_master_per_unit, tier: 'master' });
+    }
+    if (product.price_msrp != null) lines.push({ label: 'MSRP', value: product.price_msrp });
+    return lines;
+  }
 
   if (isDistributor) {
     const orderPrice = getOrderPrice(product, orderMode);
     const orderLabel = orderMode === 'pallet' ? 'Per pallet' : orderMode === 'master_case' ? 'Per case' : 'Per unit';
     if (orderPrice != null) lines.push({ label: orderLabel, value: orderPrice });
-    if (product.price_per_unit != null && orderMode !== 'master_case') {
-      // already shown as order price when applicable
-    } else if (product.price_per_unit != null && orderMode === 'master_case') {
+    if (product.price_per_unit != null && orderMode === 'master_case') {
       lines.push({ label: 'Per unit', value: product.price_per_unit });
     }
     if (product.price_wholesale != null) lines.push({ label: 'Wholesale', value: product.price_wholesale });
@@ -99,6 +118,9 @@ export function commercePayloadFromForm(data) {
     price_per_unit: num(data.price_per_unit),
     price_per_case: num(data.price_per_case),
     price_per_pallet: num(data.price_per_pallet),
+    price_master_per_unit: num(data.price_master_per_unit),
+    price_master_per_case: num(data.price_master_per_case),
+    price_master_per_pallet: num(data.price_master_per_pallet),
     price_wholesale: num(data.price_wholesale),
     price_retail: num(data.price_retail),
     price_msrp: num(data.price_msrp),

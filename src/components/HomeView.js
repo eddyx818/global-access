@@ -3,7 +3,9 @@ import { useBrandContent } from '../lib/content';
 import { getButtonRadius } from '../lib/design';
 import { supabase } from '../lib/supabase';
 
-export default function HomeView({ onBrandClick, isMobile }) {
+import MasterPricingNotice from './MasterPricingNotice';
+
+export default function HomeView({ onBrandClick, isMobile, userType, masterPricingQualified, masterPricingInterest, onSetMasterPricingInterest }) {
   const [slideIdx, setSlideIdx] = useState(0);
   const [galleryIdx, setGalleryIdx] = useState(0); // cycles hero bg image
   const [animating, setAnimating] = useState(false);
@@ -168,6 +170,13 @@ export default function HomeView({ onBrandClick, isMobile }) {
 
       {/* 3D BRAND GRID */}
       <div style={{ padding: isMobile ? '0 0.75rem 2rem' : '0 1.25rem 2rem' }}>
+        {userType === 'distributor' && (
+          <MasterPricingNotice
+            qualified={masterPricingQualified}
+            hasInterest={masterPricingInterest}
+            onSetInterest={onSetMasterPricingInterest}
+          />
+        )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <div style={{ fontSize: 10, letterSpacing: '0.2em', color: '#BBB', textTransform: 'uppercase', fontWeight: 500 }}>Our Brands</div>
           <div style={{ fontSize: 11, color: '#CCC' }}>{brands.length} brands · drag to reorder</div>

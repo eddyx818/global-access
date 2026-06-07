@@ -21,7 +21,8 @@ export default function App() {
   const [view, setView] = useState('home');
   const [activeBrand, setActiveBrand] = useState(null);
   const [interests, setInterests] = useState([]);
-  const [masterPricingBrands, setMasterPricingBrands] = useState({});
+  const [masterPricingQualified, setMasterPricingQualified] = useState(false);
+  const [masterPricingInterest, setMasterPricingInterest] = useState(false);
   const [form, setForm] = useState({ name: '', company: '', phone: '', email: '', notes: '' });
   const [isMobile, setIsMobile] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
@@ -59,9 +60,11 @@ export default function App() {
           await ensurePortalAdminFlag(session.user.id, session.user.email);
         }
         try {
-          const { data: profile } = await supabase.from('user_profiles').select('user_type, name, company, phone, username, bio, profile_avatar_url').eq('user_id', session.user.id).single();
+          const { data: profile } = await supabase.from('user_profiles').select('user_type, name, company, phone, username, bio, profile_avatar_url, master_pricing_qualified, master_pricing_interest').eq('user_id', session.user.id).single();
           if (profile?.user_type) setUserType(profile.user_type);
           if (profile?.name) setForm(f => ({ ...f, name: profile.name, company: profile.company || f.company, phone: profile.phone || f.phone }));
+          setMasterPricingQualified(!!profile?.master_pricing_qualified);
+          setMasterPricingInterest(!!profile?.master_pricing_interest);
         } catch (_) {}
         await linkPortalSessionToUser(session.user.id);
         await updateUserPresence(session.user.id, 'online');
@@ -124,35 +127,20 @@ export default function App() {
     const key = `${sku}__${flavor}`;
     const bid = brandId || activeBrand;
     trackEvent('click', bid ? `brand:${bid}` : view, { element: `interest:${sku}:${flavor}`, user_id: user?.id });
-    setInterests(prev => {
-      if (prev.find(i => i.key === key)) return prev.filter(i => i.key !== key);
-      return [...prev, {
-        key,
-        sku,
-        productName,
-        brandName,
-        brandId: bid,
-        flavor,
-        qty,
-        orderMode,
-        wantsMasterPricing: !!(bid && masterPricingBrands[bid]),
-      }];
-    });
+    setInterests(prev => (
+      prev.find(i => i.key === key)
+        ? prev.filter(i => i.key !== key)
+        : [...prev, { key, sku, productName, brandName, brandId: bid, flavor, qty, orderMode }]
+    ));
   };
 
-  const toggleMasterPricing = (brandId, brandName) => {
-    if (!brandId) return;
-    const enabling = !masterPricingBrands[brandId];
-    trackEvent('click', `brand:${brandId}`, { element: 'master_pricing_toggle', enabled: enabling, user_id: user?.id });
-    setMasterPricingBrands(prev => {
-      const next = { ...prev };
-      if (enabling) next[brandId] = brandName;
-      else delete next[brandId];
-      return next;
-    });
-    setInterests(prev => prev.map(i => (
-      i.brandId === brandId ? { ...i, wantsMasterPricing: enabling } : i
-    )));
+  const setMasterPricingInterestFlag = async (value) => {
+    if (!user?.id) return;
+    setMasterPricingInterest(value);
+    await supabase.from('user_profiles').update({
+      master_pricing_interest: value,
+      updated_at: new Date().toISOString(),
+    }).eq('user_id', user.id);
   };
 
   const isInterested = (sku, flavor) => interests.some(i => i.key === `${sku}__${flavor}`);
@@ -201,7 +189,8 @@ export default function App() {
     setIsPortalAdmin(false);
     setAuthState('gate');
     setInterests([]);
-    setMasterPricingBrands({});
+    setMasterPricingQualified(false);
+    setMasterPricingInterest(false);
     setAdminMode('dashboard');
   };
 
@@ -222,7 +211,7 @@ export default function App() {
     }
     try {
       const { data: profile } = await supabase.from('user_profiles')
-        .select('user_type, name, company, phone, username, bio, profile_avatar_url')
+        .select('user_type, name, company, phone, username, bio, profile_avatar_url, master_pricing_qualified, master_pricing_interest')
         .eq('user_id', sessionUser.id)
         .single();
       if (profile?.user_type) setUserType(profile.user_type);
@@ -234,6 +223,8 @@ export default function App() {
           phone: profile.phone || f.phone,
         }));
       }
+      setMasterPricingQualified(!!profile?.master_pricing_qualified);
+      setMasterPricingInterest(!!profile?.master_pricing_interest);
     } catch (_) {}
     await linkPortalSessionToUser(sessionUser.id);
     await updateUserPresence(sessionUser.id, 'online');
@@ -255,13 +246,13 @@ export default function App() {
       email: form.email,
       notes: form.notes,
       interests,
-      master_pricing_brands: Object.entries(masterPricingBrands).map(([brand_id, brand_name]) => ({ brand_id, brand_name })),
+      master_pricing_interest: masterPricingInterest,
       user_type: userType,
       created_at: new Date().toISOString(),
     });
     if (user?.id) {
       try {
-        await submitInterestToSupport(user.id, { form, interests, userType, masterPricingBrands });
+        await submitInterestToSupport(user.id, { form, interests, userType, masterPricingInterest });
       } catch (_) {}
     }
     setShowSignupPrompt(false);
@@ -369,7 +360,16 @@ export default function App() {
         </div>
       )}
 
-      {view === 'home' && <HomeView onBrandClick={goToBrand} isMobile={isMobile} />}
+      {view === 'home' && (
+        <HomeView
+          onBrandClick={goToBrand}
+          isMobile={isMobile}
+          userType={userType}
+          masterPricingQualified={masterPricingQualified}
+          masterPricingInterest={masterPricingInterest}
+          onSetMasterPricingInterest={user?.id && userType === 'distributor' ? setMasterPricingInterestFlag : null}
+        />
+      )}
       {view === 'brand' && activeBrand && (
         <BrandView
           brand={getMergedBrands().find(b => b.id === activeBrand)}
@@ -380,14 +380,12 @@ export default function App() {
           interests={interests}
           onSubmit={handleSubmitAttempt}
           isMobile={isMobile}
-          masterPricingOn={!!masterPricingBrands[activeBrand]}
-          onToggleMasterPricing={toggleMasterPricing}
+          masterPricingQualified={masterPricingQualified}
         />
       )}
       {view === 'interest' && (
         <InterestView
           interests={interests}
-          masterPricingBrands={masterPricingBrands}
           toggleInterest={toggleInterest}
           form={form}
           setForm={setForm}
