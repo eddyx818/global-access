@@ -120,47 +120,6 @@ export function BulkImportPreview({ data }) {
   );
 }
 
-export function MediaGeneratePreview({ data }) {
-  const isVideo = data.media_type === 'video';
-  return (
-    <div style={{ borderRadius: 10, border: '0.5px solid #E0DDD8', padding: 12, marginTop: 8, background: '#FFF' }}>
-      <div style={{ fontSize: 10, color: '#888', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        {isVideo ? 'HD Video Render' : 'HD Photo Render'} · {data.quality || 'hd'}
-      </div>
-      {data.reference_url && (
-        <img src={data.reference_url} alt="Reference" style={{ width: '100%', maxHeight: 60, objectFit: 'cover', borderRadius: 6, marginBottom: 8 }} />
-      )}
-      <div style={{ fontSize: 11, color: '#444', lineHeight: 1.5 }}>{data.prompt}</div>
-      {(data.brand_id || data.sku) && (
-        <div style={{ fontSize: 10, color: '#AAA', marginTop: 6 }}>
-          {data.brand_id}{data.sku ? ` · ${data.sku}` : ''}
-          {data.apply_to ? ` → apply as ${data.apply_to.asset_type}` : ''}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function GeneratedMediaPreview({ data }) {
-  const isVideo = data.media_type === 'video';
-  return (
-    <div style={{ borderRadius: 10, border: '0.5px solid #E0DDD8', padding: 10, marginTop: 8, background: '#FFF' }}>
-      <div style={{ fontSize: 10, color: '#4CAF7D', fontWeight: 600, marginBottom: 8 }}>✓ Generated {isVideo ? 'video' : 'photo'}</div>
-      {isVideo ? (
-        <video src={data.file_url} controls style={{ width: '100%', maxHeight: 160, borderRadius: 8, background: '#000' }} />
-      ) : (
-        <img src={data.file_url} alt="Generated render" style={{ width: '100%', maxHeight: 160, objectFit: 'contain', borderRadius: 8, background: '#F8F6F3' }} />
-      )}
-      {data.apply_to && (
-        <div style={{ fontSize: 10, color: '#888', marginTop: 8 }}>
-          Ready to apply as {data.apply_to.asset_type} on {data.apply_to.brand_id}
-          {data.apply_to.sku ? ` (${data.apply_to.sku})` : ''}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function NavigationPreview({ data }) {
   const items = data._previewItems || (data.label ? [{ label: data.label, url: data.url }] : []);
   return (
@@ -202,10 +161,6 @@ export default function DesignPreview({ action, data }) {
       return <ProductPreview data={data} />;
     case 'bulk_import':
       return <BulkImportPreview data={data} />;
-    case 'generate_media':
-      return <MediaGeneratePreview data={data} />;
-    case 'apply_generated_media':
-      return <GeneratedMediaPreview data={data} />;
     default:
       return null;
   }

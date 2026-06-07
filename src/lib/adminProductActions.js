@@ -1,7 +1,6 @@
 import { supabase } from './supabase';
 import { BRANDS } from './data';
 import { executeAdminAction, isDesignAction } from './adminActions';
-import { applyGeneratedMedia } from './adminMediaGenerate';
 
 async function getSiteSetting(key) {
   const { data } = await supabase.from('site_settings').select('value').eq('key', key).single();
@@ -186,8 +185,6 @@ export const EXTENDED_ACTIONS = [
   'query_database',
   'check_system',
   'generate_preview',
-  'generate_media',
-  'apply_generated_media',
 ];
 
 export function isExtendedAction(action) {
@@ -209,11 +206,6 @@ export async function executeExtendedAction(action, data) {
     case 'parse_document':
       throw new Error(`${action} is handled during analysis — no separate execute step`);
     case 'generate_preview':
-      break;
-    case 'generate_media':
-      throw new Error('generate_media is handled in AdminAgent — call callGenerateMedia');
-    case 'apply_generated_media':
-      await applyGeneratedMedia(data);
       break;
     default:
       throw new Error(`Unknown extended action: ${action}`);
