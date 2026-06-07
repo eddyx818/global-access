@@ -29,7 +29,7 @@ export function InterestView({
       )}
       <div style={{ fontSize: 13, color: t.textMuted, marginBottom: '1.75rem', lineHeight: 1.6 }}>
         {staffPriceCheck
-          ? 'Build a SKU list using the Retailer/Distributor preview toggle, then send it to your team in Messages. This does not create a customer quote or appear in the quote inbox.'
+          ? 'Build a SKU list using the Retailer/Distributor preview toggle, then send it to Inbox for your team. This does not create a customer quote.'
           : (profileSaved
             ? `Your saved details are below. Add notes for this quote — we will follow up in ${chatLabel} with pricing and availability.`
             : 'Tell us who you are and we will follow up with pricing and availability.')}
@@ -98,7 +98,7 @@ export function InterestView({
       </button>
       <div style={{ textAlign: 'center', fontSize: 12, color: t.textDisabled, marginTop: 10 }}>
         {staffPriceCheck
-          ? `Posted to ${chatLabel} for internal review — not a customer quote.`
+          ? 'Posted to Inbox for internal review — not a customer quote.'
           : `Saved to our team. Track updates in ${chatLabel}.`}
       </div>
     </div>
@@ -116,7 +116,7 @@ export function ThanksView({ onBack, onOpenSupport, chatLabel = 'Trade Desk', st
       </div>
       <div style={{ fontSize: 14, color: t.textMuted, maxWidth: 360, lineHeight: 1.6, marginBottom: '1.5rem' }}>
         {staffPriceCheck
-          ? `Your price check is in ${chatLabel}. Coworkers can reply with pricing — it won't show up in the customer quote inbox.`
+          ? 'Your price check is in Inbox. Coworkers can reply in Messages — it will not show up as a customer quote.'
           : `We received your list. Open ${chatLabel} anytime for updates.`}
       </div>
       {onOpenSupport && (

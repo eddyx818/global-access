@@ -22,8 +22,8 @@ export default function Nav({
   unread = 0,
   showCustomerList = true,
   listLabel = 'My List',
-  onQuotes = null,
-  quotesNewCount = 0,
+  onInbox = null,
+  inboxNewCount = 0,
   showAdminPreview = false,
   onStaffHomeClick = null,
   previewUserType = 'retailer',
@@ -170,9 +170,9 @@ export default function Nav({
             {isMobile ? `${listLabel} (${interests.length})` : `${listLabel} (${interests.length})`}
           </button>
         )}
-        {!showCustomerList && onQuotes && !hideMobileActions && (
-          <button type="button" onClick={onQuotes} style={{ background: t.goldBg, color: t.gold, border: `0.5px solid ${t.gold}`, borderRadius: btnRadius >= 18 ? 20 : btnRadius, padding: isMobile ? '5px 12px' : '6px 16px', fontSize: isMobile ? 11 : 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', position: 'relative' }}>
-            Quotes{quotesNewCount > 0 ? ` (${quotesNewCount})` : ''}
+        {!showCustomerList && onInbox && !hideMobileActions && (
+          <button type="button" onClick={onInbox} style={{ background: t.goldBg, color: t.gold, border: `0.5px solid ${t.gold}`, borderRadius: btnRadius >= 18 ? 20 : btnRadius, padding: isMobile ? '5px 12px' : '6px 16px', fontSize: isMobile ? 11 : 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', position: 'relative' }}>
+            Inbox{inboxNewCount > 0 ? ` (${inboxNewCount})` : ''}
           </button>
         )}
         {onChat && !hideMobileActions && (

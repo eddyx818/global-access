@@ -27,6 +27,12 @@ export function clearAppNavigation() {
   } catch (_) {}
 }
 
+/** Map legacy route names to current portal views. */
+export function normalizePortalView(view) {
+  if (view === 'quotes') return 'inbox';
+  return view || 'home';
+}
+
 /** Restore portal / admin-preview navigation after resume or bfcache. */
 export function readSavedPortalNav(userId) {
   const saved = loadAppNavigation();
@@ -34,7 +40,7 @@ export function readSavedPortalNav(userId) {
   return {
     adminMode: saved.adminMode === 'portal' ? 'portal' : 'dashboard',
     repMode: saved.repMode === 'portal' ? 'portal' : 'dashboard',
-    view: saved.view || 'home',
+    view: normalizePortalView(saved.view),
     activeBrand: saved.activeBrand || null,
     adminTab: saved.adminTab || 'overview',
   };

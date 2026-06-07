@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { getPortalSessionToken } from './session';
 import { hasCallablePhone } from './whatsapp';
+import { createStaffPriceCheckRecord } from './priceChecks';
 
 const ADMIN_EMAILS = () => (process.env.REACT_APP_ADMIN_EMAIL || '')
   .split(',')
@@ -661,13 +662,38 @@ export async function sendStaffPriceCheck(staffUserId, { interests, userType, no
     'Team — please reply with best pricing or catalog guidance.',
   ].filter(Boolean).join('\n');
   const adminId = convo.participant_user_ids.find(id => id !== staffUserId);
-  await sendMessage({
+  const msg = await sendMessage({
     conversationId: convo.id,
     fromUserId: staffUserId,
     toUserId: adminId,
     content: text,
   });
-  return convo;
+
+  const serialized = interests.map(i => ({
+    key: i.key,
+    sku: i.sku,
+    productName: i.productName,
+    brandName: i.brandName,
+    brandId: i.brandId,
+    flavor: i.flavor,
+    qty: i.qty,
+    orderMode: i.orderMode,
+    orderUnitLabel: i.orderUnitLabel,
+  }));
+  const record = await createStaffPriceCheckRecord({
+    staffUserId,
+    interests: serialized,
+    userType,
+    notes,
+    conversationId: convo.id,
+    messageId: msg?.id || null,
+  });
+
+  return {
+    convo,
+    inboxSaved: !!record.ok,
+    inboxError: record.ok ? null : record.error,
+  };
 }
 
 export async function submitInterestToSupport(userId, { form, interests, userType, masterPricingInterest = false }) {
