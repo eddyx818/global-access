@@ -14,6 +14,7 @@ import {
 } from '../lib/adminUpload';
 import { saveProductContent } from '../lib/content';
 import { commercePayloadFromForm } from '../lib/pricing';
+import DesignPreview from './DesignPreview';
 
 const EXTENDED_PROMPT = `
 Extended capabilities (file uploads, products, analytics):
