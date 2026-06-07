@@ -1,6 +1,9 @@
 /* Native app shell — no zoom, fixed viewport, app-like scroll */
 html.app-native,
 html.app-native body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   margin: 0;
   padding: 0;
   width: 100%;
@@ -13,6 +16,14 @@ html.app-native body {
   touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+}
+
+html.app-native .app-viewport,
+html.app-native .app-dashboard-shell,
+html.app-native .app-main-content {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* ── Day mode (default) ── */
@@ -605,4 +616,21 @@ html.app-native [contenteditable='true'] {
 html.app-native .hero-carousel,
 html.app-native .brand-card {
   -webkit-touch-callout: none;
+}
+
+html.app-native .brand-card--reorder {
+  cursor: pointer;
+}
+
+html.app-native .brand-card--selected {
+  z-index: 2;
+}
+
+.app-dashboard-btn:active {
+  transform: scale(0.97);
+  opacity: 0.92;
+}
+
+.app-dashboard-btn {
+  transition: transform 0.12s ease, opacity 0.12s ease;
 }

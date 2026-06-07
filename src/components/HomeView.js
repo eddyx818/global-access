@@ -13,24 +13,15 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [cardTilts, setCardTilts] = useState({});
   const [brandOrder, setBrandOrder] = useState(null);
-  const [dragging, setDragging] = useState(null);
-  const [dragOver, setDragOver] = useState(null);
   const [reorderMode, setReorderMode] = useState(false);
+  const [swapSourceIdx, setSwapSourceIdx] = useState(null);
   const [arrowPressed, setArrowPressed] = useState(null);
   const autoTimer = useRef(null);
   const galleryTimer = useRef(null);
   const heroRef = useRef(null);
   const heroTouchRef = useRef({ startX: 0, startY: 0, startTime: 0, moved: false, suppressTap: false });
-  const brandTouchRef = useRef({
-    idx: null,
-    startX: 0,
-    startY: 0,
-    startTime: 0,
-    moved: false,
-    dragging: false,
-    dragFromIdx: null,
-    dropIdx: null,
-  });
+  const brandPressRef = useRef({ startTime: 0, longPressFired: false, idx: null });
+  const longPressTimer = useRef(null);
   const preloadedHeroImages = useRef(new Set());
   const { getMergedBrands, loading, heroConfig } = useBrandContent();
   const allBrands = getMergedBrands();
@@ -96,9 +87,36 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
   };
 
   const TAP_MAX_MS = 380;
-  const HOLD_MIN_MS = 420;
+  const LONG_PRESS_MS = 520;
   const SWIPE_MIN_PX = 44;
   const DRAG_START_PX = 12;
+
+  const clearLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const exitReorderMode = () => {
+    setReorderMode(false);
+    setSwapSourceIdx(null);
+    clearLongPress();
+    brandPressRef.current = { startTime: 0, longPressFired: false, idx: null };
+  };
+
+  const enterReorderMode = (idx = null) => {
+    setReorderMode(true);
+    setSwapSourceIdx(typeof idx === 'number' ? idx : null);
+    if (typeof idx === 'number' && navigator.vibrate) navigator.vibrate(25);
+  };
+
+  useEffect(() => {
+    if (!reorderMode || !isMobile) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [reorderMode, isMobile]);
 
   const releaseArrowPress = (side) => {
     setArrowPressed(prev => (prev === side ? null : prev));
@@ -177,25 +195,6 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
     setCardTilts(prev => ({ ...prev, [brandId]: { x: 0, y: 0 } }));
   };
 
-  // Drag to reorder
-  const handleDragStart = (e, idx) => {
-    setDragging(idx);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e, idx) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOver(idx);
-  };
-
-  const handleDrop = (e, idx) => {
-    e.preventDefault();
-    applyBrandReorder(dragging, idx);
-    setDragging(null);
-    setDragOver(null);
-  };
-
   const applyBrandReorder = (fromIdx, toIdx) => {
     if (fromIdx === null || toIdx === null || fromIdx === toIdx) return;
     const newOrder = [...brands];
@@ -205,91 +204,55 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
     saveUserBrandOrder(userId, newOrder.map(b => b.id));
   };
 
-  const findBrandIndexAtPoint = (x, y) => {
-    const el = document.elementFromPoint(x, y);
-    const card = el?.closest?.('[data-brand-idx]');
-    if (!card) return null;
-    const idx = Number(card.dataset.brandIdx);
-    return Number.isNaN(idx) ? null : idx;
-  };
-
-  const handleBrandTouchStart = (e, idx) => {
-    if (!isMobile) return;
-    const t = e.touches[0];
-    brandTouchRef.current = {
-      idx,
-      startX: t.clientX,
-      startY: t.clientY,
-      startTime: Date.now(),
-      moved: false,
-      dragging: false,
-      dragFromIdx: null,
-      dropIdx: null,
-    };
-  };
-
-  const handleBrandTouchMove = (e, idx) => {
-    if (!isMobile) return;
-    const st = brandTouchRef.current;
-    if (st.idx !== idx) return;
-    const t = e.touches[0];
-    const dx = t.clientX - st.startX;
-    const dy = t.clientY - st.startY;
-    if (Math.abs(dx) < DRAG_START_PX && Math.abs(dy) < DRAG_START_PX) return;
-
-    st.moved = true;
-    if (!st.dragging) {
-      st.dragging = true;
-      st.dragFromIdx = idx;
-      setReorderMode(true);
-      setDragging(idx);
-      if (navigator.vibrate) navigator.vibrate(20);
-    }
-    e.preventDefault();
-    const overIdx = findBrandIndexAtPoint(t.clientX, t.clientY);
-    if (overIdx != null) {
-      st.dropIdx = overIdx;
-      setDragOver(overIdx);
-    }
-  };
-
-  const handleBrandTouchEnd = (e, idx, brandId) => {
-    if (!isMobile) return;
-    const st = brandTouchRef.current;
-    if (st.idx !== idx) return;
-
-    const elapsed = Date.now() - st.startTime;
-    const fromIdx = st.dragFromIdx ?? idx;
-    const toIdx = st.dropIdx ?? fromIdx;
-
-    if (st.dragging || st.moved) {
-      applyBrandReorder(fromIdx, toIdx);
-      setDragging(null);
-      setDragOver(null);
-      setReorderMode(false);
-      brandTouchRef.current = {
-        idx: null, startX: 0, startY: 0, startTime: 0, moved: false, dragging: false, dragFromIdx: null, dropIdx: null,
-      };
+  const handleBrandSwapTap = (idx) => {
+    if (swapSourceIdx === null) {
+      setSwapSourceIdx(idx);
       return;
     }
+    if (swapSourceIdx === idx) {
+      setSwapSourceIdx(null);
+      return;
+    }
+    applyBrandReorder(swapSourceIdx, idx);
+    setSwapSourceIdx(null);
+  };
 
-    setDragging(null);
-    setDragOver(null);
-    brandTouchRef.current = {
-      idx: null, startX: 0, startY: 0, startTime: 0, moved: false, dragging: false, dragFromIdx: null, dropIdx: null,
-    };
-
+  const handleBrandPressStart = (idx) => {
+    brandPressRef.current = { startTime: Date.now(), longPressFired: false, idx };
     if (reorderMode) return;
-    if (elapsed >= HOLD_MIN_MS) return;
-    if (elapsed <= TAP_MAX_MS) onBrandClick(brandId);
+    clearLongPress();
+    longPressTimer.current = window.setTimeout(() => {
+      brandPressRef.current.longPressFired = true;
+      enterReorderMode(idx);
+    }, LONG_PRESS_MS);
   };
 
-  const handleBrandCardClick = (e, brandId) => {
-    if (isMobile || reorderMode) {
-      e.preventDefault();
+  const handleBrandPressEnd = (idx, brandId) => {
+    const st = brandPressRef.current;
+    clearLongPress();
+    const elapsed = Date.now() - st.startTime;
+
+    if (st.longPressFired) {
+      brandPressRef.current = { startTime: 0, longPressFired: false, idx: null };
       return;
     }
+
+    if (reorderMode) {
+      handleBrandSwapTap(idx);
+      return;
+    }
+
+    if (elapsed <= TAP_MAX_MS) onBrandClick(brandId);
+    brandPressRef.current = { startTime: 0, longPressFired: false, idx: null };
+  };
+
+  const handleBrandCardClick = (e, idx, brandId) => {
     e.preventDefault();
+    if (isMobile) return;
+    if (reorderMode) {
+      handleBrandSwapTap(idx);
+      return;
+    }
     onBrandClick(brandId);
   };
 
@@ -593,76 +556,81 @@ export default function HomeView({ onBrandClick, isMobile, userId, userType, mas
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontSize: 10, letterSpacing: '0.2em', color: t.textFaint, textTransform: 'uppercase', fontWeight: 500 }}>Our Brands</div>
-          <div style={{ fontSize: 11, color: t.textDisabled }}>
-            {reorderMode ? 'Drag to reorder · ' : ''}
-            {isMobile ? 'Tap to open · drag to reorder' : `${brands.length} brands · drag to reorder`}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {!reorderMode && (
+              <button
+                type="button"
+                onClick={() => enterReorderMode(null)}
+                style={{ background: t.bgHover, border: t.borderHairline, borderRadius: 8, padding: '4px 10px', fontSize: 11, color: t.textMuted, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Reorder
+              </button>
+            )}
+            <div style={{ fontSize: 11, color: t.textDisabled }}>
+              {reorderMode
+                ? (swapSourceIdx != null ? 'Tap another brand to swap' : 'Tap a brand, then tap where to move it')
+                : (isMobile ? 'Tap to open · hold to reorder' : `${brands.length} brands · hold or Reorder`)}
+            </div>
           </div>
         </div>
         {reorderMode && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '8px 12px', background: t.warningBg, border: `0.5px solid ${t.warningBorder}`, borderRadius: 10, fontSize: 12, color: t.warningText }}>
-            <span>Reorder mode — drag brands into place</span>
-            <button type="button" onClick={() => setReorderMode(false)} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
+            <span>
+              {swapSourceIdx != null
+                ? `Swap “${brands[swapSourceIdx]?.name}” — tap destination`
+                : 'Reorder mode — tap a brand, then tap where to move it'}
+            </span>
+            <button type="button" onClick={exitReorderMode} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
           </div>
         )}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 12 : 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 12 : 16, touchAction: reorderMode ? 'manipulation' : undefined }}>
           {brands.map((brand, idx) => {
             const tilt = cardTilts[brand.id] || { x: 0, y: 0 };
-            const isDraggingThis = dragging === idx;
-            const isDragTarget = dragOver === idx;
+            const isSelected = swapSourceIdx === idx;
             return (
               <div
                 key={brand.id}
                 role="button"
                 tabIndex={0}
                 data-brand-idx={idx}
-                className={`brand-card app-no-select${isDraggingThis ? ' brand-card--dragging' : ''}${reorderMode ? ' brand-card--reorder' : ''}`}
-                onClick={(e) => handleBrandCardClick(e, brand.id)}
+                className={`brand-card app-no-select${isSelected ? ' brand-card--selected' : ''}${reorderMode ? ' brand-card--reorder' : ''}`}
+                onClick={(e) => handleBrandCardClick(e, idx, brand.id)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    if (!reorderMode && !isMobile) onBrandClick(brand.id);
+                    if (reorderMode) handleBrandSwapTap(idx);
+                    else if (!isMobile) onBrandClick(brand.id);
                   }
                 }}
-                draggable={!isMobile}
-                onTouchStart={(e) => handleBrandTouchStart(e, idx)}
-                onTouchMove={(e) => handleBrandTouchMove(e, idx)}
-                onTouchEnd={(e) => handleBrandTouchEnd(e, idx, brand.id)}
-                onTouchCancel={() => {
-                  setDragging(null);
-                  setDragOver(null);
-                  brandTouchRef.current = {
-                    idx: null, startX: 0, startY: 0, startTime: 0, moved: false, dragging: false, dragFromIdx: null, dropIdx: null,
-                  };
-                }}
-                onDragStart={(e) => { if (isMobile) { e.preventDefault(); return; } handleDragStart(e, idx); }}
-                onDragOver={(e) => handleDragOver(e, idx)}
-                onDrop={(e) => handleDrop(e, idx)}
-                onDragEnd={() => { setDragging(null); setDragOver(null); }}
-                onMouseMove={(e) => handleCardMouseMove(e, brand.id)}
-                onMouseLeave={() => handleCardMouseLeave(brand.id)}
+                onTouchStart={() => isMobile && handleBrandPressStart(idx)}
+                onTouchEnd={() => isMobile && handleBrandPressEnd(idx, brand.id)}
+                onTouchCancel={clearLongPress}
+                onMouseMove={(e) => !reorderMode && handleCardMouseMove(e, brand.id)}
+                onMouseLeave={() => { clearLongPress(); handleCardMouseLeave(brand.id); }}
                 style={{
                   display: 'block',
                   textDecoration: 'none',
                   color: 'inherit',
                   background: t.bgElevated,
-                  border: `0.5px solid ${isDragTarget ? brand.color : t.borderLight}`,
+                  border: `0.5px solid ${isSelected ? brand.color : t.borderLight}`,
                   borderRadius: 18,
                   padding: 0,
-                  cursor: reorderMode || !isMobile ? 'grab' : 'pointer',
+                  cursor: reorderMode ? 'pointer' : (isMobile ? 'pointer' : 'pointer'),
                   outline: 'none',
                   overflow: 'visible',
-                  opacity: isDraggingThis ? 0.4 : 1,
                   position: 'relative',
-                  animation: `cardEntrance 0.4s ease-out ${idx * 0.06}s both`,
-                  transform: isMobile
-                    ? 'none'
+                  animation: reorderMode ? 'none' : `cardEntrance 0.4s ease-out ${idx * 0.06}s both`,
+                  transform: isMobile || reorderMode
+                    ? (isSelected ? 'scale(0.97)' : 'none')
                     : `perspective(600px) rotateY(${tilt.x * 0.6}deg) rotateX(${-tilt.y * 0.6}deg) translateZ(0) scale(${tilt.x !== 0 || tilt.y !== 0 ? 1.04 : 1})`,
-                  transition: isMobile ? 'box-shadow 0.2s ease, border-color 0.2s' : 'transform 0.15s ease-out, box-shadow 0.2s ease, border-color 0.2s',
-                  boxShadow: isMobile
-                    ? `0 4px 16px ${t.shadow}`
-                    : (tilt.x !== 0 || tilt.y !== 0
-                      ? `${-tilt.x * 0.5}px ${tilt.y * 0.5}px 32px ${t.shadow}, 0 8px 24px ${brand.color}22, inset 0 1px 0 ${isNight ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.8)'}`
-                      : `0 4px 16px ${t.shadow}, inset 0 1px 0 ${isNight ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.8)'}`),
+                  transition: isMobile || reorderMode ? 'transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s' : 'transform 0.15s ease-out, box-shadow 0.2s ease, border-color 0.2s',
+                  boxShadow: isSelected
+                    ? `0 0 0 2px ${brand.color}55, 0 8px 24px ${brand.color}33`
+                    : (isMobile
+                      ? `0 4px 16px ${t.shadow}`
+                      : (tilt.x !== 0 || tilt.y !== 0
+                        ? `${-tilt.x * 0.5}px ${tilt.y * 0.5}px 32px ${t.shadow}, 0 8px 24px ${brand.color}22, inset 0 1px 0 ${isNight ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.8)'}`
+                        : `0 4px 16px ${t.shadow}, inset 0 1px 0 ${isNight ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.8)'}`)),
                   transformStyle: 'preserve-3d',
                   WebkitTapHighlightColor: 'transparent',
                 }}

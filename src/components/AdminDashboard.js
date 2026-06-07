@@ -20,6 +20,7 @@ import { whatsAppUrl } from '../lib/whatsapp';
 import { updateInquiryQuoteStatus, QUOTE_STATUSES, deleteInquiry, parseInquiryInterests } from '../lib/inquiries';
 import { loadAppNavigation, saveAppNavigationPartial } from '../lib/appNavigation';
 import IndustryFactsPanel from './IndustryFactsPanel';
+import DashboardProfilePanel from './DashboardProfilePanel';
 
 export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const { t } = useTheme();
@@ -305,7 +306,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   });
 
   return (
-    <div style={ui.page}>
+    <div className="app-no-select app-dashboard-shell" style={ui.page}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
       <div style={{
         ...ui.header,
@@ -368,6 +369,9 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           onRefresh={loadAll}
         />
         {loading && <div style={{ color: t.textFaint, fontSize: 13 }}>Loading...</div>}
+        {tab === 'profile' && (
+          <DashboardProfilePanel user={user} isStaff />
+        )}
         {!loading && tab === 'overview' && (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: '1.5rem' }}>
@@ -684,7 +688,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           </>
         )}
         {!loading && tab === 'users' && (
-          <UserManager />
+          <UserManager currentUserId={user?.id} />
         )}
         {tab === 'map' && (
           <ContactMap />

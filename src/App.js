@@ -239,6 +239,10 @@ export default function App() {
     }
 
     if (view === 'profile') {
+      if (isStaffCatalogPortal) {
+        setView('home');
+        return;
+      }
       if (!mobileShell) {
         setShowProfile(true);
         setView(activeBrand ? 'brand' : 'home');
@@ -789,7 +793,7 @@ export default function App() {
   if (authState === 'admin' && adminMode === 'dashboard') return <AdminDashboard user={user} onLogout={handleLogout} onViewPortal={() => setAdminMode('portal')} />;
 
   return (
-    <div className="app-viewport" style={{ background: isNight ? t.bg : (bgColor || t.bg), fontFamily: getFontFamily(globalStyles.font_family), color: isNight ? t.text : (globalStyles.primary_color || t.text), transition: 'background 0.35s ease, color 0.35s ease', display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: '100dvh' }}>
+    <div className="app-viewport app-no-select" style={{ background: isNight ? t.bg : (bgColor || t.bg), fontFamily: getFontFamily(globalStyles.font_family), color: isNight ? t.text : (globalStyles.primary_color || t.text), transition: 'background 0.35s ease, color 0.35s ease', display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: '100dvh' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
 
       {/* Install app banner */}
@@ -821,7 +825,7 @@ export default function App() {
         globalStyles={globalStyles}
         onNavClick={handleNavClick}
         onHome={navigateHome}
-        onProfile={user && !showMobileNav ? openProfile : null}
+        onProfile={user && !showMobileNav && !isStaffCatalogPortal ? openProfile : null}
         onChat={user && !showMobileNav ? openChat : null}
         chatLabel={chatLabel}
         isMobile={isMobile || isMobileDevice}
@@ -1056,6 +1060,7 @@ export default function App() {
           listLabel="My List"
           showQuotes={isStaffPortalUser}
           showPriceChecks={isStaffCatalogPortal}
+          showProfile={!isStaffCatalogPortal}
           homeLabel={isStaffCatalogPortal ? 'Catalog' : 'Home'}
         />
       )}

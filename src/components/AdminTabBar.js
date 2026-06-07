@@ -2,7 +2,23 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
 
-const TAB_IDS = ['overview', 'community', 'contacts', 'pages', 'clicks', 'requests', 'inquiries', 'content', 'users', 'map', 'brands', 'marketing'];
+const TAB_IDS = ['overview', 'profile', 'community', 'contacts', 'pages', 'clicks', 'requests', 'inquiries', 'content', 'users', 'map', 'brands', 'marketing'];
+
+const TAB_LABELS = {
+  overview: 'Overview',
+  profile: 'Profile',
+  community: 'Community',
+  contacts: 'Contacts',
+  pages: 'Pages',
+  clicks: 'Clicks',
+  requests: 'Requests',
+  inquiries: 'Inquiries',
+  content: 'Content',
+  users: 'Users',
+  map: 'Map',
+  brands: 'Brands',
+  marketing: 'Marketing',
+};
 
 export default function AdminTabBar({ activeTab, onTabChange, pendingCount = 0, onRefresh }) {
   const { t } = useTheme();
@@ -146,7 +162,7 @@ export default function AdminTabBar({ activeTab, onTabChange, pendingCount = 0, 
           >
             {tabId === 'requests' && pendingCount > 0
               ? `Requests (${pendingCount})`
-              : tabId.charAt(0).toUpperCase() + tabId.slice(1)}
+              : TAB_LABELS[tabId] || tabId}
           </button>
         ))}
         <button

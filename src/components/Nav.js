@@ -61,14 +61,23 @@ export default function Nav({
     color: isNight ? '#E8D08A' : '#6B5210',
     border: isNight ? '0.5px solid rgba(212, 180, 90, 0.45)' : '0.5px solid rgba(201, 168, 76, 0.5)',
     borderRadius: 10,
-    padding: isMobile ? '6px 10px' : '6px 12px',
+    padding: isMobile ? '7px 11px' : '7px 13px',
     fontSize: isMobile ? 11 : 12,
     fontWeight: 700,
     cursor: 'pointer',
     fontFamily: 'inherit',
     whiteSpace: 'nowrap',
     flexShrink: 0,
-    lineHeight: 1.2,
+    lineHeight: 1.25,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 32,
+    boxSizing: 'border-box',
+    boxShadow: isNight
+      ? '0 1px 2px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.12)'
+      : '0 1px 2px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.45)',
+    WebkitTapHighlightColor: 'transparent',
   };
 
   const signOutBtnStyle = {
@@ -139,12 +148,12 @@ export default function Nav({
       </div>
       <div className="app-portal-nav__right">
         {onStaffHomeClick && (
-          <button type="button" onClick={onStaffHomeClick} style={dashboardBtnStyle}>
+          <button type="button" className="app-dashboard-btn" onClick={onStaffHomeClick} style={dashboardBtnStyle}>
             Sales
           </button>
         )}
         {isAdmin && onAdminClick && (
-          <button type="button" onClick={onAdminClick} style={dashboardBtnStyle}>
+          <button type="button" className="app-dashboard-btn" onClick={onAdminClick} style={dashboardBtnStyle}>
             Dashboard
           </button>
         )}
@@ -200,7 +209,7 @@ export default function Nav({
           </button>
         )}
         {isAdmin && onAdminClick && (
-          <button type="button" onClick={onAdminClick} style={dashboardBtnStyle}>
+          <button type="button" className="app-dashboard-btn" onClick={onAdminClick} style={dashboardBtnStyle}>
             Dashboard
           </button>
         )}

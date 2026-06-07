@@ -12,7 +12,7 @@ import { authorizePortalAccess, revokePortalAuthorization } from '../lib/authGat
 const ROLES = ['retailer', 'distributor', 'sales_rep', 'admin'];
 const ROLE_COLORS = { retailer: '#4CAF7D', distributor: '#C9A84C', sales_rep: '#E07A5F', admin: '#7B6CF6' };
 
-export default function UserManager() {
+export default function UserManager({ currentUserId = null }) {
   const { t } = useTheme();
   const ui = getAdminUi();
   const [users, setUsers] = useState([]);
@@ -25,6 +25,7 @@ export default function UserManager() {
   const [saved, setSaved] = useState('');
   const [error, setError] = useState('');
   const [authorizingId, setAuthorizingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => { loadUsers(); }, []);
 
@@ -214,6 +215,28 @@ export default function UserManager() {
     loadUsers();
   };
 
+  const handleDelete = async (user) => {
+    if (currentUserId && user.user_id === currentUserId) {
+      setError('You cannot delete your own account.');
+      return;
+    }
+    if (!window.confirm(`Permanently delete ${user.email}? Their login and profile will be removed. This cannot be undone.`)) return;
+    setDeletingId(user.id);
+    setError('');
+    try {
+      const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(user.user_id);
+      if (authErr) throw authErr;
+      await supabaseAdmin.from('user_profiles').delete().eq('id', user.id);
+      setSaved(`${user.email} removed.`);
+      setTimeout(() => setSaved(''), 2500);
+      await loadUsers();
+    } catch (err) {
+      setError(err.message || 'Could not delete user.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const generatePassword = () => {
     const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
     return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
@@ -297,7 +320,7 @@ export default function UserManager() {
         </div>
       )}
       {users.map(user => (
-        <div key={user.id} style={{ ...card, borderLeft: `3px solid ${ROLE_COLORS[user.role] || '#E8E4DF'}`, opacity: user.disabled ? 0.5 : 1 }}>
+        <div key={user.id} style={{ ...card, borderLeft: `3px solid ${ROLE_COLORS[user.role] || '#E8E4DF'}`, opacity: user.disabled ? 0.5 : 1, position: 'relative' }}>
           {editing === user.id ? (
             <div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
@@ -473,6 +496,17 @@ export default function UserManager() {
                   <button onClick={() => handleEnable(user)} style={{ ...secBtn, background: t.successBg, border: `0.5px solid ${t.successBorder}`, color: t.successText }}>Enable</button>
                 ) : (
                   <button onClick={() => handleDisable(user)} style={{ ...secBtn, background: t.errorBg, border: `0.5px solid ${t.errorBorder}`, color: t.errorText }}>Disable</button>
+                )}
+                {(!currentUserId || user.user_id !== currentUserId) && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(user)}
+                    disabled={deletingId === user.id}
+                    title="Permanently delete user"
+                    style={{ ...secBtn, background: t.errorBg, border: `0.5px solid ${t.errorBorder}`, color: t.errorText, minWidth: 36, padding: '8px 10px', fontWeight: 700 }}
+                  >
+                    {deletingId === user.id ? '…' : '×'}
+                  </button>
                 )}
               </div>
             </div>
