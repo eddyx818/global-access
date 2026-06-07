@@ -197,7 +197,7 @@ export default function App() {
     subscribeToPushNotifications(user.id);
   }, [user?.id, inPortalView, isMobileDevice]);
 
-  // Handle direct hash URL links (e.g. globalaccess.shop/#goldwhip)
+  // Handle direct hash URL links (e.g. global-access.vercel.app/#goldwhip)
   useEffect(() => {
     const hash = window.location.hash.replace('#', '');
     if (hash && hash.length > 0) {
@@ -550,7 +550,7 @@ export default function App() {
         />
       )}
 
-      <div style={{ ...mobileContentPad, flex: mobileShell ? 1 : undefined, display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: mobileShell ? 0 : undefined }}>
+      <div className="app-main-content" style={{ ...mobileContentPad, flex: mobileShell ? 1 : undefined, display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: mobileShell ? 0 : undefined }}>
 
       {/* Signup prompt overlay */}
       {showSignupPrompt && (

@@ -7,7 +7,8 @@ html.app-native body {
   min-height: 100dvh;
   min-height: -webkit-fill-available;
   overflow-x: hidden;
-  overscroll-behavior: none;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
@@ -137,7 +138,36 @@ html.app-native body {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
-  overscroll-behavior-y: none;
+  overflow-y: visible;
+  overscroll-behavior-y: auto;
+}
+
+.app-main-content {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@media (max-width: 767px) {
+  html.app-native,
+  html.app-native body {
+    overscroll-behavior-y: none;
+  }
+
+  .app-viewport {
+    height: 100dvh;
+    height: 100svh;
+    max-height: 100dvh;
+    max-height: 100svh;
+    overflow: hidden;
+  }
+
+  .app-main-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
 }
 
 .app-login-screen {
