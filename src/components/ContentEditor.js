@@ -5,6 +5,7 @@ import { BRANDS } from '../lib/data';
 import {
   saveBrandContent, saveProductContent, uploadBrandImage,
   uploadGalleryImage, deleteGalleryImage, buildVisibleBrandPhotos,
+  buildHttpsImagePool, resolveProductImageUrl, buildResolvedProductImages, resolveBrandImageUrl,
 } from '../lib/content';
 import { parseCommerceFields, parsePackFields } from '../lib/pricing';
 import BrandPhotoPreviewGrid from './BrandPhotoPreviewGrid';
@@ -64,13 +65,23 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
       masterPricingMode: override.master_pricing_mode || brand.masterPricingMode || 'auto',
     });
 
+    const rawSkuUrls = Object.fromEntries(
+      brand.products.map(p => {
+        const po = poBySku[p.sku] || productOverrides[p.sku] || {};
+        return [p.sku, po.image_url || p.image || ''];
+      })
+    );
+    const httpsPool = buildHttpsImagePool(gallery || [], rawSkuUrls);
+
     const pf = {};
     brand.products.forEach(p => {
       const po = poBySku[p.sku] || productOverrides[p.sku] || {};
+      const rawImage = po.image_url || p.image || '';
+      const resolvedImage = resolveProductImageUrl(p.image, p.sku, rawSkuUrls, httpsPool) || rawImage;
       pf[p.sku] = {
         name: po.name || p.name,
         detail: po.detail || p.detail,
-        image_url: po.image_url || p.image || '',
+        image_url: resolvedImage,
         orderUnit: po.order_unit || p.orderUnit || 'master_case',
         flavors_retail: po.flavors_retail ? JSON.parse(po.flavors_retail) : [...p.flavors_retail],
         flavors_distro: po.flavors_distro ? JSON.parse(po.flavors_distro) : [...p.flavors_distro],
@@ -98,9 +109,10 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
     };
   }, [selectedBrand]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const productImageBySku = Object.fromEntries(
+  const rawProductImageBySku = Object.fromEntries(
     Object.entries(productForms).map(([sku, form]) => [sku, form?.image_url || '']).filter(([, url]) => url)
   );
+  const productImageBySku = buildResolvedProductImages(selectedBrand, rawProductImageBySku, galleryItems);
 
   const { uploadStrip, defaultStrip, skuCards } = buildVisibleBrandPhotos(selectedBrand, {
     galleryRecords: galleryItems,
@@ -365,7 +377,8 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
                   {(pendingSkuPreview[product.sku] || productForms[product.sku]?.image_url) ? (
                     <>
                       <img
-                        src={pendingSkuPreview[product.sku] || productForms[product.sku].image_url}
+                        key={pendingSkuPreview[product.sku] || productForms[product.sku].image_url}
+                        src={resolveBrandImageUrl(pendingSkuPreview[product.sku] || productForms[product.sku].image_url)}
                         alt={product.name}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         onError={e => { e.target.style.display = 'none'; }}

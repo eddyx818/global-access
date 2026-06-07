@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
 function SourceBadge({ source, label }) {
@@ -31,6 +31,8 @@ function SourceBadge({ source, label }) {
 function PreviewTile({ item, onDeletePlacard, brandColor }) {
   const { t } = useTheme();
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => { setFailed(false); }, [item.url]);
 
   return (
     <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: t.borderHairlineLight, background: t.bgElevated }}>
@@ -167,6 +169,12 @@ function SkuCard({ card, brandColor }) {
   const { t } = useTheme();
   const [failed, setFailed] = useState(false);
 
+  useEffect(() => { setFailed(false); }, [card.url]);
+
+  const failMessage = card.isUploaded
+    ? 'Uploaded image not loading — re-upload below'
+    : 'Default file missing — upload below';
+
   return (
     <div style={{ borderRadius: 12, overflow: 'hidden', border: t.borderHairlineLight, background: t.bgElevated, boxShadow: `0 2px 8px ${t.shadow}` }}>
       <div style={{ height: 120, background: card.url && !failed ? '#111' : t.bgSubtle, position: 'relative' }}>
@@ -182,7 +190,7 @@ function SkuCard({ card, brandColor }) {
             {card.isEmpty || failed ? (
               <>
                 <span style={{ fontSize: 22, opacity: 0.35, marginBottom: 4 }}>📷</span>
-                {failed ? 'Default file missing — upload below' : 'No image — upload below'}
+                {failed ? failMessage : 'No image — upload below'}
               </>
             ) : null}
           </div>

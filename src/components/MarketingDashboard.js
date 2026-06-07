@@ -125,17 +125,22 @@ export default function MarketingDashboard() {
       {/* Generate new draft */}
       <div style={card}>
         <div style={{ fontSize: 12, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14, fontWeight: 500 }}>Generate New Email Draft</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-          <div>
-            <label style={labelStyle}>Feature Brand (or leave blank for auto)</label>
-            <select value={genForm.brand_id} onChange={e => setGenForm(f => ({ ...f, brand_id: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
-              <option value="">Auto-select next brand</option>
+        <div className="marketing-gen-grid">
+          <div className="marketing-gen-field">
+            <div className="marketing-gen-label-block">
+              <label style={labelStyle}>Feature brand</label>
+              <span className="marketing-gen-label-hint">Leave blank for auto</span>
+            </div>
+            <select value={genForm.brand_id} onChange={e => setGenForm(f => ({ ...f, brand_id: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer', width: '100%' }}>
+              <option value="">Auto-select next</option>
               {BRANDS.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
           </div>
-          <div>
-            <label style={labelStyle}>Send To</label>
-            <select value={genForm.audience} onChange={e => setGenForm(f => ({ ...f, audience: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+          <div className="marketing-gen-field">
+            <div className="marketing-gen-label-block">
+              <label style={labelStyle}>Send to</label>
+            </div>
+            <select value={genForm.audience} onChange={e => setGenForm(f => ({ ...f, audience: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer', width: '100%' }}>
               <option value="both">All contacts</option>
               <option value="distributor">Distributors only</option>
               <option value="retailer">Retailers only</option>

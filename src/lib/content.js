@@ -209,7 +209,7 @@ function useBrandContentState() {
             product.sku,
             productImageBySku,
             httpsPool,
-          ) || po.image_url || product.image || null;
+          ) || (isHttpsImageUrl(po.image_url) ? po.image_url : null);
           return mergeProductCommerce({
             ...product,
             name: po.name || product.name,
@@ -301,10 +301,17 @@ export async function uploadGalleryImage(brandId, file, { products = [] } = {}) 
   await supabase.from('brand_gallery').insert({ brand_id: brandId, image_url: url, sort_order: Date.now() });
 
   const uploadKey = imageFileKey(file.name);
-  if (uploadKey && products.length) {
+  const stemNorm = stem.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (products.length) {
     const match = products.find((p) => {
       const key = imageFileKey(p.image);
-      return key && (key === uploadKey || key.includes(uploadKey) || uploadKey.includes(key));
+      if (uploadKey && key && (key === uploadKey || key.includes(uploadKey) || uploadKey.includes(key))) {
+        return true;
+      }
+      const skuNorm = p.sku.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const skuRaw = p.sku.toLowerCase();
+      return (skuNorm.length >= 3 && stemNorm.includes(skuNorm))
+        || (skuRaw.length >= 3 && stem.toLowerCase().includes(skuRaw));
     });
     if (match) {
       await supabase.from('product_content').upsert({
@@ -388,11 +395,15 @@ function matchPoolBySku(sku, httpsPool = []) {
   const compactSku = lowerSku.replace(/[^a-z0-9]/g, '');
   return httpsPool.find((u) => {
     const lower = u.toLowerCase();
-    return lower.includes(`/${lowerSku}-`) || lower.includes(`${compactSku}-`);
+    return lower.includes(`/${lowerSku}-`)
+      || lower.includes(`/${lowerSku}.`)
+      || lower.includes(`${compactSku}-`)
+      || (compactSku.length >= 3 && lower.includes(`gallery-${compactSku}`))
+      || (lowerSku.length >= 3 && lower.includes(`gallery-${lowerSku}`));
   }) || null;
 }
 
-/** Product card URL: SKU upload → gallery match → built-in path. */
+/** Product card URL: SKU upload → gallery match → filename match. Never returns undeployed /images/ paths. */
 export function resolveProductImageUrl(defaultPath, sku, productImageBySku = {}, httpsPool = []) {
   const direct = productImageBySku[sku];
   if (isHttpsImageUrl(direct)) return direct;
@@ -401,7 +412,20 @@ export function resolveProductImageUrl(defaultPath, sku, productImageBySku = {},
   const fromPool = resolveImageFromPool(defaultPath, httpsPool);
   if (fromPool) return fromPool;
   if (isHttpsImageUrl(defaultPath)) return defaultPath;
-  return defaultPath || direct || null;
+  if (isHttpsImageUrl(direct)) return direct;
+  return null;
+}
+
+/** Resolve every SKU image for a brand using the same rules as the live customer portal. */
+export function buildResolvedProductImages(brand, productImageBySku = {}, galleryRecords = []) {
+  const products = brand?.products || [];
+  const httpsPool = buildHttpsImagePool(galleryRecords, productImageBySku);
+  return Object.fromEntries(
+    products.map((p) => {
+      const resolved = resolveProductImageUrl(p.image, p.sku, productImageBySku, httpsPool);
+      return [p.sku, resolved];
+    }).filter(([, url]) => isHttpsImageUrl(url))
+  );
 }
 
 export function imageBasename(url) {
@@ -429,7 +453,7 @@ export function buildVisibleBrandPhotos(brand, { galleryRecords = [], productIma
     const url = rawUrl ? resolveBrandImageUrl(rawUrl) : null;
     const hasUploaded = isHttpsImageUrl(rawUrl);
     const isPending = !!pendingBySku[p.sku];
-    const isDefault = !hasUploaded && !isPending && !!p.image && !isHttpsImageUrl(rawUrl);
+    const isDefault = !hasUploaded && !isPending && isHttpsImageUrl(p.image);
     return {
       sku: p.sku,
       name: productForms[p.sku]?.name || p.name,
@@ -464,12 +488,13 @@ export function buildVisibleBrandPhotos(brand, { galleryRecords = [], productIma
   });
 
   (brand.products || []).forEach(p => {
-    const url = productImageBySku[p.sku];
+    const url = resolveProductImageUrl(p.image, p.sku, productImageBySku, httpsPool);
     if (!url || !/^https?:\/\//.test(url)) return;
-    if (uploadStrip.some(item => item.url === resolveBrandImageUrl(url))) return;
+    const displayUrl = resolveBrandImageUrl(url);
+    if (uploadStrip.some(item => item.url === displayUrl)) return;
     uploadStrip.push({
       id: `sku-upload-${p.sku}`,
-      url: resolveBrandImageUrl(url),
+      url: displayUrl,
       galleryId: null,
       source: 'sku',
       label: `${p.sku} upload`,
@@ -477,20 +502,21 @@ export function buildVisibleBrandPhotos(brand, { galleryRecords = [], productIma
     });
   });
 
-  // Built-in gallery photos not tied to any product card (e.g. lifestyle shots on Gold Whip).
+  // Built-in gallery photos not tied to any product card — only show when a real upload exists.
   const defaultStrip = builtInGallery
     .filter(url => !productDefaultPaths.has(url))
     .map((url, index) => {
-      const resolved = resolveImageFromPool(url, httpsPool) || url;
+      const resolved = resolveImageFromPool(url, httpsPool);
+      if (!resolved) return null;
       return {
         id: `default-${index}-${url}`,
         url: resolveBrandImageUrl(resolved),
         galleryId: null,
-        source: isHttpsImageUrl(resolved) ? 'sku' : 'default',
+        source: 'default',
         label: imageBasename(url),
       };
     })
-    .filter(item => isHttpsImageUrl(item.url) || item.source === 'default');
+    .filter(Boolean);
 
   return { uploadStrip, defaultStrip, skuCards, legacyStrip: [...uploadStrip, ...defaultStrip] };
 }

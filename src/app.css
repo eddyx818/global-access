@@ -452,6 +452,45 @@ html.app-mobile {
   padding-right: max(1.5rem, var(--ga-inset-right));
 }
 
+/* Marketing — generate form: equal columns on mobile portrait */
+.marketing-gen-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: end;
+}
+
+.marketing-gen-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.marketing-gen-label-block {
+  margin-bottom: 6px;
+}
+
+.marketing-gen-label-block label {
+  margin-bottom: 0;
+}
+
+.marketing-gen-label-hint {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--ga-text-disabled);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+@media (max-width: 767px) {
+  .marketing-gen-label-block {
+    min-height: 2.5rem;
+  }
+}
+
 /* iOS zooms inputs below 16px — enforce globally in app mode */
 html.app-native input,
 html.app-native select,

@@ -35,6 +35,13 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
     setBrokenImages(prev => (prev[key] ? prev : { ...prev, [key]: true }));
   };
 
+  const imageSignature = [
+    brand?.id,
+    ...(brand?.gallery || []),
+    ...(brand?.products || []).map(p => `${p.sku}:${p.image || ''}`),
+  ].join('\0');
+  useEffect(() => { setBrokenImages({}); }, [imageSignature]);
+
   const galleryImages = (brand?.gallery || []).filter(img => img && !brokenImages[`gallery:${img}`]);
 
   // Keyboard navigation for lightbox
