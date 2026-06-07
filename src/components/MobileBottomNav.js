@@ -25,7 +25,7 @@ export default function MobileBottomNav({
 
   return (
     <nav
-      className="app-no-select"
+      className="app-no-select app-bottom-nav"
       style={{
         position: 'fixed',
         left: 0,
@@ -36,7 +36,6 @@ export default function MobileBottomNav({
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         borderTop: `0.5px solid ${t.navBorder}`,
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         boxShadow: `0 -4px 24px ${t.shadow}`,
         transition: 'background 0.35s ease, border-color 0.35s ease',
       }}

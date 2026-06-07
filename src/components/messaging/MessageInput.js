@@ -85,7 +85,7 @@ export default function MessageInput({
         <div style={{ padding: '6px 14px 0', fontSize: 11, color: t.errorText }}>{error}</div>
       )}
       <div style={{
-        padding: isMobile ? '10px 14px max(10px, env(safe-area-inset-bottom))' : '10px 12px',
+        padding: isMobile ? '10px 14px max(10px, var(--ga-inset-bottom))' : '10px 12px',
         display: 'flex',
         gap: 8,
       }}>

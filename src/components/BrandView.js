@@ -172,12 +172,12 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
     : (gridColumns ? `repeat(${gridColumns}, minmax(0, 1fr))` : 'repeat(auto-fill, minmax(200px, 1fr))');
 
   const stickyBottom = hasBottomNav
-    ? 'calc(56px + env(safe-area-inset-bottom, 0px))'
-    : 'env(safe-area-inset-bottom, 0px)';
+    ? 'var(--ga-bottom-nav-height)'
+    : 'var(--ga-inset-bottom)';
 
   const pagePaddingBottom = interests.length > 0
-    ? (hasBottomNav ? 'calc(8rem + 56px + env(safe-area-inset-bottom, 0px))' : 'calc(6rem + env(safe-area-inset-bottom, 0px))')
-    : (hasBottomNav ? 'calc(2rem + 56px + env(safe-area-inset-bottom, 0px))' : 'calc(2rem + env(safe-area-inset-bottom, 0px))');
+    ? (hasBottomNav ? 'calc(8rem + var(--ga-bottom-nav-height))' : 'calc(6rem + var(--ga-inset-bottom))')
+    : (hasBottomNav ? 'calc(2rem + var(--ga-bottom-nav-height))' : 'calc(2rem + var(--ga-inset-bottom))');
 
   const productHeader = (product, { onDark = false } = {}) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
@@ -581,8 +581,8 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
           right: 0,
           bottom: stickyBottom,
           padding: '1rem',
-          paddingLeft: 'max(1rem, env(safe-area-inset-left))',
-          paddingRight: 'max(1rem, env(safe-area-inset-right))',
+          paddingLeft: 'max(1rem, var(--ga-inset-left))',
+          paddingRight: 'max(1rem, var(--ga-inset-right))',
           background: 'rgba(245,242,237,0.95)',
           backdropFilter: 'blur(12px)',
           borderTop: '0.5px solid #E0DDD8',

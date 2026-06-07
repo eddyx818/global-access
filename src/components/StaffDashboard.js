@@ -28,7 +28,7 @@ export default function StaffDashboard({ user, profile, onLogout }) {
 
   return (
     <div style={{ minHeight: '100vh', background: t.bg, fontFamily: "'DM Sans', sans-serif", color: t.text, transition: 'background 0.35s ease' }}>
-      <div style={{ background: t.headerBg, padding: '12px 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+      <div className="app-safe-top-chrome" style={{ '--app-chrome-pad-top': '12px', background: t.headerBg, paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div style={{ fontSize: 11, color: t.headerMuted, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Sales</div>
           <div style={{ fontSize: 16, color: t.headerText, fontWeight: 600 }}>{profile?.name || user?.email}</div>

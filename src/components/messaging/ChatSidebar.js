@@ -308,7 +308,7 @@ export default function ChatSidebar({
     <div style={panelStyle}>
       <div style={{
         padding: isPage ? '14px 16px' : '12px 14px',
-        paddingTop: isPage ? 'max(14px, env(safe-area-inset-top))' : undefined,
+        paddingTop: isPage ? 'max(14px, var(--ga-inset-top))' : undefined,
         borderBottom: t.borderHairlineLight,
         display: 'flex',
         alignItems: 'center',

@@ -18,6 +18,7 @@ export default function Nav({
   chatLabel = 'Messages',
   isMobile = false,
   hideMobileActions = false,
+  includeSafeAreaTop = true,
   unread = 0,
 }) {
   const { t, isNight } = useTheme();
@@ -36,7 +37,9 @@ export default function Nav({
   };
 
   return (
-    <nav className="app-no-select" style={{
+    <nav
+      className={`app-no-select app-portal-nav${isMobile && includeSafeAreaTop ? ' app-portal-nav--safe-top' : ''}`}
+      style={{
       position: 'sticky',
       top: 0,
       zIndex: 100,
@@ -44,12 +47,18 @@ export default function Nav({
       backdropFilter: 'blur(16px)',
       WebkitBackdropFilter: 'blur(16px)',
       borderBottom: `0.5px solid ${t.navBorder}`,
-      height: isMobile ? 48 : 52,
+      ...(isMobile ? {} : {
+        boxSizing: 'border-box',
+        flexShrink: 0,
+        height: 52,
+        paddingLeft: '1.25rem',
+        paddingRight: '1.25rem',
+        paddingTop: 0,
+        paddingBottom: 0,
+      }),
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: isMobile ? '0 0.75rem' : '0 1.25rem',
-      paddingTop: isMobile ? 'env(safe-area-inset-top, 0px)' : undefined,
       transition: 'background 0.35s ease, border-color 0.35s ease',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16, minWidth: 0 }}>

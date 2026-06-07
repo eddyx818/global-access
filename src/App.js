@@ -69,6 +69,10 @@ export default function App() {
   const showInstallPrompt = isMobileDevice && !isInstalled;
   const showInstallBanner = showInstallPrompt && inPortalView;
   const showMobileNav = mobileShell && !!user;
+  const portalTopChrome =
+    (authState === 'admin' && adminMode === 'portal')
+    || showInstallBanner
+    || authState === 'browse';
   const chatLabel = isPortalAdmin || isSalesRep ? staffChatLabel() : resolveCustomerChatLabel(customerChatLabel);
 
   const openChat = () => {
@@ -143,7 +147,7 @@ export default function App() {
   });
 
   const mobileContentPad = showMobileNav
-    ? { paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))' }
+    ? { paddingBottom: 'var(--ga-bottom-nav-height)' }
     : {};
 
   useEffect(() => {
@@ -178,13 +182,19 @@ export default function App() {
     }
   }, [view, mobileShell, user, inPortalView, activeBrand]);
 
+  const mobileNavHeight = portalTopChrome
+    ? 'var(--ga-nav-bar)'
+    : 'var(--ga-nav-height)';
+  const mobileBottomOffset = showMobileNav ? ' - var(--ga-bottom-nav-height)' : '';
   const mobilePageShellStyle = {
     flex: 1,
     minHeight: 0,
     display: 'flex',
     flexDirection: 'column',
     // Explicit height for mobile browsers that don't flex-fill reliably
-    height: mobileShell ? 'calc(100dvh - 48px - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))' : undefined,
+    height: mobileShell
+      ? `calc(100dvh - ${mobileNavHeight}${mobileBottomOffset})`
+      : undefined,
   };
 
   const requireProfileForChat = () => {
@@ -523,7 +533,7 @@ export default function App() {
 
       {/* Admin bar */}
       {authState === 'admin' && adminMode === 'portal' && (
-        <div style={{ background: '#1A1A1A', padding: '8px 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="app-top-chrome app-safe-top-chrome" style={{ background: '#1A1A1A', paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 12, color: '#888' }}>Admin preview mode</span>
           <div style={{ display: 'flex', gap: 8 }}>
             <select value={userType} onChange={e => setUserType(e.target.value)} style={{ background: '#2A2A2A', border: '0.5px solid #3A3A3A', borderRadius: 6, padding: '4px 10px', fontSize: 12, color: '#FFF', cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -546,7 +556,7 @@ export default function App() {
 
       {/* Browse banner */}
       {authState === 'browse' && (
-        <div style={{ background: t.browseBannerBg, borderBottom: `0.5px solid ${t.browseBannerBorder}`, padding: '10px 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <div className="app-top-chrome app-safe-top-chrome" style={{ '--app-chrome-pad-top': '10px', background: t.browseBannerBg, borderBottom: `0.5px solid ${t.browseBannerBorder}`, paddingLeft: '1.25rem', paddingRight: '1.25rem', paddingBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
           <span style={{ fontSize: 13, color: t.browseBannerText }}>Browsing as guest — sign up or log in to submit an inquiry</span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setAuthState('login')} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Sign in</button>
@@ -569,6 +579,7 @@ export default function App() {
         chatLabel={chatLabel}
         isMobile={isMobile || isMobileDevice}
         hideMobileActions={showMobileNav}
+        includeSafeAreaTop={isMobileDevice && !portalTopChrome}
         unread={chatUnread}
       />
       {user && !mobileShell && (

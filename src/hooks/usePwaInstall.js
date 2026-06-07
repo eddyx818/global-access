@@ -1,14 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { isStandaloneDisplayMode } from '../lib/safeAreaInsets';
 
 export function usePwaInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(() => isStandaloneDisplayMode());
   const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
-    const standalone = window.matchMedia('(display-mode: standalone)').matches
-      || window.navigator.standalone === true;
-    setIsInstalled(standalone);
+    setIsInstalled(isStandaloneDisplayMode());
 
     const ua = window.navigator.userAgent || '';
     setIsIos(/iPad|iPhone|iPod/.test(ua) && !window.MSStream);

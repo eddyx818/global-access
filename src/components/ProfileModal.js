@@ -368,7 +368,7 @@ export default function ProfileModal({
       }}>
         <div style={{
           padding: '14px 16px',
-          paddingTop: 'max(14px, env(safe-area-inset-top))',
+          paddingTop: 'max(14px, var(--ga-inset-top))',
           borderBottom: t.borderHairlineLight,
           display: 'flex',
           alignItems: 'center',
@@ -386,7 +386,7 @@ export default function ProfileModal({
           flex: 1,
           overflowY: 'auto',
           WebkitOverflowScrolling: 'touch',
-          padding: '1.25rem 1rem calc(1rem + env(safe-area-inset-bottom))',
+          padding: '1.25rem 1rem calc(1rem + var(--ga-inset-bottom))',
         }}>
           {formBody}
         </div>

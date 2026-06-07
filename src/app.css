@@ -127,6 +127,55 @@ html.app-native body {
   transition: background 0.35s ease, color 0.35s ease;
 }
 
+:root {
+  --ga-vv-top: 0px;
+  --ga-vv-bottom: 0px;
+  --ga-vv-left: 0px;
+  --ga-vv-right: 0px;
+  --ga-safe-top: 0px;
+  --ga-safe-bottom: 0px;
+  --ga-safe-left: 0px;
+  --ga-safe-right: 0px;
+  --ga-nav-bar: 48px;
+  --ga-bottom-nav-bar: 56px;
+}
+
+@supports (padding-top: constant(safe-area-inset-top)) {
+  :root {
+    --ga-safe-top: constant(safe-area-inset-top);
+    --ga-safe-bottom: constant(safe-area-inset-bottom);
+    --ga-safe-left: constant(safe-area-inset-left);
+    --ga-safe-right: constant(safe-area-inset-right);
+  }
+}
+
+@supports (padding-top: env(safe-area-inset-top)) {
+  :root {
+    --ga-safe-top: env(safe-area-inset-top, 0px);
+    --ga-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --ga-safe-left: env(safe-area-inset-left, 0px);
+    --ga-safe-right: env(safe-area-inset-right, 0px);
+  }
+}
+
+/* Effective insets: CSS env + visualViewport fallback (Dynamic Island / Android display cutouts) */
+:root {
+  --ga-inset-top: max(var(--ga-safe-top), var(--ga-vv-top));
+  --ga-inset-bottom: max(var(--ga-safe-bottom), var(--ga-vv-bottom));
+  --ga-inset-left: max(var(--ga-safe-left), var(--ga-vv-left));
+  --ga-inset-right: max(var(--ga-safe-right), var(--ga-vv-right));
+  --ga-nav-height: calc(var(--ga-nav-bar) + var(--ga-inset-top));
+  --ga-bottom-nav-height: calc(var(--ga-bottom-nav-bar) + var(--ga-inset-bottom));
+}
+
+@media (min-width: 768px) {
+  html:not(.app-mobile) {
+    --ga-nav-bar: 52px;
+    --ga-nav-height: 52px;
+    --ga-bottom-nav-height: 0px;
+  }
+}
+
 #root {
   min-height: 100dvh;
   min-height: -webkit-fill-available;
@@ -145,6 +194,13 @@ html.app-native body {
 .app-main-content {
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.app-safe-top-chrome {
+  flex-shrink: 0;
+  padding-left: max(1rem, var(--ga-inset-left));
+  padding-right: max(1rem, var(--ga-inset-right));
+  padding-top: max(var(--app-chrome-pad-top, 8px), var(--ga-inset-top));
 }
 
 @media (max-width: 767px) {
@@ -173,6 +229,69 @@ html.app-native body {
     overscroll-behavior-y: contain;
     touch-action: pan-y;
   }
+
+  /* Top chrome must not shrink — keeps content below the Dynamic Island / display cutout */
+  .app-viewport > nav.app-no-select,
+  .app-viewport > .app-top-chrome {
+    flex-shrink: 0;
+  }
+}
+
+html.app-mobile .app-viewport {
+  height: 100dvh;
+  height: 100svh;
+  max-height: 100dvh;
+  max-height: 100svh;
+  overflow: hidden;
+}
+
+html.app-mobile .app-main-content {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+
+html.app-mobile .app-viewport > nav.app-no-select,
+html.app-mobile .app-viewport > .app-top-chrome {
+  flex-shrink: 0;
+}
+
+html.app-mobile .app-portal-nav {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  height: auto;
+  padding-left: max(0.75rem, var(--ga-inset-left));
+  padding-right: max(0.75rem, var(--ga-inset-right));
+  padding-bottom: 0;
+}
+
+html.app-mobile .app-portal-nav.app-portal-nav--safe-top {
+  min-height: var(--ga-nav-height);
+  padding-top: var(--ga-inset-top);
+}
+
+html.app-mobile .app-portal-nav:not(.app-portal-nav--safe-top) {
+  min-height: var(--ga-nav-bar);
+  padding-top: 0;
+}
+
+html.app-mobile .app-bottom-nav {
+  box-sizing: border-box;
+  padding-bottom: var(--ga-inset-bottom);
+  padding-left: var(--ga-inset-left);
+  padding-right: var(--ga-inset-right);
+}
+
+html.app-standalone,
+html.app-mobile {
+  background: var(--ga-bg);
 }
 
 .brand-page {
@@ -304,6 +423,8 @@ html.app-native body {
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+  padding-left: max(1.5rem, var(--ga-inset-left));
+  padding-right: max(1.5rem, var(--ga-inset-right));
 }
 
 /* iOS zooms inputs below 16px — enforce globally in app mode */

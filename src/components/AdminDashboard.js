@@ -220,7 +220,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           minHeight: 0,
           flexDirection: 'column',
           alignItems: 'stretch',
-          padding: 'max(10px, env(safe-area-inset-top, 0px)) 1rem 14px',
+          padding: 'max(10px, var(--ga-inset-top)) 1rem 14px',
           gap: 14,
         } : {}),
       }}>
@@ -264,7 +264,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           <button onClick={() => setApproveMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: t.successText }}>×</button>
         </div>
       )}
-      <div style={{ padding: narrowHeader ? '1rem' : '1.5rem', maxWidth: 960, margin: '0 auto', paddingBottom: narrowHeader ? 'max(1rem, env(safe-area-inset-bottom, 0px))' : '1.5rem' }}>
+      <div style={{ padding: narrowHeader ? '1rem' : '1.5rem', maxWidth: 960, margin: '0 auto', paddingBottom: narrowHeader ? 'max(1rem, var(--ga-inset-bottom))' : '1.5rem' }}>
         <AdminTabBar
           activeTab={tab}
           onTabChange={setTab}

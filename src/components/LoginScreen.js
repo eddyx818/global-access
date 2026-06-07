@@ -215,7 +215,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   const setReq = (field, val) => setReqForm(f => ({ ...f, [field]: val }));
  
   return (
-    <div className="app-login-screen" style={{ background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: '1.5rem', paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', transition: 'background 0.35s ease' }}>
+    <div className="app-login-screen" style={{ background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: '1.5rem', paddingTop: 'max(1.5rem, var(--ga-inset-top))', paddingBottom: 'max(1.5rem, var(--ga-inset-bottom))', transition: 'background 0.35s ease' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
       <div style={{ width: '100%', maxWidth: mode === 'request' ? 480 : 400 }}>
         {/* Logo */}

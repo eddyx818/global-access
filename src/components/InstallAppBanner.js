@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function InstallAppBanner({ canInstall, showIosHint, onInstall, onDismiss }) {
+export default function InstallAppBanner({ canInstall, showIosHint, onInstall, onDismiss, className = '' }) {
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem('ga-install-dismissed') === '1'; } catch (_) { return false; }
   });
@@ -14,11 +14,13 @@ export default function InstallAppBanner({ canInstall, showIosHint, onInstall, o
   };
 
   return (
-    <div style={{
+    <div className={`app-top-chrome app-safe-top-chrome${className ? ` ${className}` : ''}`} style={{
+      '--app-chrome-pad-top': '12px',
       background: 'linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%)',
       color: '#FFF',
-      padding: '12px 1rem',
-      paddingTop: 'max(12px, env(safe-area-inset-top))',
+      paddingLeft: '1rem',
+      paddingRight: '1rem',
+      paddingBottom: '12px',
       display: 'flex',
       alignItems: 'center',
       gap: 12,

@@ -5,8 +5,10 @@ import App from './App';
 import { ThemeProvider } from './context/ThemeContext';
 import { BrandContentProvider } from './lib/content';
 import { applyTheme, getStoredTheme } from './lib/theme';
+import { initSafeAreaInsets } from './lib/safeAreaInsets';
 
 document.documentElement.classList.add('app-native');
+initSafeAreaInsets();
 applyTheme(getStoredTheme());
 
 // Block iOS pinch-zoom (Safari may ignore viewport meta in some cases)
