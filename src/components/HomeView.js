@@ -19,6 +19,7 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
   const autoTimer = useRef(null);
   const galleryTimer = useRef(null);
   const heroRef = useRef(null);
+  const preloadedHeroImages = useRef(new Set());
   const { getMergedBrands, loading, heroConfig, globalStyles } = useBrandContent();
   const allBrands = getMergedBrands();
 
@@ -62,6 +63,29 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
     return () => clearInterval(galleryTimer.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slideIdx]);
+
+  // Preload hero gallery images for the active brand (avoids pop-in on 2nd+ photo)
+  useEffect(() => {
+    const gallery = brands[slideIdx]?.gallery || [];
+    gallery.forEach(src => {
+      if (!src || preloadedHeroImages.current.has(src)) return;
+      const img = new Image();
+      img.src = src;
+      preloadedHeroImages.current.add(src);
+    });
+  }, [slideIdx, brands]);
+
+  // Prefetch the next gallery frame before it appears
+  useEffect(() => {
+    const gallery = brands[slideIdx]?.gallery || [];
+    if (gallery.length <= 1) return;
+    const nextSrc = gallery[(galleryIdx + 1) % gallery.length];
+    if (nextSrc && !preloadedHeroImages.current.has(nextSrc)) {
+      const img = new Image();
+      img.src = nextSrc;
+      preloadedHeroImages.current.add(nextSrc);
+    }
+  }, [slideIdx, galleryIdx, brands]);
 
   const changeSlide = (newIdx) => {
     if (animating || newIdx === slideIdx) return;
@@ -126,10 +150,15 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
     <div>
       <style>{`
         @keyframes heroFadeIn { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes imgFloat { 0%,100%{transform:translateY(0px)} 50%{transform:translateY(-10px)} }
+        @keyframes heroImgFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
         @keyframes cardEntrance { from{opacity:0;transform:translateY(24px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
         .hero-arrow-zone:hover > .arrow-inner { background: rgba(255,255,255,0.28) !important; transform: scale(1.12) !important; }
         .arrow-inner { transition: all 0.2s ease !important; }
+        .hero-gallery-stack { animation: heroImgFloat 8s ease-in-out infinite; will-change: transform; }
+        .hero-gallery-photo {
+          transition: opacity 1.4s ease-in-out;
+          will-change: opacity;
+        }
       `}</style>
 
       {/* HERO */}
@@ -139,12 +168,46 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
           <div key={brand.id} style={{ position: 'absolute', inset: 0, transition: 'opacity 0.7s ease', opacity: i === slideIdx ? 1 : 0, pointerEvents: 'none' }}>
             <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 60%, ${brand.color}65 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, ${brand.color}30 0%, transparent 50%), ${heroBg}` }} />
             {brand.gallery && brand.gallery.length > 0 && (
-              <div style={{ position: 'absolute', right: '-2%', top: 0, width: isMobile ? '70%' : '55%', height: '100%', transform: `translate(${mousePos.x * 0.4}px, ${mousePos.y * 0.4}px)`, transition: 'transform 0.4s ease-out' }}>
-                {brand.gallery.map((img, gi) => (
-                  <img key={gi} src={img} alt={brand.name}
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: i === slideIdx && gi === galleryIdx ? 0.38 : 0, transition: 'opacity 1s ease', WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)', maskImage: 'linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)', animation: i === slideIdx && gi === galleryIdx ? 'imgFloat 7s ease-in-out infinite' : 'none' }}
-                    onError={e => { e.target.style.opacity = 0; }} />
-                ))}
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '-2%',
+                  top: 0,
+                  width: isMobile ? '70%' : '55%',
+                  height: '100%',
+                  transform: `translate(${mousePos.x * 0.4}px, ${mousePos.y * 0.4}px)`,
+                  transition: 'transform 0.4s ease-out',
+                }}
+              >
+                <div className={i === slideIdx ? 'hero-gallery-stack' : undefined} style={{ position: 'absolute', inset: 0 }}>
+                  {brand.gallery.map((img, gi) => {
+                    const isActiveBrand = i === slideIdx;
+                    const isVisible = isActiveBrand && gi === galleryIdx;
+                    return (
+                      <img
+                        key={img}
+                        src={img}
+                        alt=""
+                        aria-hidden="true"
+                        loading={isActiveBrand && gi < 2 ? 'eager' : 'lazy'}
+                        decoding="async"
+                        className="hero-gallery-photo"
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          opacity: isVisible ? 0.38 : 0,
+                          zIndex: isVisible ? 2 : 1,
+                          WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)',
+                          maskImage: 'linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)',
+                        }}
+                        onError={e => { e.target.style.opacity = 0; }}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
