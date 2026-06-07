@@ -82,7 +82,7 @@ export async function fetchContactableUsers(currentUserId, { isAdmin = false, is
   if (isAdmin) {
     const { data } = await supabase
       .from('user_profiles')
-      .select('user_id, username, name, company, role, status, profile_avatar_url, last_active_at, email, is_portal_admin, referred_by_user_id, referral_code_used')
+      .select('user_id, username, name, company, role, status, profile_avatar_url, last_active_at, email, is_portal_admin, referred_by_user_id, referral_code_used, crm_tier, master_brand_ids, master_pricing_qualified, user_type')
       .eq('is_portal_admin', false)
       .eq('is_sales_rep', false)
       .neq('user_id', currentUserId)
@@ -92,7 +92,7 @@ export async function fetchContactableUsers(currentUserId, { isAdmin = false, is
   if (isSalesRep) {
     const { data } = await supabase
       .from('user_profiles')
-      .select('user_id, username, name, company, role, status, profile_avatar_url, last_active_at, email, referred_by_user_id, referral_code_used')
+      .select('user_id, username, name, company, role, status, profile_avatar_url, last_active_at, email, referred_by_user_id, referral_code_used, crm_tier, master_brand_ids, master_pricing_qualified, user_type')
       .eq('referred_by_user_id', currentUserId)
       .order('last_active_at', { ascending: false, nullsFirst: false });
     return data || [];

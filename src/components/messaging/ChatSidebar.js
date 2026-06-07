@@ -12,12 +12,13 @@ import ConversationList from './ConversationList';
 import MessageThread from './MessageThread';
 import MessageInput from './MessageInput';
 import UserList from './UserList';
+import CustomerBadges from '../CustomerBadges';
 
 async function loadProfileMap(userIds) {
   if (!userIds.length) return {};
   const { data } = await supabase
     .from('user_profiles')
-    .select('user_id, username, name, company, profile_avatar_url, status, is_portal_admin, email, phone')
+    .select('user_id, username, name, company, profile_avatar_url, status, is_portal_admin, is_sales_rep, email, phone, role, user_type, crm_tier, master_brand_ids, master_pricing_qualified')
     .in('user_id', userIds);
   const m = {};
   (data || []).forEach(p => { m[p.user_id] = p; });
@@ -194,6 +195,10 @@ export default function ChatSidebar({
     ? redactProfileContacts(otherProfile, { contactRevealed, isSelf: false })
     : null;
 
+  const activeCustomerProfile = activeConvo && isStaff && !activeIsGroup
+    ? profiles[getCustomerParticipantId(activeConvo, profiles)]
+    : null;
+
   const headerTitle = activeConvo
     ? getConversationTitle(activeConvo, profiles, user.id, { isAdmin, isSalesRep })
     : (isStaff ? `Messages${unread ? ` (${unread})` : ''}` : 'Support');
@@ -246,6 +251,11 @@ export default function ChatSidebar({
         ) : null}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: isPage ? 15 : 13, fontWeight: 600, color: '#FFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headerTitle}</div>
+          {isStaff && activeCustomerProfile && (
+            <div style={{ marginTop: 6 }}>
+              <CustomerBadges profile={activeCustomerProfile} size="sm" />
+            </div>
+          )}
           {headerSub && <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{headerSub}</div>}
         </div>
         {!isPage && (

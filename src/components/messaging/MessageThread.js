@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { isChatImage } from '../../lib/chatAttachments';
+import CustomerBadges from '../CustomerBadges';
 
 export default function MessageThread({ messages, currentUserId, profiles, loading, isGroup = false, showStaffNames = false }) {
   const endRef = useRef(null);
@@ -69,12 +70,16 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
         const mine = msg.from_user_id === currentUserId;
         const fromProfile = profiles[msg.from_user_id] || {};
         const showName = (isGroup || showStaffNames) && !mine;
+        const isCustomerSender = showStaffNames && !fromProfile.is_portal_admin && !fromProfile.is_sales_rep;
         const staffLabel = fromProfile.is_portal_admin ? (fromProfile.name || 'Team') : senderName(msg.from_user_id);
         const body = displayContent(msg);
         return (
           <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
             {showName && (
-              <div style={{ fontSize: 10, color: '#888', marginBottom: 3, marginLeft: 4 }}>{staffLabel}</div>
+              <div style={{ fontSize: 10, color: '#888', marginBottom: 3, marginLeft: 4, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                <span>{staffLabel}</span>
+                {isCustomerSender && <CustomerBadges profile={fromProfile} size="sm" />}
+              </div>
             )}
             <div style={{
               maxWidth: '85%', padding: '10px 14px', borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',

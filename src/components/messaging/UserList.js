@@ -1,8 +1,9 @@
 import React from 'react';
+import { CustomerNameWithBadges } from '../CustomerBadges';
 
 const STATUS_COLOR = { online: '#4CAF7D', away: '#C9A84C', offline: '#CCC' };
 
-export default function UserList({ users, onSelect, emptyLabel = 'No users online right now.' }) {
+export default function UserList({ users, onSelect, emptyLabel = 'No users online right now.', showBadges = true }) {
   if (!users.length) {
     return <div style={{ padding: 24, textAlign: 'center', fontSize: 13, color: '#AAA' }}>{emptyLabel}</div>;
   }
@@ -16,9 +17,18 @@ export default function UserList({ users, onSelect, emptyLabel = 'No users onlin
             {u.profile_avatar_url ? <img src={u.profile_avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (u.username || u.name || '?')[0].toUpperCase()}
             <div style={{ position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, borderRadius: '50%', background: STATUS_COLOR[u.status] || STATUS_COLOR.offline, border: '2px solid #FFF' }} />
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>{u.username || u.name || u.email}</div>
-            <div style={{ fontSize: 11, color: '#AAA' }}>{u.company || u.role || 'Member'}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {showBadges ? (
+              <CustomerNameWithBadges
+                profile={u}
+                name={u.username || u.name || u.email}
+                size="sm"
+                nameStyle={{ fontSize: 13 }}
+              />
+            ) : (
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>{u.username || u.name || u.email}</div>
+            )}
+            <div style={{ fontSize: 11, color: '#AAA', marginTop: showBadges ? 4 : 0 }}>{u.company || u.role || 'Member'}</div>
           </div>
           <span style={{ fontSize: 11, color: '#4CAF7D', fontWeight: 600 }}>Message</span>
         </button>

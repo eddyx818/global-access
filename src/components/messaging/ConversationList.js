@@ -1,5 +1,6 @@
 import React from 'react';
 import { getConversationTitle, getCustomerParticipantId } from '../../lib/community';
+import { CustomerNameWithBadges } from '../CustomerBadges';
 
 export default function ConversationList({ conversations, profiles, currentUserId, isStaff = false, onSelect, onMessageSupport, isMobile = false }) {
   if (!conversations.length) {
@@ -47,8 +48,14 @@ export default function ConversationList({ conversations, profiles, currentUserI
               {p.profile_avatar_url ? <img src={p.profile_avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (label[0] || '?').toUpperCase()}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>{label}</div>
-              <div style={{ fontSize: 11, color: '#AAA' }}>{subtitle}</div>
+              <div style={{ fontSize: 13, color: '#1A1A1A' }}>
+                {isStaff ? (
+                  <CustomerNameWithBadges profile={p} name={label} size="sm" nameStyle={{ fontSize: 13 }} />
+                ) : (
+                  <span style={{ fontWeight: 600 }}>{label}</span>
+                )}
+              </div>
+              <div style={{ fontSize: 11, color: '#AAA', marginTop: isStaff ? 4 : 0 }}>{subtitle}</div>
             </div>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: p.status === 'online' ? '#4CAF7D' : '#DDD' }} />
           </button>

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { fetchAllProfiles } from '../lib/community';
 import { formatRoleLabel } from '../lib/roles';
+import { getAccountBadges } from '../lib/accountBadges';
+import CustomerBadges from './CustomerBadges';
 
 const STATUS_COLOR = { online: '#4CAF7D', away: '#C9A84C', offline: '#CCC' };
 
@@ -62,8 +64,9 @@ export default function CustomerDirectory({ repUserId = null }) {
     });
 
   const exportCsv = () => {
-    const headers = ['username', 'name', 'email', 'company', 'role', 'status', 'signed_up_by', 'referral_code', 'pages_viewed', 'messages_sent', 'last_active_at'];
+    const headers = ['username', 'name', 'email', 'company', 'role', 'badges', 'status', 'signed_up_by', 'referral_code', 'pages_viewed', 'messages_sent', 'last_active_at'];
     const rows = filtered.map(u => headers.map(h => {
+      if (h === 'badges') return `"${getAccountBadges(u).map(b => b.label).join('; ').replace(/"/g, '""')}"`;
       const val = h === 'signed_up_by' ? u.signed_up_by : h === 'referral_code' ? u.referral_code_used : u[h];
       return `"${(val ?? '').toString().replace(/"/g, '""')}"`;
     }).join(','));
@@ -98,6 +101,7 @@ export default function CustomerDirectory({ repUserId = null }) {
                 {th('username', 'Username')}
                 {th('company', 'Company')}
                 {th('role', 'Role')}
+                <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10, color: '#AAA', letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '0.5px solid #E8E4DF' }}>Tags</th>
                 {!repUserId && th('signed_up_by', 'Signed up by')}
                 {th('status', 'Status')}
                 {th('pages_viewed', 'Pages')}
@@ -114,6 +118,9 @@ export default function CustomerDirectory({ repUserId = null }) {
                   </td>
                   <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', color: '#666' }}>{u.company || '—'}</td>
                   <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', color: '#666' }}>{formatRoleLabel(u.role || u.user_type)}</td>
+                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED' }}>
+                    <CustomerBadges profile={u} />
+                  </td>
                   {!repUserId && (
                     <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', fontSize: 12, color: '#666' }}>
                       {u.signed_up_by}

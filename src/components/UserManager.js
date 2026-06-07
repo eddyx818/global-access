@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase, supabaseAdmin } from '../lib/supabase';
 import { generateRepCodeFromName, normalizeRepCode } from '../lib/repCodes';
 import { formatRoleLabel } from '../lib/roles';
+import { BRANDS } from '../lib/data';
+import { CRM_TIER, normalizeMasterBrandIds } from '../lib/accountBadges';
+import CustomerBadges from './CustomerBadges';
 
 const ROLES = ['retailer', 'distributor', 'sales_rep', 'admin'];
 const ROLE_COLORS = { retailer: '#4CAF7D', distributor: '#C9A84C', sales_rep: '#E07A5F', admin: '#7B6CF6' };
@@ -73,6 +76,8 @@ export default function UserManager() {
       company: user.company || '',
       role: user.role || 'retailer',
       rep_code: user.rep_code || '',
+      crm_tier: user.crm_tier || '',
+      master_brand_ids: normalizeMasterBrandIds(user.master_brand_ids),
       new_password: '',
       master_pricing_qualified: !!user.master_pricing_qualified,
     });
@@ -92,6 +97,13 @@ export default function UserManager() {
       }
       if (!isSalesRep && !isAdminRole) repCode = null;
 
+      let crmTier = editForm.crm_tier || null;
+      if (role === 'retailer' && crmTier === CRM_TIER.WHALE) crmTier = null;
+      if (role === 'distributor' && crmTier === CRM_TIER.VIP) crmTier = null;
+      const masterBrandIds = role === 'distributor'
+        ? normalizeMasterBrandIds(editForm.master_brand_ids)
+        : [];
+
       const { error: profileErr } = await supabaseAdmin
         .from('user_profiles')
         .update({
@@ -101,6 +113,8 @@ export default function UserManager() {
           is_portal_admin: isAdminRole,
           is_sales_rep: isSalesRep,
           rep_code: repCode,
+          crm_tier: crmTier,
+          master_brand_ids: masterBrandIds,
           master_pricing_qualified: role === 'distributor' ? !!editForm.master_pricing_qualified : false,
           updated_at: new Date().toISOString(),
         })
@@ -277,6 +291,67 @@ export default function UserManager() {
                   </button>
                 </div>
               </div>
+              {editForm.role === 'retailer' && (
+                <div style={{ marginBottom: '1rem', padding: '12px 14px', background: '#FFFBEB', border: '0.5px solid #F5D87A', borderRadius: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 13, color: '#555' }}>
+                    <input
+                      type="checkbox"
+                      checked={editForm.crm_tier === CRM_TIER.VIP}
+                      onChange={e => setEditForm(f => ({ ...f, crm_tier: e.target.checked ? CRM_TIER.VIP : '' }))}
+                      style={{ marginTop: 2 }}
+                    />
+                    <span>
+                      <strong style={{ color: '#A07A20' }}>★ Key account (VIP)</strong>
+                      <span style={{ display: 'block', fontSize: 11, color: '#888', marginTop: 4, lineHeight: 1.45 }}>
+                        Shows a star badge for your team in messages and the customer directory.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              )}
+              {editForm.role === 'distributor' && (
+                <div style={{ marginBottom: '1rem', padding: '12px 14px', background: '#EFF6FF', border: '0.5px solid #BFDBFE', borderRadius: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 13, color: '#555' }}>
+                    <input
+                      type="checkbox"
+                      checked={editForm.crm_tier === CRM_TIER.WHALE}
+                      onChange={e => setEditForm(f => ({ ...f, crm_tier: e.target.checked ? CRM_TIER.WHALE : '' }))}
+                      style={{ marginTop: 2 }}
+                    />
+                    <span>
+                      <strong style={{ color: '#2563EB' }}>🐋 Whale account</strong>
+                      <span style={{ display: 'block', fontSize: 11, color: '#888', marginTop: 4, lineHeight: 1.45 }}>
+                        Top-tier distributor — visible to your team in chat and CRM lists.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              )}
+              {editForm.role === 'distributor' && (
+                <div style={{ marginBottom: '1rem', padding: '12px 14px', background: '#F5F3FF', border: '0.5px solid #DDD6FE', borderRadius: 10 }}>
+                  <div style={{ fontSize: 11, color: '#7B6CF6', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 600 }}>Master on brands</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {BRANDS.map(brand => {
+                      const checked = (editForm.master_brand_ids || []).includes(brand.id);
+                      return (
+                        <label key={brand.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#555' }}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={e => setEditForm(f => ({
+                              ...f,
+                              master_brand_ids: e.target.checked
+                                ? [...(f.master_brand_ids || []), brand.id]
+                                : (f.master_brand_ids || []).filter(id => id !== brand.id),
+                            }))}
+                          />
+                          <span>★ Master · {brand.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {editForm.role === 'distributor' && (
                 <div style={{ marginBottom: '1rem', padding: '12px 14px', background: '#FDF6E3', border: '0.5px solid #F5D87A', borderRadius: 10 }}>
                   <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 13, color: '#555' }}>
@@ -303,13 +378,11 @@ export default function UserManager() {
           ) : (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                   <div style={{ fontWeight: 500, fontSize: 15 }}>{user.name || 'Unnamed'}</div>
                   <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: (ROLE_COLORS[user.role] || '#888') + '18', color: ROLE_COLORS[user.role] || '#888', fontWeight: 600, letterSpacing: '0.06em' }}>{formatRoleLabel(user.role) || 'Unknown'}</span>
+                  <CustomerBadges profile={user} />
                   {user.disabled && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#FEF0F0', color: '#E05A5A', fontWeight: 600 }}>Disabled</span>}
-                  {user.role === 'distributor' && user.master_pricing_qualified && (
-                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#FDF6E3', color: '#A07A20', fontWeight: 600 }}>Master pricing</span>
-                  )}
                   {user.role === 'distributor' && user.master_pricing_interest && !user.master_pricing_qualified && (
                     <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#F8F6F3', color: '#888', fontWeight: 600 }}>Volume interest</span>
                   )}
