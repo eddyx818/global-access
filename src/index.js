@@ -2,8 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './app.css';
 import App from './App';
+import { ThemeProvider } from './context/ThemeContext';
+import { applyTheme, getStoredTheme } from './lib/theme';
 
 document.documentElement.classList.add('app-native');
+applyTheme(getStoredTheme());
 
 // Block iOS pinch-zoom (Safari may ignore viewport meta in some cases)
 ['gesturestart', 'gesturechange', 'gestureend'].forEach((evt) => {
@@ -17,4 +20,8 @@ if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+root.render(
+  <ThemeProvider>
+    <App />
+  </ThemeProvider>
+);

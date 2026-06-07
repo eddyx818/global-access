@@ -1,8 +1,10 @@
 import React, { useState, useRef } from 'react';
 import ProductCommerceInfo from './ProductCommerceInfo';
 import { minQtyForProduct } from '../lib/pricing';
+import { useTheme } from '../context/ThemeContext';
 
 export default function BrandView({ brand, userType, onBack, toggleInterest, isInterested, interests, onSubmit, isMobile, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess }) {
+  const { t } = useTheme();
   const [lightbox, setLightbox] = useState(null);
   const [lightboxIdx, setLightboxIdx] = useState(0);
   const [orderMode, setOrderMode] = useState({}); // per sku: 'master_case' | 'pallet'
@@ -71,8 +73,8 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
   const headerHeights = { hero: isMobile ? 260 : 260, compact: isMobile ? 160 : 180, minimal: isMobile ? 120 : 140 };
   const headerMinHeight = headerHeights[headerStyle] || headerHeights.hero;
   const productCardStyles = {
-    flat: { boxShadow: 'none', border: '0.5px solid #E8E4DF' },
-    elevated: { boxShadow: '0 2px 12px rgba(0,0,0,0.04)', border: '0.5px solid #E8E4DF' },
+    flat: { boxShadow: 'none', border: t.borderHairlineLight },
+    elevated: { boxShadow: `0 2px 12px ${t.shadow}`, border: t.borderHairlineLight },
     bordered: { boxShadow: 'none', border: `2px solid ${brand.color}` },
   };
   const flavorGridCols = gridColumns
@@ -85,7 +87,7 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
         <div style={{
           fontFamily: "'Bebas Neue', sans-serif",
           fontSize: onDark ? 24 : 24,
-          color: onDark ? '#FFF' : '#1A1A1A',
+          color: onDark ? '#FFF' : t.text,
           letterSpacing: '0.04em',
           lineHeight: 1,
         }}>
@@ -94,7 +96,7 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
         {product.detail && (
           <div style={{
             fontSize: onDark ? 11 : 12,
-            color: onDark ? 'rgba(255,255,255,0.65)' : '#AAA',
+            color: onDark ? 'rgba(255,255,255,0.65)' : t.textFaint,
             marginTop: 4,
             lineHeight: 1.5,
           }}>
@@ -103,12 +105,12 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
         )}
       </div>
       <div style={{
-        background: onDark ? 'rgba(0,0,0,0.55)' : '#FDF6E3',
-        border: onDark ? 'none' : '0.5px solid #F5D87A',
+        background: onDark ? 'rgba(0,0,0,0.55)' : t.warningBg,
+        border: onDark ? 'none' : `0.5px solid ${t.warningBorder}`,
         borderRadius: onDark ? 6 : 8,
         padding: onDark ? '3px 9px' : '6px 12px',
         fontSize: onDark ? 10 : 11,
-        color: onDark ? '#C9A84C' : '#A07A20',
+        color: onDark ? t.gold : t.warningText,
         fontWeight: 700,
         letterSpacing: '0.08em',
         flexShrink: 0,
@@ -130,7 +132,7 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
     <div style={{ maxWidth: 760, margin: '0 auto', padding: isMobile ? '1rem' : '1.5rem', paddingBottom: '6rem' }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Pacifico&display=swap" rel="stylesheet" />
 
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#AAA', cursor: 'pointer', fontSize: 13, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6, padding: 0, fontFamily: 'inherit' }}>← All Brands</button>
+      <button onClick={onBack} style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', fontSize: 13, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 6, padding: 0, fontFamily: 'inherit' }}>← All Brands</button>
 
       {/* Hero */}
       <div style={{ background: '#0D0D0D', borderRadius: headerStyle === 'minimal' ? 12 : 20, overflow: 'hidden', marginBottom: '1.5rem', position: 'relative', minHeight: headerMinHeight }}>
@@ -160,17 +162,17 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
       {galleryImages.length > 0 && (
         <div style={{ marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: 10, letterSpacing: '0.2em', color: '#BBB', textTransform: 'uppercase' }}>Photos</div>
+            <div style={{ fontSize: 10, letterSpacing: '0.2em', color: t.textFaint, textTransform: 'uppercase' }}>Photos</div>
             {galleryImages.length > 1 && (
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => scrollGallery(-1)} style={{ width: 28, height: 28, background: '#FFF', border: '0.5px solid #E0DDD8', borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>‹</button>
-                <button onClick={() => scrollGallery(1)} style={{ width: 28, height: 28, background: '#FFF', border: '0.5px solid #E0DDD8', borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>›</button>
+                <button onClick={() => scrollGallery(-1)} style={{ width: 28, height: 28, background: t.bgElevated, border: t.borderHairline, borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', color: t.text }}>‹</button>
+                <button onClick={() => scrollGallery(1)} style={{ width: 28, height: 28, background: t.bgElevated, border: t.borderHairline, borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', color: t.text }}>›</button>
               </div>
             )}
           </div>
           <div ref={galleryRef} style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 8, scrollbarWidth: 'none' }}>
             {galleryImages.map((img, i) => (
-              <div key={img} onClick={() => { setLightboxIdx(i); setLightbox(img); }} style={{ flexShrink: 0, width: isMobile ? 160 : 200, height: isMobile ? 120 : 150, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', scrollSnapAlign: 'start', border: '0.5px solid #E8E4DF', transition: 'transform 0.2s' }}
+              <div key={img} onClick={() => { setLightboxIdx(i); setLightbox(img); }} style={{ flexShrink: 0, width: isMobile ? 160 : 200, height: isMobile ? 120 : 150, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', scrollSnapAlign: 'start', border: t.borderHairlineLight, transition: 'transform 0.2s' }}
                 onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)'; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}>
                 <img
@@ -241,7 +243,7 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
           const showProductImage = product.image && !brokenImages[imageKey];
 
           return (
-            <div key={product.sku} style={{ background: '#FFF', borderRadius: 16, overflow: 'hidden', ...productCardStyles[cardStyle] }}>
+            <div key={product.sku} style={{ background: t.bgElevated, borderRadius: 16, overflow: 'hidden', ...productCardStyles[cardStyle] }}>
               {showProductImage && (
                 <div style={{ position: 'relative', height: 160, overflow: 'hidden' }}>
                   <img
@@ -277,11 +279,11 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
                 {/* Order unit toggle for distributors with 'both' option */}
                 {showToggle && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                    <span style={{ fontSize: 11, color: '#AAA', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Order by:</span>
-                    <div style={{ display: 'flex', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, overflow: 'hidden' }}>
+                    <span style={{ fontSize: 11, color: t.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Order by:</span>
+                    <div style={{ display: 'flex', background: t.bgMuted, border: t.borderHairline, borderRadius: 8, overflow: 'hidden' }}>
                       {['master_case','pallet'].map(mode => (
                         <button key={mode} onClick={() => setOrderMode(prev => ({ ...prev, [product.sku]: mode }))}
-                          style={{ padding: '6px 14px', fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: currentMode === mode ? 600 : 400, background: currentMode === mode ? '#1A1A1A' : 'transparent', color: currentMode === mode ? '#FFF' : '#888', transition: 'all 0.15s' }}>
+                          style={{ padding: '6px 14px', fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: currentMode === mode ? 600 : 400, background: currentMode === mode ? t.btnPrimaryBg : 'transparent', color: currentMode === mode ? t.btnPrimaryText : t.textMuted, transition: 'all 0.15s' }}>
                           {mode === 'master_case' ? 'Master Case' : 'Pallet'}
                         </button>
                       ))}
@@ -298,7 +300,7 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
                   </div>
                 )}
 
-                <div style={{ fontSize: 10, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>
+                <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>
                   {isDistributor ? `Select ${unitLabel(product)}(s)` : 'Select Flavors'}
                 </div>
 
@@ -312,8 +314,8 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
                     return (
                       <div key={flavor} style={{ position: 'relative' }}>
                         <button onClick={() => handleFlavorClick(product, flavor)} disabled={isSoldOut}
-                          style={{ width: '100%', background: selected ? brand.color + '15' : '#F8F6F3', border: `0.5px solid ${selected ? brand.color : '#E8E4DF'}`, borderRadius: 10, padding: '10px 12px', textAlign: 'left', cursor: isSoldOut ? 'not-allowed' : 'pointer', opacity: isSoldOut ? 0.4 : 1, transition: 'all 0.15s', outline: 'none', fontFamily: 'inherit' }}>
-                          <div style={{ fontSize: 13, color: selected ? '#1A1A1A' : '#444', fontWeight: selected ? 500 : 400, lineHeight: 1.4, paddingRight: selected ? 24 : 0 }}>{flavor.replace(' — SOLD OUT', '')}</div>
+                          style={{ width: '100%', background: selected ? brand.color + '15' : t.bgMuted, border: `0.5px solid ${selected ? brand.color : t.borderLight}`, borderRadius: 10, padding: '10px 12px', textAlign: 'left', cursor: isSoldOut ? 'not-allowed' : 'pointer', opacity: isSoldOut ? 0.4 : 1, transition: 'all 0.15s', outline: 'none', fontFamily: 'inherit' }}>
+                          <div style={{ fontSize: 13, color: selected ? t.text : t.textSecondary, fontWeight: selected ? 500 : 400, lineHeight: 1.4, paddingRight: selected ? 24 : 0 }}>{flavor.replace(' — SOLD OUT', '')}</div>
                           {isSoldOut && <div style={{ fontSize: 10, color: '#E05A5A', marginTop: 2, fontWeight: 500 }}>Sold out</div>}
                           {selected && <div style={{ position: 'absolute', top: 10, right: 10, width: 20, height: 20, background: brand.color, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#FFF', fontWeight: 700 }}>✓</div>}
                         </button>
@@ -321,12 +323,12 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
                         {/* Qty input when selected */}
                         {selected && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, padding: '0 2px' }}>
-                            <span style={{ fontSize: 11, color: '#AAA' }}>Qty:</span>
-                            <button onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product)) - 1, product)} style={{ width: 24, height: 24, background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555' }}>−</button>
+                            <span style={{ fontSize: 11, color: t.textFaint }}>Qty:</span>
+                            <button onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product)) - 1, product)} style={{ width: 24, height: 24, background: t.bgMuted, border: t.borderHairline, borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textSecondary }}>−</button>
                             <input type="number" min={minQtyForProduct(product)} value={quantities[key] || minQtyForProduct(product)} onChange={e => setQty(key, e.target.value, product)}
-                              style={{ width: 44, textAlign: 'center', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 6, padding: '4px', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: '#1A1A1A' }} />
+                              style={{ width: 44, textAlign: 'center', background: t.inputBg, border: t.borderHairline, borderRadius: 6, padding: '4px', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: t.text }} />
                             <button onClick={() => setQty(key, (quantities[key] || minQtyForProduct(product)) + 1, product)} style={{ width: 24, height: 24, background: brand.color, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' }}>+</button>
-                            <span style={{ fontSize: 11, color: '#AAA' }}>{unitLabel(product)}{(quantities[key] || minQtyForProduct(product)) !== 1 ? 's' : ''}</span>
+                            <span style={{ fontSize: 11, color: t.textFaint }}>{unitLabel(product)}{(quantities[key] || minQtyForProduct(product)) !== 1 ? 's' : ''}</span>
                           </div>
                         )}
                       </div>
@@ -342,7 +344,7 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
       {/* Sticky submit */}
       {interests.length > 0 && (
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '1rem', background: 'rgba(245,242,237,0.95)', backdropFilter: 'blur(12px)', borderTop: '0.5px solid #E0DDD8', zIndex: 50 }}>
-          <button onClick={onSubmit} style={{ width: '100%', maxWidth: 760, margin: '0 auto', display: 'block', background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em', fontFamily: 'inherit' }}>
+          <button onClick={onSubmit} style={{ width: '100%', maxWidth: 760, margin: '0 auto', display: 'block', background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em', fontFamily: 'inherit' }}>
             Submit Interest List ({interests.length} item{interests.length !== 1 ? 's' : ''}) →
           </button>
         </div>

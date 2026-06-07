@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { uploadChatAttachment, validateChatFile } from '../../lib/chatAttachments';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function MessageInput({
   onSend,
@@ -8,6 +9,7 @@ export default function MessageInput({
   conversationId,
   userId,
 }) {
+  const { t } = useTheme();
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
@@ -49,8 +51,8 @@ export default function MessageInput({
 
   return (
     <div style={{
-      borderTop: '0.5px solid #E8E4DF',
-      background: '#FFF',
+      borderTop: t.borderHairlineLight,
+      background: t.bgElevated,
       flexShrink: 0,
     }}>
       {pendingFile && (
@@ -60,19 +62,19 @@ export default function MessageInput({
           alignItems: 'center',
           gap: 8,
           fontSize: 12,
-          color: '#666',
+          color: t.textSecondary,
         }}>
           <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             📎 {pendingFile.name}
           </span>
           <button type="button" onClick={() => setPendingFile(null)}
-            style={{ background: 'none', border: 'none', color: '#C53030', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
+            style={{ background: 'none', border: 'none', color: t.errorText, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
             Remove
           </button>
         </div>
       )}
       {error && (
-        <div style={{ padding: '6px 14px 0', fontSize: 11, color: '#C53030' }}>{error}</div>
+        <div style={{ padding: '6px 14px 0', fontSize: 11, color: t.errorText }}>{error}</div>
       )}
       <div style={{
         padding: isMobile ? '10px 14px max(10px, env(safe-area-inset-bottom))' : '10px 12px',
@@ -94,8 +96,8 @@ export default function MessageInput({
           style={{
             width: isMobile ? 44 : 40,
             height: isMobile ? 44 : 40,
-            background: '#F8F6F3',
-            border: '0.5px solid #E0DDD8',
+            background: t.inputBg,
+            border: t.borderHairline,
             borderRadius: isMobile ? 12 : 10,
             cursor: sending ? 'not-allowed' : 'pointer',
             fontFamily: 'inherit',
@@ -112,14 +114,15 @@ export default function MessageInput({
           placeholder={placeholder}
           style={{
             flex: 1,
-            background: '#F8F6F3',
-            border: '0.5px solid #E0DDD8',
+            background: t.inputBg,
+            border: t.borderHairline,
             borderRadius: isMobile ? 12 : 10,
             padding: isMobile ? '12px 14px' : '10px 12px',
             fontSize: 16,
             outline: 'none',
             fontFamily: 'inherit',
             minHeight: isMobile ? 44 : undefined,
+            color: t.text,
           }}
         />
         <button
@@ -129,10 +132,10 @@ export default function MessageInput({
           style={{
             width: isMobile ? 48 : 40,
             height: isMobile ? 48 : 40,
-            background: canSend ? '#1A1A1A' : '#E0DDD8',
+            background: canSend ? t.btnPrimaryBg : t.border,
             border: 'none',
             borderRadius: isMobile ? 12 : 10,
-            color: '#FFF',
+            color: canSend ? t.btnPrimaryText : t.textDisabled,
             cursor: canSend ? 'pointer' : 'not-allowed',
             fontFamily: 'inherit',
             fontSize: 18,

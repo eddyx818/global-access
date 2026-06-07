@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { validateAccessCode } from '../lib/repCodes';
 import { setPortalReferral, getPortalReferral } from '../lib/session';
+import { useTheme } from '../context/ThemeContext';
+import ThemeToggle from './ThemeToggle';
  
 const STORE_TYPES = {
   retailer: ['Smoke Shop', 'Convenience Store', 'Liquor Store', 'Vape Shop', 'CBD Shop', 'Dispensary', 'Gas Station', 'Other'],
@@ -9,6 +11,7 @@ const STORE_TYPES = {
 };
  
 export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAccess, onAdminEntry, showLogin }) {
+  const { t } = useTheme();
   const [mode, setMode] = useState(showLogin ? 'login' : 'gate');
   const [code, setCode] = useState('');
   const [email, setEmail] = useState('');
@@ -25,14 +28,14 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   const [showPassword, setShowPassword] = useState(false);
   const [regForm, setRegForm] = useState({ username: '', email: '', password: '', name: '', company: '', account_type: 'retailer' });
  
-  const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
-  const labelStyle = { fontSize: 11, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 };
-  const btnPrimary = { width: '100%', background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '13px', fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', cursor: 'pointer', fontFamily: 'inherit', marginBottom: '1rem' };
+  const inputStyle = { width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '11px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
+  const labelStyle = { fontSize: 11, color: t.textFaint, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 };
+  const btnPrimary = { width: '100%', background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 8, padding: '13px', fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', cursor: 'pointer', fontFamily: 'inherit', marginBottom: '1rem' };
   const btnAdmin = {
     width: '100%',
-    background: 'rgba(201,168,76,0.12)',
-    color: '#A07A20',
-    border: '0.5px solid rgba(201,168,76,0.45)',
+    background: t.goldBg,
+    color: t.gold,
+    border: `0.5px solid ${t.gold}`,
     borderRadius: 8,
     padding: '12px',
     fontSize: 12,
@@ -43,7 +46,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     marginTop: '0.75rem',
   };
 
-  const btnLink = { background: 'none', border: 'none', fontSize: 12, color: '#AAA', cursor: 'pointer', padding: 0, fontFamily: 'inherit' };
+  const btnLink = { background: 'none', border: 'none', fontSize: 12, color: t.textFaint, cursor: 'pointer', padding: 0, fontFamily: 'inherit' };
 
   const goAdminLogin = () => {
     onAdminEntry?.();
@@ -145,22 +148,22 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   const setReq = (field, val) => setReqForm(f => ({ ...f, [field]: val }));
  
   return (
-    <div className="app-login-screen" style={{ background: '#F5F2ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: '1.5rem', paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
+    <div className="app-login-screen" style={{ background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: '1.5rem', paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', transition: 'background 0.35s ease' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
       <div style={{ width: '100%', maxWidth: mode === 'request' ? 480 : 400 }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.3em', color: '#AAA', textTransform: 'uppercase', marginBottom: 10 }}>Trade Portal</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: '0.06em', color: '#1A1A1A', lineHeight: 1 }}>Global Access</div>
-          <div style={{ width: 36, height: 2, background: '#C9A84C', margin: '14px auto 0', borderRadius: 1 }} />
+          <div style={{ fontSize: 11, letterSpacing: '0.3em', color: t.textFaint, textTransform: 'uppercase', marginBottom: 10 }}>Trade Portal</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 52, letterSpacing: '0.06em', color: t.text, lineHeight: 1 }}>Global Access</div>
+          <div style={{ width: 36, height: 2, background: t.gold, margin: '14px auto 0', borderRadius: 1 }} />
         </div>
- 
-        <div style={{ background: '#FFF', border: '0.5px solid #E0DDD8', borderRadius: 14, padding: '2rem', boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
+
+        <div style={{ background: t.bgElevated, border: t.borderHairline, borderRadius: 14, padding: '2rem', boxShadow: `0 4px 24px ${t.shadow}` }}>
  
           {/* GATE */}
           {mode === 'gate' && (
             <>
-              <p style={{ fontSize: 13, color: '#888', marginBottom: '1.5rem', lineHeight: 1.6 }}>Enter your access code or sign in with your account. Your sales rep may have given you a personal code.</p>
+              <p style={{ fontSize: 13, color: t.textMuted, marginBottom: '1.5rem', lineHeight: 1.6 }}>Enter your access code or sign in with your account. Your sales rep may have given you a personal code.</p>
               <div style={{ marginBottom: '1.25rem' }}>
                 <label style={labelStyle}>Access Code</label>
                 <input value={code} onChange={e => setCode(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCode()} placeholder="Enter code" style={inputStyle} autoCapitalize="none" />
@@ -168,7 +171,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
               {error && <ErrBox msg={error} />}
               <button onClick={handleCode} disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.7 : 1 }}>{loading ? 'Checking…' : 'Continue →'}</button>
               <Divider />
-              <button onClick={() => setMode('login')} style={{ ...btnPrimary, background: '#FFF', color: '#1A1A1A', border: '0.5px solid #E0DDD8' }}>Sign In with Account</button>
+              <button onClick={() => setMode('login')} style={{ ...btnPrimary, background: t.bgElevated, color: t.text, border: t.borderHairline }}>Sign In with Account</button>
               <div style={{ textAlign: 'center', marginTop: 8 }}><button onClick={() => setMode('register')} style={btnLink}>Create an account</button></div>
               <div style={{ textAlign: 'center' }}><button onClick={() => setMode('request')} style={btnLink}>Don't have access? Request it</button></div>
               <button type="button" onClick={goAdminLogin} style={btnAdmin}>Admin Dashboard →</button>
@@ -355,18 +358,19 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
             </>
           )}
         </div>
-        <p style={{ textAlign: 'center', fontSize: 12, color: '#CCC', marginTop: '1.5rem' }}>Global Access · Trade portal · Invite only</p>
+        <ThemeToggle compact />
+        <p style={{ textAlign: 'center', fontSize: 12, color: t.textDisabled, marginTop: '1rem' }}>Global Access · Trade portal · Invite only</p>
       </div>
     </div>
   );
 }
  
-const ErrBox = ({ msg }) => <div style={{ background: '#FEF0F0', border: '0.5px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#C53030', marginBottom: '1rem' }}>{msg}</div>;
-const OkBox = ({ msg }) => <div style={{ background: '#F0FAF4', border: '0.5px solid #C6EDD7', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#2D7A50', marginBottom: '1rem' }}>{msg}</div>;
+const ErrBox = ({ msg }) => <div style={{ background: 'var(--ga-error-bg)', border: '0.5px solid var(--ga-error-border)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--ga-error-text)', marginBottom: '1rem' }}>{msg}</div>;
+const OkBox = ({ msg }) => <div style={{ background: 'var(--ga-success-bg)', border: '0.5px solid var(--ga-success-border)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--ga-success-text)', marginBottom: '1rem' }}>{msg}</div>;
 const Divider = () => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0.75rem 0' }}>
-    <div style={{ flex: 1, height: '0.5px', background: '#E0DDD8' }} />
-    <span style={{ fontSize: 11, color: '#CCC', textTransform: 'uppercase', letterSpacing: '0.1em' }}>or</span>
+    <div style={{ flex: 1, height: '0.5px', background: 'var(--ga-border)' }} />
+    <span style={{ fontSize: 11, color: 'var(--ga-text-disabled)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>or</span>
     <div style={{ flex: 1, height: '0.5px', background: '#E0DDD8' }} />
   </div>
 );

@@ -14,9 +14,116 @@ html.app-native body {
   text-size-adjust: 100%;
 }
 
+/* ── Day mode (default) ── */
+html[data-theme='day'],
+html:not([data-theme]) {
+  color-scheme: light;
+  --ga-bg: #F5F2ED;
+  --ga-bg-elevated: #FFFFFF;
+  --ga-bg-muted: #F8F6F3;
+  --ga-bg-subtle: #F0EDE8;
+  --ga-bg-hover: #FAFAF8;
+  --ga-text: #1A1A1A;
+  --ga-text-secondary: #666666;
+  --ga-text-muted: #888888;
+  --ga-text-faint: #AAAAAA;
+  --ga-text-disabled: #CCCCCC;
+  --ga-border: #E0DDD8;
+  --ga-border-light: #E8E4DF;
+  --ga-border-subtle: #F0EDE8;
+  --ga-accent: #4CAF7D;
+  --ga-accent-dark: #2D7A50;
+  --ga-accent-bg: rgba(76, 175, 125, 0.12);
+  --ga-accent-border: rgba(76, 175, 125, 0.35);
+  --ga-gold: #C9A84C;
+  --ga-gold-bg: rgba(201, 168, 76, 0.12);
+  --ga-nav-bg: rgba(245, 242, 237, 0.92);
+  --ga-nav-border: rgba(224, 221, 216, 0.6);
+  --ga-bottom-nav-bg: rgba(255, 255, 255, 0.94);
+  --ga-overlay: rgba(0, 0, 0, 0.55);
+  --ga-overlay-light: rgba(0, 0, 0, 0.25);
+  --ga-shadow: rgba(0, 0, 0, 0.08);
+  --ga-input-bg: #F8F6F3;
+  --ga-btn-primary-bg: #1A1A1A;
+  --ga-btn-primary-text: #FFFFFF;
+  --ga-header-bg: #1A1A1A;
+  --ga-header-text: #FFFFFF;
+  --ga-header-muted: #888888;
+  --ga-warning-bg: #FDF6E3;
+  --ga-warning-border: #FCD34D;
+  --ga-warning-text: #92400E;
+  --ga-error-bg: #FEF0F0;
+  --ga-error-border: #FECACA;
+  --ga-error-text: #C53030;
+  --ga-success-bg: #F0FAF4;
+  --ga-success-border: #C6EDD7;
+  --ga-success-text: #2D7A50;
+  --ga-bubble-mine-bg: #1A1A1A;
+  --ga-bubble-mine-text: #FFFFFF;
+  --ga-bubble-other-bg: #FFFFFF;
+  --ga-bubble-other-text: #1A1A1A;
+  --ga-browse-banner-bg: #FDF6E3;
+  --ga-browse-banner-border: #FCD34D;
+  --ga-browse-banner-text: #92400E;
+}
+
+/* ── Night mode ── */
+html[data-theme='night'] {
+  color-scheme: dark;
+  --ga-bg: #0F0F12;
+  --ga-bg-elevated: #1A1A1F;
+  --ga-bg-muted: #151518;
+  --ga-bg-subtle: #222228;
+  --ga-bg-hover: #1E1E24;
+  --ga-text: #F0EDE8;
+  --ga-text-secondary: #B8B4AE;
+  --ga-text-muted: #9A9690;
+  --ga-text-faint: #7A7670;
+  --ga-text-disabled: #5A5650;
+  --ga-border: #2E2E36;
+  --ga-border-light: #35353E;
+  --ga-border-subtle: #28282F;
+  --ga-accent: #5BC993;
+  --ga-accent-dark: #4CAF7D;
+  --ga-accent-bg: rgba(91, 201, 147, 0.15);
+  --ga-accent-border: rgba(91, 201, 147, 0.35);
+  --ga-gold: #D4B45A;
+  --ga-gold-bg: rgba(212, 180, 90, 0.15);
+  --ga-nav-bg: rgba(15, 15, 18, 0.94);
+  --ga-nav-border: rgba(46, 46, 54, 0.8);
+  --ga-bottom-nav-bg: rgba(26, 26, 31, 0.96);
+  --ga-overlay: rgba(0, 0, 0, 0.75);
+  --ga-overlay-light: rgba(0, 0, 0, 0.5);
+  --ga-shadow: rgba(0, 0, 0, 0.45);
+  --ga-input-bg: #1E1E24;
+  --ga-btn-primary-bg: #F0EDE8;
+  --ga-btn-primary-text: #0F0F12;
+  --ga-header-bg: #0A0A0D;
+  --ga-header-text: #F0EDE8;
+  --ga-header-muted: #7A7670;
+  --ga-warning-bg: #2A2418;
+  --ga-warning-border: #6B5A20;
+  --ga-warning-text: #E8C547;
+  --ga-error-bg: #2A1818;
+  --ga-error-border: #7A3030;
+  --ga-error-text: #F08080;
+  --ga-success-bg: #152A20;
+  --ga-success-border: #2A5A40;
+  --ga-success-text: #5BC993;
+  --ga-bubble-mine-bg: #2D7A50;
+  --ga-bubble-mine-text: #FFFFFF;
+  --ga-bubble-other-bg: #1A1A1F;
+  --ga-bubble-other-text: #F0EDE8;
+  --ga-browse-banner-bg: #2A2418;
+  --ga-browse-banner-border: #6B5A20;
+  --ga-browse-banner-text: #E8C547;
+}
+
 html.app-native body {
-  background: #F5F2ED;
+  background: var(--ga-bg);
+  color: var(--ga-text);
   position: relative;
+  transition: background 0.35s ease, color 0.35s ease;
 }
 
 #root {

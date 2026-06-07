@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '../context/ThemeContext';
 
 export default function MobileBottomNav({
   activeView,
@@ -13,6 +14,8 @@ export default function MobileBottomNav({
   showChat = true,
   showProfile = true,
 }) {
+  const { t } = useTheme();
+
   const items = [
     { id: 'home', label: 'Home', icon: '⌂', onClick: onHome, active: activeView === 'home' || activeView === 'brand' },
     showList && { id: 'list', label: 'My List', icon: '☰', onClick: onList, active: activeView === 'interest', badge: listCount || null },
@@ -29,12 +32,13 @@ export default function MobileBottomNav({
         right: 0,
         bottom: 0,
         zIndex: 400,
-        background: 'rgba(255,255,255,0.94)',
+        background: t.bottomNavBg,
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        borderTop: '0.5px solid rgba(224,221,216,0.9)',
+        borderTop: `0.5px solid ${t.navBorder}`,
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        boxShadow: '0 -4px 24px rgba(0,0,0,0.06)',
+        boxShadow: `0 -4px 24px ${t.shadow}`,
+        transition: 'background 0.35s ease, border-color 0.35s ease',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-around', minHeight: 56 }}>
@@ -56,7 +60,7 @@ export default function MobileBottomNav({
               cursor: 'pointer',
               fontFamily: 'inherit',
               position: 'relative',
-              color: item.active ? '#1A1A1A' : '#999',
+              color: item.active ? t.text : t.textMuted,
               WebkitTapHighlightColor: 'transparent',
             }}
           >
@@ -72,7 +76,7 @@ export default function MobileBottomNav({
               fontSize: 10,
               fontWeight: item.active ? 700 : 500,
               letterSpacing: '0.02em',
-              color: item.active ? (item.accent ? '#2D7A50' : '#1A1A1A') : '#AAA',
+              color: item.active ? (item.accent ? t.accentDark : t.text) : t.textFaint,
             }}>
               {item.label}
             </span>
@@ -83,7 +87,7 @@ export default function MobileBottomNav({
                 width: 20,
                 height: 3,
                 borderRadius: 2,
-                background: item.accent ? '#4CAF7D' : '#C9A84C',
+                background: item.accent ? t.accent : t.gold,
               }} />
             )}
             {item.badge > 0 && (
@@ -95,8 +99,8 @@ export default function MobileBottomNav({
                 height: 16,
                 padding: '0 4px',
                 borderRadius: 8,
-                background: item.id === 'chat' ? '#4CAF7D' : '#1A1A1A',
-                color: '#FFF',
+                background: item.id === 'chat' ? t.accent : t.btnPrimaryBg,
+                color: item.id === 'chat' ? '#FFF' : t.btnPrimaryText,
                 fontSize: 9,
                 fontWeight: 700,
                 display: 'flex',

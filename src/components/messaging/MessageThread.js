@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { isChatImage } from '../../lib/chatAttachments';
 import CustomerBadges from '../CustomerBadges';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function MessageThread({ messages, currentUserId, profiles, loading, isGroup = false, showStaffNames = false }) {
+  const { t } = useTheme();
   const endRef = useRef(null);
 
   useEffect(() => {
@@ -10,7 +12,7 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
   }, [messages]);
 
   if (loading) {
-    return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#AAA', fontSize: 13 }}>Loading...</div>;
+    return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textFaint, fontSize: 13 }}>Loading...</div>;
   }
 
   const senderName = (userId) => {
@@ -46,8 +48,8 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
           marginBottom: 6,
           padding: '8px 10px',
           borderRadius: 8,
-          background: mine ? 'rgba(255,255,255,0.12)' : '#F8F6F3',
-          color: mine ? '#FFF' : '#1A1A1A',
+          background: mine ? 'rgba(255,255,255,0.12)' : t.bgMuted,
+          color: mine ? '#FFF' : t.text,
           textDecoration: 'none',
           fontSize: 13,
           fontWeight: 500,
@@ -65,7 +67,7 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
   };
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, background: '#FAFAF8', minHeight: 0 }}>
+    <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, background: t.bgHover, minHeight: 0 }}>
       {messages.map(msg => {
         const mine = msg.from_user_id === currentUserId;
         const fromProfile = profiles[msg.from_user_id] || {};
@@ -76,20 +78,20 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
         return (
           <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
             {showName && (
-              <div style={{ fontSize: 10, color: '#888', marginBottom: 3, marginLeft: 4, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+              <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 3, marginLeft: 4, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                 <span>{staffLabel}</span>
                 {isCustomerSender && <CustomerBadges profile={fromProfile} size="sm" />}
               </div>
             )}
             <div style={{
               maxWidth: '85%', padding: '10px 14px', borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-              background: mine ? '#1A1A1A' : '#FFF', color: mine ? '#FFF' : '#1A1A1A',
-              fontSize: 15, lineHeight: 1.45, border: mine ? 'none' : '0.5px solid #E8E4DF',
-              boxShadow: mine ? 'none' : '0 1px 4px rgba(0,0,0,0.04)',
+              background: mine ? t.bubbleMineBg : t.bubbleOtherBg, color: mine ? t.bubbleMineText : t.bubbleOtherText,
+              fontSize: 15, lineHeight: 1.45, border: mine ? 'none' : t.borderHairlineLight,
+              boxShadow: mine ? 'none' : `0 1px 4px ${t.shadow}`,
             }}>
               {renderAttachment(msg, mine)}
               {body}
-              <div style={{ fontSize: 9, color: mine ? 'rgba(255,255,255,0.45)' : '#CCC', marginTop: 4, textAlign: 'right' }}>
+              <div style={{ fontSize: 9, color: mine ? 'rgba(255,255,255,0.45)' : t.textDisabled, marginTop: 4, textAlign: 'right' }}>
                 {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 {mine && !isGroup && msg.read_status ? ' · read' : ''}
               </div>
@@ -98,7 +100,7 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
         );
       })}
       {!messages.length && !loading && (
-        <div style={{ textAlign: 'center', color: '#CCC', fontSize: 12, marginTop: 24 }}>No messages yet — say hello!</div>
+        <div style={{ textAlign: 'center', color: t.textDisabled, fontSize: 12, marginTop: 24 }}>No messages yet — say hello!</div>
       )}
       <div ref={endRef} />
     </div>

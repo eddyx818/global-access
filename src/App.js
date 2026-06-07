@@ -20,8 +20,10 @@ import { useMessageAlerts } from './hooks/useMessageAlerts';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import { getNotificationPermission } from './lib/notificationPrefs';
 import { subscribeToPushNotifications } from './lib/pushNotifications';
+import { useTheme } from './context/ThemeContext';
 
 export default function App() {
+  const { t, isNight } = useTheme();
   const [authState, setAuthState] = useState('loading');
   const [adminMode, setAdminMode] = useState('dashboard');
   const [user, setUser] = useState(null);
@@ -427,8 +429,8 @@ export default function App() {
   };
 
   if (authState === 'loading') return (
-    <div style={{ minHeight: '100vh', background: '#F5F2ED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: 32, height: 32, border: '2px solid #E0DDD8', borderTopColor: '#C9A84C', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    <div style={{ minHeight: '100vh', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 32, height: 32, border: `2px solid ${t.border}`, borderTopColor: t.gold, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
@@ -467,7 +469,7 @@ export default function App() {
   if (authState === 'admin' && adminMode === 'dashboard') return <AdminDashboard user={user} onLogout={handleLogout} onViewPortal={() => setAdminMode('portal')} />;
 
   return (
-    <div className="app-viewport" style={{ background: bgColor || '#F5F2ED', fontFamily: getFontFamily(globalStyles.font_family), color: globalStyles.primary_color || '#1A1A1A', transition: 'background 0.5s ease', display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: '100dvh' }}>
+    <div className="app-viewport" style={{ background: isNight ? t.bg : (bgColor || t.bg), fontFamily: getFontFamily(globalStyles.font_family), color: isNight ? t.text : (globalStyles.primary_color || t.text), transition: 'background 0.35s ease, color 0.35s ease', display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: '100dvh' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
 
       {/* Admin bar */}
@@ -495,11 +497,11 @@ export default function App() {
 
       {/* Browse banner */}
       {authState === 'browse' && (
-        <div style={{ background: '#FDF6E3', borderBottom: '0.5px solid #FCD34D', padding: '10px 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-          <span style={{ fontSize: 13, color: '#92400E' }}>Browsing as guest — sign up or log in to submit an inquiry</span>
+        <div style={{ background: t.browseBannerBg, borderBottom: `0.5px solid ${t.browseBannerBorder}`, padding: '10px 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <span style={{ fontSize: 13, color: t.browseBannerText }}>Browsing as guest — sign up or log in to submit an inquiry</span>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setAuthState('login')} style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Sign in</button>
-            <button onClick={() => setShowSignupPrompt(true)} style={{ background: 'none', border: '0.5px solid #92400E', borderRadius: 6, padding: '6px 14px', fontSize: 12, color: '#92400E', cursor: 'pointer', fontFamily: 'inherit' }}>Request access</button>
+            <button onClick={() => setAuthState('login')} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Sign in</button>
+            <button onClick={() => setShowSignupPrompt(true)} style={{ background: 'none', border: `0.5px solid ${t.browseBannerText}`, borderRadius: 6, padding: '6px 14px', fontSize: 12, color: t.browseBannerText, cursor: 'pointer', fontFamily: 'inherit' }}>Request access</button>
           </div>
         </div>
       )}
@@ -549,23 +551,23 @@ export default function App() {
 
       {/* Signup prompt overlay */}
       {showSignupPrompt && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-          <div style={{ background: '#FFF', borderRadius: 20, padding: '2rem', maxWidth: 420, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: '0.04em', color: '#1A1A1A', marginBottom: 6 }}>Ready to connect?</div>
-            <p style={{ fontSize: 14, color: '#888', lineHeight: 1.6, marginBottom: '1.5rem' }}>Submit your interest list here. We will follow up via Support chat or email — direct contact is shared after we confirm your inquiry.</p>
+        <div style={{ position: 'fixed', inset: 0, background: t.overlay, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+          <div style={{ background: t.bgElevated, borderRadius: 20, padding: '2rem', maxWidth: 420, width: '100%', boxShadow: `0 24px 64px ${t.shadow}` }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: '0.04em', color: t.text, marginBottom: 6 }}>Ready to connect?</div>
+            <p style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.6, marginBottom: '1.5rem' }}>Submit your interest list here. We will follow up via Support chat or email — direct contact is shared after we confirm your inquiry.</p>
             {[['name','Your name *'],['company','Company / Store *'],['phone','Phone / WhatsApp'],['email','Email']].map(([field, label]) => (
               <div key={field} style={{ marginBottom: '0.875rem' }}>
-                <label style={{ fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
-                <input value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} style={{ width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} autoCapitalize={field === 'email' ? 'none' : 'words'} />
+                <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
+                <input value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} style={{ width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '11px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} autoCapitalize={field === 'email' ? 'none' : 'words'} />
               </div>
             ))}
             <div style={{ marginBottom: '0.875rem' }}>
-              <label style={{ fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes (optional)</label>
-              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Questions, timeline, or extra info..." style={{ width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '10px 12px', color: '#1A1A1A', fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', height: 70, resize: 'none' }} />
+              <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes (optional)</label>
+              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Questions, timeline, or extra info..." style={{ width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '10px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', height: 70, resize: 'none' }} />
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem' }}>
-              <button onClick={() => setShowSignupPrompt(false)} style={{ flex: 1, background: 'none', border: '0.5px solid #E0DDD8', borderRadius: 10, padding: '12px', fontSize: 13, color: '#AAA', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
-              <button onClick={doSubmit} style={{ flex: 2, background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 10, padding: '12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Submit inquiry</button>
+              <button onClick={() => setShowSignupPrompt(false)} style={{ flex: 1, background: 'none', border: t.borderHairline, borderRadius: 10, padding: '12px', fontSize: 13, color: t.textFaint, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={doSubmit} style={{ flex: 2, background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 10, padding: '12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Submit inquiry</button>
             </div>
           </div>
         </div>

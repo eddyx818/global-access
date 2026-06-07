@@ -9,6 +9,8 @@ import {
 } from '../lib/notificationPrefs';
 import { playMessageSound, vibrateDevice } from '../lib/messageAlerts';
 import { subscribeToPushNotifications, isPushSupported } from '../lib/pushNotifications';
+import { useTheme } from '../context/ThemeContext';
+import ThemeToggle from './ThemeToggle';
 
 function splitAppointment(iso) {
   if (!iso) return { date: '', time: '' };
@@ -39,6 +41,7 @@ export default function ProfileModal({
   pwa = {},
 }) {
   const isPage = variant === 'page';
+  const { t } = useTheme();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [username, setUsername] = useState('');
@@ -71,13 +74,17 @@ export default function ProfileModal({
   }, [user?.id]);
 
   const inputStyle = {
-    width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8',
-    borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 16,
+    width: '100%', background: t.inputBg, border: t.borderHairline,
+    borderRadius: 8, padding: '11px 12px', color: t.text, fontSize: 16,
     outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
   };
   const labelStyle = {
-    fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6,
+    fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6,
     letterSpacing: '0.06em', textTransform: 'uppercase',
+  };
+  const sectionStyle = {
+    marginBottom: '1rem', padding: '14px 16px', background: t.bgMuted,
+    borderRadius: 12, border: t.borderHairlineLight,
   };
 
   const { canInstall = false, showIosHint = false, isInstalled = false, install, isMobileDevice = false } = pwa;
@@ -155,10 +162,18 @@ export default function ProfileModal({
   const formBody = (
     <>
       {needsDetails && (
-        <div style={{ background: '#FDF6E3', border: '0.5px solid #FCD34D', borderRadius: 10, padding: '12px 14px', marginBottom: '1rem', fontSize: 13, color: '#92400E', lineHeight: 1.5 }}>
+        <div style={{ background: t.warningBg, border: `0.5px solid ${t.warningBorder}`, borderRadius: 10, padding: '12px 14px', marginBottom: '1rem', fontSize: 13, color: t.warningText, lineHeight: 1.5 }}>
           Add your business details below to start Support chat. We will save them for future visits.
         </div>
       )}
+
+      <div style={sectionStyle}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Appearance</div>
+        <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: 12 }}>
+          Day mode is the default. Night mode uses a darker palette across the portal.
+        </div>
+        <ThemeToggle fullWidth />
+      </div>
 
       <div style={{ marginBottom: '1rem' }}>
         <label style={labelStyle}>Username</label>
@@ -173,10 +188,10 @@ export default function ProfileModal({
       <div style={{ marginBottom: '1.25rem' }}>
         <label style={labelStyle}>Account Type</label>
         <div style={{ display: 'flex', gap: 8 }}>
-          {['retailer', 'distributor'].map(t => (
-            <button key={t} type="button" onClick={() => setUserType(t)}
-              style={{ flex: 1, background: userType === t ? '#1A1A1A' : '#F8F6F3', color: userType === t ? '#FFF' : '#888', border: `0.5px solid ${userType === t ? '#1A1A1A' : '#E0DDD8'}`, borderRadius: 8, padding: '10px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize', fontWeight: userType === t ? 600 : 400 }}>
-              {t}
+          {['retailer', 'distributor'].map(typeKey => (
+            <button key={typeKey} type="button" onClick={() => setUserType(typeKey)}
+              style={{ flex: 1, background: userType === typeKey ? t.btnPrimaryBg : t.inputBg, color: userType === typeKey ? t.btnPrimaryText : t.textMuted, border: userType === typeKey ? `0.5px solid ${t.btnPrimaryBg}` : t.borderHairline, borderRadius: 8, padding: '10px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize', fontWeight: userType === typeKey ? 600 : 400 }}>
+              {typeKey}
             </button>
           ))}
         </div>
@@ -201,9 +216,9 @@ export default function ProfileModal({
           style={{ ...inputStyle, height: 72, resize: 'none' }} />
       </div>
 
-      <div style={{ marginBottom: '1rem', padding: '14px 16px', background: '#F8F6F3', borderRadius: 12, border: '0.5px solid #E8E4DF' }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>Schedule a call (optional)</div>
-        <div style={{ fontSize: 11, color: '#888', lineHeight: 1.45, marginBottom: 12 }}>
+      <div style={sectionStyle}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Schedule a call (optional)</div>
+        <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: 12 }}>
           Pick a date and time if you would like us to reach out to discuss your order or account.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
@@ -222,9 +237,9 @@ export default function ProfileModal({
           placeholder="What would you like to discuss?" style={{ ...inputStyle, height: 64, resize: 'none' }} />
       </div>
 
-      <div style={{ marginBottom: '1rem', padding: '14px 16px', background: '#F8F6F3', borderRadius: 12, border: '0.5px solid #E8E4DF' }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>Message alerts</div>
-        <div style={{ fontSize: 11, color: '#888', lineHeight: 1.45, marginBottom: 12 }}>
+      <div style={sectionStyle}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Message alerts</div>
+        <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: 12 }}>
           Sound, vibration, and badge when you receive chat messages.
         </div>
         {[
@@ -232,12 +247,12 @@ export default function ProfileModal({
           ['vibrate', 'Vibrate (mobile)'],
           ['badge', 'App icon badge'],
         ].map(([key, label]) => (
-          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, fontSize: 13, color: '#555', cursor: 'pointer' }}>
+          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, fontSize: 13, color: t.textSecondary, cursor: 'pointer' }}>
             <input type="checkbox" checked={!!notifyPrefs[key]} onChange={e => toggleNotify(key, e.target.checked)} />
             {label}
           </label>
         ))}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, fontSize: 13, color: '#555', cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, fontSize: 13, color: t.textSecondary, cursor: 'pointer' }}>
           <input
             type="checkbox"
             checked={!!notifyPrefs.notifications && notifyPerm === 'granted'}
@@ -248,40 +263,40 @@ export default function ProfileModal({
         </label>
         {notifyPerm === 'default' && (
           <button type="button" onClick={enablePush}
-            style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8 }}>
+            style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8 }}>
             Allow notifications
           </button>
         )}
         {notifyPerm === 'granted' && isPushSupported() && (
-          <div style={{ fontSize: 11, color: '#2D7A50', marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: t.successText, marginBottom: 8 }}>
             Push enabled — you will get banners when the app is in the background.
           </div>
         )}
         {notifyPerm === 'granted' && !isPushSupported() && (
-          <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 8 }}>
             In-app alerts work here. For background banners on iPhone, install the app from Safari and allow notifications.
           </div>
         )}
         {notifyPerm === 'denied' && (
-          <div style={{ fontSize: 11, color: '#C53030', marginBottom: 8 }}>Notifications blocked in browser settings.</div>
+          <div style={{ fontSize: 11, color: t.errorText, marginBottom: 8 }}>Notifications blocked in browser settings.</div>
         )}
         <button type="button" onClick={testAlert}
-          style={{ background: '#FFF', color: '#555', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '7px 12px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+          style={{ background: t.bgElevated, color: t.textSecondary, border: t.borderHairline, borderRadius: 8, padding: '7px 12px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
           Test sound & vibrate
         </button>
       </div>
 
       {showInstallInSettings && (
-        <div style={{ marginBottom: '1rem', padding: '14px 16px', background: '#F8F6F3', borderRadius: 12, border: '0.5px solid #E8E4DF' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', marginBottom: 4 }}>Install app</div>
-          <div style={{ fontSize: 11, color: '#888', lineHeight: 1.45, marginBottom: 10 }}>
+        <div style={sectionStyle}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Install app</div>
+          <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: 10 }}>
             {showIosHint && !canInstall
               ? 'On iPhone: tap Share in Safari, then Add to Home Screen.'
               : 'Add Global Access to your home screen for full-screen mobile use.'}
           </div>
           {canInstall && (
             <button type="button" onClick={install}
-              style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
               Install on this device
             </button>
           )}
@@ -289,19 +304,19 @@ export default function ProfileModal({
       )}
 
       {isInstalled && isMobileDevice && (
-        <div style={{ marginBottom: '1rem', padding: '10px 14px', background: '#F0FAF4', borderRadius: 10, border: '0.5px solid #C6EDD7', fontSize: 12, color: '#2D7A50' }}>
+        <div style={{ marginBottom: '1rem', padding: '10px 14px', background: t.successBg, borderRadius: 10, border: `0.5px solid ${t.successBorder}`, fontSize: 12, color: t.successText }}>
           App installed on this device
         </div>
       )}
 
-      {error && <div style={{ background: '#FEF0F0', border: '0.5px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#C53030', marginBottom: '1rem' }}>{error}</div>}
+      {error && <div style={{ background: t.errorBg, border: `0.5px solid ${t.errorBorder}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: t.errorText, marginBottom: '1rem' }}>{error}</div>}
 
       <div style={{ display: 'flex', gap: 8, marginTop: isPage ? '0.5rem' : '1.5rem', paddingBottom: isPage ? 8 : 0 }}>
         {!isPage && (
-          <button type="button" onClick={onClose} style={{ flex: 1, background: 'none', border: '0.5px solid #E0DDD8', borderRadius: 10, padding: '12px', fontSize: 13, color: '#AAA', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+          <button type="button" onClick={onClose} style={{ flex: 1, background: 'none', border: t.borderHairline, borderRadius: 10, padding: '12px', fontSize: 13, color: t.textFaint, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
         )}
         <button type="button" onClick={handleSave} disabled={saving}
-          style={{ flex: isPage ? 1 : 2, background: saving ? '#E0DDD8' : '#1A1A1A', color: saving ? '#AAA' : '#FFF', border: 'none', borderRadius: 10, padding: '14px', fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+          style={{ flex: isPage ? 1 : 2, background: saving ? t.border : t.btnPrimaryBg, color: saving ? t.textFaint : t.btnPrimaryText, border: 'none', borderRadius: 10, padding: '14px', fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
           {saved ? '✓ Saved!' : saving ? 'Saving...' : (needsDetails ? 'Save & continue' : 'Save Profile')}
         </button>
       </div>
@@ -314,24 +329,24 @@ export default function ProfileModal({
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        background: '#FFF',
+        background: t.bgElevated,
         overflow: 'hidden',
       }}>
         <div style={{
           padding: '14px 16px',
           paddingTop: 'max(14px, env(safe-area-inset-top))',
-          borderBottom: '0.5px solid #E8E4DF',
+          borderBottom: t.borderHairlineLight,
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          background: '#1A1A1A',
+          background: t.headerBg,
           flexShrink: 0,
         }}>
           <button type="button" onClick={onClose} aria-label="Back"
-            style={{ background: 'none', border: 'none', color: '#FFF', cursor: 'pointer', fontSize: 22, padding: '4px 8px 4px 0', fontFamily: 'inherit', lineHeight: 1 }}>
+            style={{ background: 'none', border: 'none', color: t.headerText, cursor: 'pointer', fontSize: 22, padding: '4px 8px 4px 0', fontFamily: 'inherit', lineHeight: 1 }}>
             ‹
           </button>
-          <div style={{ fontSize: 16, fontWeight: 600, color: '#FFF' }}>My Profile</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: t.headerText }}>My Profile</div>
         </div>
         <div style={{
           flex: 1,
@@ -351,24 +366,24 @@ export default function ProfileModal({
       aria-modal="true"
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 600,
+        position: 'fixed', inset: 0, background: t.overlay, zIndex: 600,
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem',
       }}
     >
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: '#FFF', borderRadius: 20, padding: '2rem', maxWidth: 440, width: '100%',
-          maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
+          background: t.bgElevated, borderRadius: 20, padding: '2rem', maxWidth: 440, width: '100%',
+          maxHeight: '90vh', overflowY: 'auto', boxShadow: `0 24px 64px ${t.shadow}`,
         }}
       >
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem',
-          position: 'sticky', top: 0, background: '#FFF', zIndex: 1, paddingBottom: 8,
+          position: 'sticky', top: 0, background: t.bgElevated, zIndex: 1, paddingBottom: 8,
         }}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: '0.04em', color: '#1A1A1A' }}>My Profile</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: '0.04em', color: t.text }}>My Profile</div>
           <button type="button" onClick={onClose} aria-label="Close profile"
-            style={{ background: '#F8F6F3', border: 'none', borderRadius: 8, fontSize: 22, color: '#666', cursor: 'pointer', fontFamily: 'inherit', width: 40, height: 40, lineHeight: 1 }}>
+            style={{ background: t.bgMuted, border: 'none', borderRadius: 8, fontSize: 22, color: t.textSecondary, cursor: 'pointer', fontFamily: 'inherit', width: 40, height: 40, lineHeight: 1 }}>
             ×
           </button>
         </div>

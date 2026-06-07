@@ -4,8 +4,10 @@ import { getButtonRadius } from '../lib/design';
 import { supabase } from '../lib/supabase';
 
 import MasterPricingNotice from './MasterPricingNotice';
+import { useTheme } from '../context/ThemeContext';
 
 export default function HomeView({ onBrandClick, isMobile, userType, masterPricingQualified, masterPricingInterest, onSetMasterPricingInterest }) {
+  const { t, isNight } = useTheme();
   const [slideIdx, setSlideIdx] = useState(0);
   const [galleryIdx, setGalleryIdx] = useState(0); // cycles hero bg image
   const [animating, setAnimating] = useState(false);
@@ -179,8 +181,8 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
           />
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.2em', color: '#BBB', textTransform: 'uppercase', fontWeight: 500 }}>Our Brands</div>
-          <div style={{ fontSize: 11, color: '#CCC' }}>{brands.length} brands · drag to reorder</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.2em', color: t.textFaint, textTransform: 'uppercase', fontWeight: 500 }}>Our Brands</div>
+          <div style={{ fontSize: 11, color: t.textDisabled }}>{brands.length} brands · drag to reorder</div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 12 : 16 }}>
           {brands.map((brand, idx) => {
@@ -200,8 +202,8 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
                 onMouseLeave={() => handleCardMouseLeave(brand.id)}
                 style={{
                   display: 'block', textDecoration: 'none', color: 'inherit',
-                  background: '#FFF',
-                  border: `0.5px solid ${isDragTarget ? brand.color : '#E8E4DF'}`,
+                  background: t.bgElevated,
+                  border: `0.5px solid ${isDragTarget ? brand.color : t.borderLight}`,
                   borderRadius: 18,
                   padding: 0,
                   cursor: 'grab',
@@ -215,10 +217,10 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
                     : `perspective(600px) rotateY(${tilt.x * 0.6}deg) rotateX(${-tilt.y * 0.6}deg) translateZ(0) scale(${tilt.x !== 0 || tilt.y !== 0 ? 1.04 : 1})`,
                   transition: isMobile ? 'box-shadow 0.2s ease' : 'transform 0.15s ease-out, box-shadow 0.2s ease, border-color 0.2s',
                   boxShadow: isMobile
-                    ? '0 4px 16px rgba(0,0,0,0.06)'
+                    ? `0 4px 16px ${t.shadow}`
                     : (tilt.x !== 0 || tilt.y !== 0
-                      ? `${-tilt.x * 0.5}px ${tilt.y * 0.5}px 32px rgba(0,0,0,0.15), 0 8px 24px ${brand.color}22, inset 0 1px 0 rgba(255,255,255,0.8)`
-                      : '0 4px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)'),
+                      ? `${-tilt.x * 0.5}px ${tilt.y * 0.5}px 32px ${t.shadow}, 0 8px 24px ${brand.color}22, inset 0 1px 0 ${isNight ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.8)'}`
+                      : `0 4px 16px ${t.shadow}, inset 0 1px 0 ${isNight ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.8)'}`),
                   transformStyle: 'preserve-3d',
                 }}>
 
@@ -251,21 +253,21 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
                 {/* Card content */}
                 <div style={{ padding: isMobile ? '0.75rem' : '1rem', position: 'relative', zIndex: 1 }}>
                   <div style={{ fontSize: 9, color: brand.color, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5, fontWeight: 700 }}>{brand.category}</div>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 19 : 23, letterSpacing: '0.04em', color: '#1A1A1A', lineHeight: 1 }}>{brand.name}</div>
-                  <div style={{ fontSize: 10, color: '#AAA', marginTop: 4, lineHeight: 1.5 }}>{brand.tagline}</div>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 19 : 23, letterSpacing: '0.04em', color: t.text, lineHeight: 1 }}>{brand.name}</div>
+                  <div style={{ fontSize: 10, color: t.textFaint, marginTop: 4, lineHeight: 1.5 }}>{brand.tagline}</div>
                   <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: brand.color, fontWeight: 600, background: brand.color + '12', borderRadius: 6, padding: '4px 8px' }}>View →</div>
                 </div>
               </a>
             );
           })}
         </div>
-        <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: '#CCC' }}>Drag cards to reorder · Order saves automatically</div>
+        <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: t.textDisabled }}>Drag cards to reorder · Order saves automatically</div>
       </div>
 
       {/* Footer */}
-      <div style={{ borderTop: '0.5px solid #E0DDD8', padding: '2rem 1.5rem', textAlign: 'center' }}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.12em', color: '#1A1A1A', marginBottom: 6 }}>Global Access</div>
-        <div style={{ fontSize: 12, color: '#CCC' }}>Trade portal · Invite only · Contact us via Support chat or your interest form</div>
+      <div style={{ borderTop: t.borderHairline, padding: '2rem 1.5rem', textAlign: 'center' }}>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.12em', color: t.text, marginBottom: 6 }}>Global Access</div>
+        <div style={{ fontSize: 12, color: t.textDisabled }}>Trade portal · Invite only · Contact us via Support chat or your interest form</div>
       </div>
     </div>
   );

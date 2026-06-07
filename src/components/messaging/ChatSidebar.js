@@ -13,6 +13,7 @@ import MessageThread from './MessageThread';
 import MessageInput from './MessageInput';
 import UserList from './UserList';
 import CustomerBadges from '../CustomerBadges';
+import { useTheme } from '../../context/ThemeContext';
 
 async function loadProfileMap(userIds) {
   if (!userIds.length) return {};
@@ -37,6 +38,7 @@ export default function ChatSidebar({
   profileComplete = true,
   onRequireProfile,
 }) {
+  const { t } = useTheme();
   const isStaff = isAdmin || isSalesRep;
   const isPage = variant === 'page';
   const [tab, setTab] = useState('chats');
@@ -213,7 +215,7 @@ export default function ChatSidebar({
     ? {
         width: '100%',
         height: '100%',
-        background: '#FFF',
+        background: t.bgElevated,
         display: 'flex',
         flexDirection: 'column',
       }
@@ -221,11 +223,11 @@ export default function ChatSidebar({
         width: 360,
         maxWidth: '100vw',
         height: '100%',
-        background: '#FFF',
-        borderLeft: '0.5px solid #E0DDD8',
+        background: t.bgElevated,
+        borderLeft: t.borderHairlineLight,
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: '-8px 0 32px rgba(0,0,0,0.08)',
+        boxShadow: `-8px 0 32px ${t.shadow}`,
       };
 
   const inner = (
@@ -233,42 +235,42 @@ export default function ChatSidebar({
       <div style={{
         padding: isPage ? '14px 16px' : '12px 14px',
         paddingTop: isPage ? 'max(14px, env(safe-area-inset-top))' : undefined,
-        borderBottom: '0.5px solid #E8E4DF',
+        borderBottom: t.borderHairlineLight,
         display: 'flex',
         alignItems: 'center',
         gap: 8,
-        background: '#1A1A1A',
+        background: t.headerBg,
         flexShrink: 0,
       }}>
         {(activeConvo || isPage) ? (
           <button
             type="button"
             onClick={handleClose}
-            style={{ background: 'none', border: 'none', color: '#FFF', cursor: 'pointer', fontSize: 22, padding: '4px 8px 4px 0', fontFamily: 'inherit', lineHeight: 1 }}
+            style={{ background: 'none', border: 'none', color: t.headerText, cursor: 'pointer', fontSize: 22, padding: '4px 8px 4px 0', fontFamily: 'inherit', lineHeight: 1 }}
             aria-label="Back"
           >
             ‹
           </button>
         ) : null}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: isPage ? 15 : 13, fontWeight: 600, color: '#FFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headerTitle}</div>
+          <div style={{ fontSize: isPage ? 15 : 13, fontWeight: 600, color: t.headerText, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headerTitle}</div>
           {isStaff && activeCustomerProfile && (
             <div style={{ marginTop: 6 }}>
               <CustomerBadges profile={activeCustomerProfile} size="sm" />
             </div>
           )}
-          {headerSub && <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{headerSub}</div>}
+          {headerSub && <div style={{ fontSize: 11, color: t.headerMuted, marginTop: 2 }}>{headerSub}</div>}
         </div>
         {!isPage && (
-          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 22, fontFamily: 'inherit', padding: 4 }}>×</button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', color: t.headerMuted, cursor: 'pointer', fontSize: 22, fontFamily: 'inherit', padding: 4 }}>×</button>
         )}
       </div>
 
       {!activeConvo && isStaff && (
-        <div style={{ display: 'flex', borderBottom: '0.5px solid #E8E4DF', flexShrink: 0 }}>
+        <div style={{ display: 'flex', borderBottom: t.borderHairlineLight, flexShrink: 0 }}>
           {[['chats', 'Inbox'], ['people', 'Customers']].map(([id, label]) => (
             <button key={id} type="button" onClick={() => setTab(id)}
-              style={{ flex: 1, padding: '12px 6px', border: 'none', background: tab === id ? '#F8F6F3' : '#FFF', fontSize: 12, fontWeight: tab === id ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit', color: tab === id ? '#1A1A1A' : '#888' }}>
+              style={{ flex: 1, padding: '12px 6px', border: 'none', background: tab === id ? t.bgMuted : t.bgElevated, fontSize: 12, fontWeight: tab === id ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit', color: tab === id ? t.text : t.textMuted }}>
               {label}{id === 'chats' && unread ? ` (${unread})` : ''}
             </button>
           ))}
@@ -279,14 +281,14 @@ export default function ChatSidebar({
         {activeConvo ? (
           <>
             {!activeIsGroup && (
-              <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #E8E4DF', background: '#FAFAF8', fontSize: 12, color: '#666', lineHeight: 1.5, flexShrink: 0 }}>
+              <div style={{ padding: '12px 14px', borderBottom: t.borderHairlineLight, background: t.bgHover, fontSize: 12, color: t.textSecondary, lineHeight: 1.5, flexShrink: 0 }}>
                 {!contactRevealed && (
                   <>
                     {isAdmin ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <span>Contact info is hidden until you confirm this lead.</span>
                         <button type="button" onClick={handleConfirmContact} disabled={confirming}
-                          style={{ alignSelf: 'flex-start', background: '#4CAF7D', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: confirming ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                          style={{ alignSelf: 'flex-start', background: t.accent, color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: confirming ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                           {confirming ? 'Confirming…' : 'Confirm & share contact info'}
                         </button>
                       </div>
@@ -299,7 +301,7 @@ export default function ChatSidebar({
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                     {safeOtherProfile.email && <span>📧 {safeOtherProfile.email}</span>}
                     {safeOtherProfile.phone && (
-                      <a href={`https://wa.me/${safeOtherProfile.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ color: '#4CAF7D', textDecoration: 'none', fontWeight: 600 }}>
+                      <a href={`https://wa.me/${safeOtherProfile.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ color: t.accent, textDecoration: 'none', fontWeight: 600 }}>
                         WhatsApp {safeOtherProfile.phone}
                       </a>
                     )}
@@ -337,7 +339,7 @@ export default function ChatSidebar({
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', justifyContent: 'flex-end' }}>
-      <div onClick={onClose} style={{ flex: 1, background: 'rgba(0,0,0,0.25)' }} role="presentation" />
+      <div onClick={onClose} style={{ flex: 1, background: t.overlayLight }} role="presentation" />
       {inner}
     </div>
   );
