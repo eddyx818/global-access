@@ -53,6 +53,6 @@ CREATE POLICY "users_manage_own_push_subscriptions" ON push_subscriptions
 --      Headers:  Authorization: Bearer YOUR_PUSH_NOTIFY_SECRET
 --      Body:     { "record": { "id": "{{ record.id }}", "conversation_id": "{{ record.conversation_id }}", "from_user_id": "{{ record.from_user_id }}", "content": "{{ record.content }}", "created_at": "{{ record.created_at }}" } }
 --
--- 6. On your phone: open your live portal URL (e.g. https://global-access.vercel.app)
+-- 6. On your phone: open https://global-access-nu.vercel.app
 --    → Profile → enable notifications → allow when prompted.
 --    Push only works on HTTPS + installed PWA or supported mobile browser (not plain desktop Safari without permission).
