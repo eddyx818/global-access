@@ -272,6 +272,23 @@ html.app-mobile .app-portal-nav {
   padding-bottom: 0;
 }
 
+html.app-mobile .app-portal-nav.app-portal-nav--admin.app-portal-nav--safe-top {
+  background: linear-gradient(to bottom, #000000 0, #000000 var(--ga-inset-top), #161616 var(--ga-inset-top), #161616 100%);
+  padding-top: var(--ga-inset-top);
+  border-bottom: 0.5px solid #2A2A2A;
+  min-height: calc(var(--ga-nav-bar) + var(--ga-inset-top));
+}
+
+html.app-mobile .app-portal-nav.app-portal-nav--admin {
+  background: #161616;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  min-height: var(--ga-nav-bar);
+  padding-top: 0;
+  padding-bottom: 6px;
+  align-items: center;
+}
+
 html.app-mobile .app-portal-nav.app-portal-nav--safe-top {
   min-height: var(--ga-nav-height);
   padding-top: var(--ga-inset-top);

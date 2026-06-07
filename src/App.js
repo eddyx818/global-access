@@ -89,10 +89,7 @@ export default function App() {
   const showInstallPrompt = isMobileDevice && !isInstalled;
   const showInstallBanner = showInstallPrompt && inPortalView;
   const showMobileNav = mobileShell && !!user;
-  const portalTopChrome =
-    (authState === 'admin' && adminMode === 'portal')
-    || showInstallBanner
-    || authState === 'browse';
+  const portalTopChrome = showInstallBanner || authState === 'browse';
   const chatLabel = isPortalAdmin || isSalesRep ? staffChatLabel() : resolveCustomerChatLabel(customerChatLabel);
 
   const openChat = () => {
@@ -734,24 +731,6 @@ export default function App() {
     <div className="app-viewport" style={{ background: isNight ? t.bg : (bgColor || t.bg), fontFamily: getFontFamily(globalStyles.font_family), color: isNight ? t.text : (globalStyles.primary_color || t.text), transition: 'background 0.35s ease, color 0.35s ease', display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: '100dvh' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
 
-      {/* Admin bar */}
-      {authState === 'admin' && adminMode === 'portal' && (
-        <div className="app-top-chrome app-safe-top-chrome" style={{ background: '#1A1A1A', paddingLeft: isMobileDevice ? '0.75rem' : '1.25rem', paddingRight: isMobileDevice ? '0.75rem' : '1.25rem', paddingTop: isMobileDevice ? 6 : 8, paddingBottom: isMobileDevice ? 6 : 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: isMobileDevice ? 11 : 12, color: '#AAA', fontWeight: 600 }}>
-              Preview · {userType === 'distributor' ? 'Distributor' : 'Retailer'}
-            </div>
-            <div style={{ fontSize: isMobileDevice ? 10 : 11, color: '#666', marginTop: 2, lineHeight: 1.35 }}>
-              {isMobileDevice ? 'Tap products to test · Dashboard for admin' : 'Browse and add items like a customer · use Dashboard for full admin tools'}
-            </div>
-          </div>
-          <select value={userType} onChange={e => setUserType(e.target.value)} style={{ background: '#2A2A2A', border: '0.5px solid #3A3A3A', borderRadius: 6, padding: isMobileDevice ? '3px 8px' : '4px 10px', fontSize: isMobileDevice ? 11 : 12, color: '#FFF', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
-            <option value="retailer">View as Retailer</option>
-            <option value="distributor">View as Distributor</option>
-          </select>
-        </div>
-      )}
-
       {/* Install app banner */}
       {showInstallBanner && (
         <InstallAppBanner
@@ -793,6 +772,9 @@ export default function App() {
         quotesNewCount={quotesNewCount}
         isAdmin={isPortalAdmin && adminMode === 'portal'}
         onAdminClick={openAdminDashboard}
+        showAdminPreview={isAdminPortalPreview}
+        previewUserType={userType}
+        onPreviewUserTypeChange={setUserType}
       />
       {user && !mobileShell && (
         <ChatErrorBoundary onFallback={navigateHome}>

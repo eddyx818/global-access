@@ -23,6 +23,9 @@ export default function Nav({
   showCustomerList = true,
   onQuotes = null,
   quotesNewCount = 0,
+  showAdminPreview = false,
+  previewUserType = 'retailer',
+  onPreviewUserTypeChange = null,
 }) {
   const { t, isNight } = useTheme();
   const primary = isNight ? t.text : (globalStyles.primary_color || t.text);
@@ -39,17 +42,32 @@ export default function Nav({
     }
   };
 
+  const dashboardBtnStyle = {
+    background: '#C9A84C',
+    color: '#1A1A1A',
+    border: 'none',
+    borderRadius: 8,
+    padding: isMobile ? '6px 10px' : '6px 12px',
+    fontSize: isMobile ? 11 : 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+    lineHeight: 1.2,
+  };
+
   return (
     <nav
-      className={`app-no-select app-portal-nav${isMobile && includeSafeAreaTop ? ' app-portal-nav--safe-top' : ''}`}
+      className={`app-no-select app-portal-nav${isMobile && includeSafeAreaTop ? ' app-portal-nav--safe-top' : ''}${showAdminPreview ? ' app-portal-nav--admin' : ''}`}
       style={{
       position: 'sticky',
       top: 0,
       zIndex: 100,
-      background: t.navBg,
-      backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
-      borderBottom: `0.5px solid ${t.navBorder}`,
+      background: showAdminPreview && isMobile ? undefined : (showAdminPreview ? '#161616' : t.navBg),
+      backdropFilter: showAdminPreview ? 'none' : 'blur(16px)',
+      WebkitBackdropFilter: showAdminPreview ? 'none' : 'blur(16px)',
+      borderBottom: showAdminPreview ? '0.5px solid #2A2A2A' : `0.5px solid ${t.navBorder}`,
       ...(isMobile ? {} : {
         boxSizing: 'border-box',
         flexShrink: 0,
@@ -64,10 +82,54 @@ export default function Nav({
       justifyContent: 'space-between',
       transition: 'background 0.35s ease, border-color 0.35s ease',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16, minWidth: 0 }}>
-        <button type="button" onClick={() => (onHome ? onHome() : setView('home'))} style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 18 : 22, letterSpacing: '0.08em', color: primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, whiteSpace: 'nowrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, minWidth: 0, flex: showAdminPreview && isMobile ? 1 : undefined }}>
+        <button type="button" onClick={() => (onHome ? onHome() : setView('home'))} style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile && showAdminPreview ? 17 : (isMobile ? 18 : 22), letterSpacing: '0.06em', color: showAdminPreview ? '#F5F2ED' : primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, whiteSpace: 'nowrap' }}>
           Global Access
         </button>
+        {showAdminPreview && onPreviewUserTypeChange && (
+          <div
+            role="group"
+            aria-label="Preview account type"
+            style={{
+              display: 'inline-flex',
+              flexShrink: 0,
+              borderRadius: 8,
+              overflow: 'hidden',
+              border: '0.5px solid #3A3A3A',
+              background: '#0D0D0D',
+            }}
+          >
+            {[
+              ['retailer', isMobile ? 'Ret' : 'Retailer'],
+              ['distributor', isMobile ? 'Dist' : 'Distributor'],
+            ].map(([type, label]) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => onPreviewUserTypeChange(type)}
+                style={{
+                  padding: isMobile ? '5px 8px' : '5px 10px',
+                  fontSize: isMobile ? 10 : 11,
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  background: previewUserType === type ? '#C9A84C' : 'transparent',
+                  color: previewUserType === type ? '#1A1A1A' : '#888',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        {showAdminPreview && isAdmin && onAdminClick && (
+          <button type="button" onClick={onAdminClick} style={dashboardBtnStyle}>
+            Dashboard
+          </button>
+        )}
         {!isMobile && navigation.map(item => (
           <button key={item.id} type="button" onClick={() => handleNavItem(item)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: t.textSecondary, fontFamily: 'inherit', padding: '4px 0', letterSpacing: '0.02em' }}>
@@ -101,13 +163,25 @@ export default function Nav({
             Profile
           </button>
         )}
-        {isAdmin && onAdminClick && (
-          <button type="button" onClick={onAdminClick} style={{ background: t.goldBg, color: t.gold, border: `0.5px solid ${t.gold}`, borderRadius: 20, padding: isMobile ? '4px 10px' : '5px 14px', fontSize: isMobile ? 10 : 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.04em', backdropFilter: 'blur(4px)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+        {isAdmin && onAdminClick && !showAdminPreview && (
+          <button type="button" onClick={onAdminClick} style={dashboardBtnStyle}>
             Dashboard
           </button>
         )}
         {onLogout && (
-          <button type="button" onClick={onLogout} style={{ background: isNight ? t.bgSubtle : 'rgba(255,255,255,0.6)', border: t.borderHairlineLight, borderRadius: 20, padding: isMobile ? '4px 8px' : '5px 12px', fontSize: isMobile ? 10 : 12, color: t.textMuted, cursor: 'pointer', fontFamily: 'inherit', backdropFilter: 'blur(4px)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          <button type="button" onClick={onLogout} style={{
+            background: showAdminPreview ? '#252525' : (isNight ? t.bgSubtle : 'rgba(255,255,255,0.6)'),
+            border: showAdminPreview ? '0.5px solid #3A3A3A' : t.borderHairlineLight,
+            borderRadius: 8,
+            padding: isMobile ? '6px 8px' : '6px 12px',
+            fontSize: isMobile ? 10 : 12,
+            color: showAdminPreview ? '#AAA' : t.textMuted,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            lineHeight: 1.2,
+          }}>
             Sign out
           </button>
         )}
