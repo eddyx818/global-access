@@ -32,7 +32,7 @@ export default function Nav({
   };
 
   return (
-    <nav style={{
+    <nav className="app-no-select" style={{
       position: 'sticky',
       top: 0,
       zIndex: 100,

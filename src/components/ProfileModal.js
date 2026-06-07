@@ -9,7 +9,7 @@ import {
 } from '../lib/notificationPrefs';
 import { playMessageSound, vibrateDevice } from '../lib/messageAlerts';
 
-export default function ProfileModal({ user, form, setForm, userType, setUserType, onClose }) {
+export default function ProfileModal({ user, form, setForm, userType, setUserType, onClose, isMobile = false }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [username, setUsername] = useState('');
@@ -33,7 +33,7 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
 
   const inputStyle = {
     width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8',
-    borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 13,
+    borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 16,
     outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit'
   };
   const labelStyle = {
@@ -85,11 +85,40 @@ export default function ProfileModal({ user, form, setForm, userType, setUserTyp
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-      <div style={{ background: '#FFF', borderRadius: 20, padding: '2rem', maxWidth: 440, width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 600,
+        display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center',
+        padding: isMobile ? 0 : '1.5rem',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#FFF',
+          borderRadius: isMobile ? '20px 20px 0 0' : 20,
+          padding: isMobile ? '1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom))' : '2rem',
+          maxWidth: 440,
+          width: '100%',
+          maxHeight: isMobile ? '92dvh' : '90vh',
+          overflowY: 'auto',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem',
+          position: 'sticky', top: 0, background: '#FFF', zIndex: 1, paddingBottom: 8,
+        }}>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: '0.04em', color: '#1A1A1A' }}>My Profile</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, color: '#AAA', cursor: 'pointer', fontFamily: 'inherit' }}>×</button>
+          <button type="button" onClick={onClose} aria-label="Close profile"
+            style={{ background: '#F8F6F3', border: 'none', borderRadius: 8, fontSize: 22, color: '#666', cursor: 'pointer', fontFamily: 'inherit', width: 40, height: 40, lineHeight: 1 }}>
+            ×
+          </button>
         </div>
 
         <div style={{ marginBottom: '1rem' }}>

@@ -184,9 +184,10 @@ export async function getOrCreateDirectConversation(userId, otherUserId) {
   return data;
 }
 
-export async function sendMessage({ conversationId, fromUserId, toUserId, content, isGroup = false }) {
+export async function sendMessage({ conversationId, fromUserId, toUserId, content, attachment = null, isGroup = false }) {
   const trimmed = content?.trim();
-  if (!trimmed) return null;
+  const hasAttachment = !!(attachment?.url);
+  if (!trimmed && !hasAttachment) return null;
 
   const { data, error } = await supabase
     .from('messages')
@@ -194,7 +195,10 @@ export async function sendMessage({ conversationId, fromUserId, toUserId, conten
       conversation_id: conversationId,
       from_user_id: fromUserId,
       to_user_id: isGroup ? null : toUserId,
-      content: trimmed,
+      content: trimmed || (hasAttachment ? `📎 ${attachment.name}` : ''),
+      attachment_url: attachment?.url || null,
+      attachment_type: attachment?.type || null,
+      attachment_name: attachment?.name || null,
       read_status: false,
     })
     .select()

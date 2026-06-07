@@ -1,0 +1,72 @@
+/* Native app shell — no zoom, fixed viewport, app-like scroll */
+html.app-native,
+html.app-native body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html.app-native body {
+  background: #F5F2ED;
+  position: relative;
+}
+
+#root {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+}
+
+.app-viewport {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+}
+
+.app-login-screen {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* iOS zooms inputs below 16px — enforce globally in app mode */
+html.app-native input,
+html.app-native select,
+html.app-native textarea {
+  font-size: 16px !important;
+}
+
+html.app-native input[type='checkbox'],
+html.app-native input[type='radio'] {
+  font-size: inherit !important;
+}
+
+html.app-native * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.app-native button,
+html.app-native a,
+html.app-native [role='button'] {
+  touch-action: manipulation;
+}
+
+/* Reduce accidental text selection on chrome (messages still selectable) */
+html.app-native nav,
+html.app-native .app-no-select {
+  -webkit-user-select: none;
+  user-select: none;
+}

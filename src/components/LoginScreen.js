@@ -24,7 +24,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   const [showPassword, setShowPassword] = useState(false);
   const [regForm, setRegForm] = useState({ username: '', email: '', password: '', name: '', company: '', account_type: 'retailer' });
  
-  const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
+  const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
   const labelStyle = { fontSize: 11, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 };
   const btnPrimary = { width: '100%', background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '13px', fontSize: 13, fontWeight: 600, letterSpacing: '0.08em', cursor: 'pointer', fontFamily: 'inherit', marginBottom: '1rem' };
   const btnAdmin = {
@@ -129,7 +129,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   const setReq = (field, val) => setReqForm(f => ({ ...f, [field]: val }));
  
   return (
-    <div style={{ minHeight: '100vh', background: '#F5F2ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: '1.5rem' }}>
+    <div className="app-login-screen" style={{ background: '#F5F2ED', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: '1.5rem', paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
       <div style={{ width: '100%', maxWidth: mode === 'request' ? 480 : 400 }}>
         {/* Logo */}

@@ -22,6 +22,7 @@ export default function MobileBottomNav({
 
   return (
     <nav
+      className="app-no-select"
       style={{
         position: 'fixed',
         left: 0,

@@ -126,7 +126,7 @@ export default function ChatSidebar({
     } catch (_) {}
   };
 
-  const handleSend = async (text) => {
+  const handleSend = async (text, attachment = null) => {
     if (!activeConvo) return;
     const isGroup = isGroupConversation(activeConvo);
     let otherId = null;
@@ -143,6 +143,7 @@ export default function ChatSidebar({
       fromUserId: user.id,
       toUserId: otherId,
       content: text,
+      attachment,
       isGroup,
     });
     refresh();
@@ -160,7 +161,7 @@ export default function ChatSidebar({
   };
 
   const handleClose = () => {
-    if (activeConvo && isPage) {
+    if (activeConvo) {
       setActiveConvo(null);
       return;
     }
@@ -280,7 +281,13 @@ export default function ChatSidebar({
               </div>
             )}
             <MessageThread messages={messages} currentUserId={user.id} profiles={profiles} loading={loading} isGroup={activeIsGroup} showStaffNames={isAdmin} />
-            <MessageInput onSend={handleSend} placeholder={isAdmin ? 'Reply to customer...' : 'Type a message...'} isMobile={isPage} />
+            <MessageInput
+              onSend={handleSend}
+              placeholder={isAdmin ? 'Reply to customer...' : 'Type a message...'}
+              isMobile={isPage}
+              conversationId={activeConvo.id}
+              userId={user.id}
+            />
           </>
         ) : tab === 'chats' || !isAdmin ? (
           <ConversationList

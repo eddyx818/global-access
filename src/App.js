@@ -47,6 +47,7 @@ export default function App() {
   const chatLabel = isPortalAdmin ? 'Messages' : 'Support';
 
   const openChat = () => {
+    setShowProfile(false);
     if (isMobile) setView('chat');
     else setChatOpen(true);
   };
@@ -54,6 +55,16 @@ export default function App() {
   const closeChat = () => {
     if (isMobile) setView(activeBrand ? 'brand' : 'home');
     else setChatOpen(false);
+  };
+
+  const navigateHome = () => {
+    setShowProfile(false);
+    goHome();
+  };
+
+  const navigateList = () => {
+    setShowProfile(false);
+    setView('interest');
   };
 
   const chatActive = (isMobile && view === 'chat') || chatOpen;
@@ -350,7 +361,7 @@ export default function App() {
   if (authState === 'admin' && adminMode === 'dashboard') return <AdminDashboard user={user} onLogout={handleLogout} onViewPortal={() => setAdminMode('portal')} />;
 
   return (
-    <div style={{ minHeight: '100vh', background: bgColor || '#F5F2ED', fontFamily: getFontFamily(globalStyles.font_family), color: globalStyles.primary_color || '#1A1A1A', transition: 'background 0.5s ease' }}>
+    <div className="app-viewport" style={{ background: bgColor || '#F5F2ED', fontFamily: getFontFamily(globalStyles.font_family), color: globalStyles.primary_color || '#1A1A1A', transition: 'background 0.5s ease' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
 
       {/* Admin bar */}
@@ -411,7 +422,7 @@ export default function App() {
           onUnreadChange={refreshUnread}
         />
       )}
-      {showProfile && <ProfileModal user={user} form={form} setForm={setForm} userType={userType} setUserType={setUserType} onClose={() => setShowProfile(false)} />}
+      {showProfile && <ProfileModal user={user} form={form} setForm={setForm} userType={userType} setUserType={setUserType} onClose={() => setShowProfile(false)} isMobile={isMobile} />}
 
       <div style={mobileContentPad}>
 
@@ -424,12 +435,12 @@ export default function App() {
             {[['name','Your name *'],['company','Company / Store *'],['phone','Phone / WhatsApp'],['email','Email']].map(([field, label]) => (
               <div key={field} style={{ marginBottom: '0.875rem' }}>
                 <label style={{ fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
-                <input value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} style={{ width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} autoCapitalize={field === 'email' ? 'none' : 'words'} />
+                <input value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} style={{ width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '11px 12px', color: '#1A1A1A', fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} autoCapitalize={field === 'email' ? 'none' : 'words'} />
               </div>
             ))}
             <div style={{ marginBottom: '0.875rem' }}>
               <label style={{ fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes (optional)</label>
-              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Questions, timeline, or extra info..." style={{ width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '10px 12px', color: '#1A1A1A', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', height: 70, resize: 'none' }} />
+              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Questions, timeline, or extra info..." style={{ width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '10px 12px', color: '#1A1A1A', fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', height: 70, resize: 'none' }} />
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem' }}>
               <button onClick={() => setShowSignupPrompt(false)} style={{ flex: 1, background: 'none', border: '0.5px solid #E0DDD8', borderRadius: 10, padding: '12px', fontSize: 13, color: '#AAA', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
@@ -499,8 +510,8 @@ export default function App() {
       {showMobileNav && (
         <MobileBottomNav
           activeView={view}
-          onHome={goHome}
-          onList={() => setView('interest')}
+          onHome={navigateHome}
+          onList={navigateList}
           onChat={openChat}
           onProfile={() => setShowProfile(true)}
           listCount={interests.length}
