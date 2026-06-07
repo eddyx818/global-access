@@ -39,11 +39,11 @@ export default function UserManager() {
       });
       if (err) throw err;
       // Save profile
-      await supabase.from('user_profiles').insert({
+      await supabaseAdmin.from('user_profiles').insert({
         user_id: data.user.id,
         email: createForm.email.trim().toLowerCase(),
-        name: createForm.name,
-        company: createForm.company,
+        name: createForm.name.trim() || null,
+        company: createForm.company.trim() || null,
         role: createForm.role,
         is_portal_admin: createForm.role === 'admin',
         temp_password: createForm.password,
@@ -66,22 +66,42 @@ export default function UserManager() {
   };
 
   const handleSaveEdit = async (user) => {
+    setError('');
     try {
-      await supabase.from('user_profiles').update({
-        name: editForm.name,
-        company: editForm.company,
-        role: editForm.role,
-        is_portal_admin: editForm.role === 'admin',
-        updated_at: new Date().toISOString(),
-      }).eq('id', user.id);
+      const name = editForm.name?.trim() || null;
+      const company = editForm.company?.trim() || null;
+      const role = editForm.role || 'retailer';
+
+      const { error: profileErr } = await supabaseAdmin
+        .from('user_profiles')
+        .update({
+          name,
+          company,
+          role,
+          is_portal_admin: role === 'admin',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+      if (profileErr) throw profileErr;
+
+      const { error: metaErr } = await supabaseAdmin.auth.admin.updateUserById(user.user_id, {
+        user_metadata: { role, name, company },
+      });
+      if (metaErr) throw metaErr;
+
       if (editForm.new_password && editForm.new_password.length >= 6) {
-        await supabaseAdmin.auth.admin.updateUserById(user.user_id, { password: editForm.new_password });
+        const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(user.user_id, {
+          password: editForm.new_password,
+        });
+        if (pwErr) throw pwErr;
       }
-      setSaved('User updated!'); setTimeout(() => setSaved(''), 2000);
+
+      setSaved('User updated!');
+      setTimeout(() => setSaved(''), 2000);
       setEditing(null);
-      loadUsers();
+      await loadUsers();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Could not save user.');
     }
   };
 
@@ -89,7 +109,7 @@ export default function UserManager() {
     if (!window.confirm(`Disable access for ${user.email}?`)) return;
     try {
       await supabaseAdmin.auth.admin.updateUserById(user.user_id, { ban_duration: '876000h' });
-      await supabase.from('user_profiles').update({ disabled: true }).eq('id', user.id);
+      await supabaseAdmin.from('user_profiles').update({ disabled: true }).eq('id', user.id);
       loadUsers();
     } catch (err) {
       setError(err.message);
@@ -99,7 +119,7 @@ export default function UserManager() {
   const handleEnable = async (user) => {
     try {
       await supabaseAdmin.auth.admin.updateUserById(user.user_id, { ban_duration: 'none' });
-      await supabase.from('user_profiles').update({ disabled: false }).eq('id', user.id);
+      await supabaseAdmin.from('user_profiles').update({ disabled: false }).eq('id', user.id);
       loadUsers();
     } catch (err) {
       setError(err.message);
@@ -233,7 +253,7 @@ export default function UserManager() {
                   <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: (ROLE_COLORS[user.role] || '#888') + '18', color: ROLE_COLORS[user.role] || '#888', fontWeight: 600, textTransform: 'capitalize', letterSpacing: '0.06em' }}>{user.role || 'unknown'}</span>
                   {user.disabled && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#FEF0F0', color: '#E05A5A', fontWeight: 600 }}>Disabled</span>}
                 </div>
-                <div style={{ fontSize: 13, color: '#888' }}>{user.company}</div>
+                <div style={{ fontSize: 13, color: '#888' }}>{user.company || '—'}</div>
                 <div style={{ fontSize: 12, color: '#AAA', marginTop: 2 }}>{user.email}</div>
                 {user.temp_password && (
                   <div style={{ fontSize: 11, color: '#CCC', marginTop: 3 }}>Temp password: <span style={{ fontFamily: 'monospace', background: '#F8F6F3', padding: '1px 6px', borderRadius: 4 }}>{user.temp_password}</span></div>
