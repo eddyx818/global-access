@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { readFileAsText } from '../lib/adminUpload';
 import { parseContactSpreadsheet, importContacts, fetchUploadedContacts } from '../lib/contactImport';
 import { fetchRepRoster } from '../lib/repCodes';
+import { transferUploadedContact, repDisplayName, buildRepOptions } from '../lib/customerTransfer';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
 
@@ -20,6 +21,10 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [transferringId, setTransferringId] = useState(null);
+
+  const repOptions = buildRepOptions(reps);
+  const repNameById = Object.fromEntries(repOptions.map(r => [r.user_id, repDisplayName(r)]));
 
   const load = async () => {
     setLoading(true);
@@ -30,8 +35,27 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
 
   useEffect(() => {
     load();
-    if (isAdmin) fetchRepRoster().then(setReps);
+    if (isAdmin || isSalesRep) fetchRepRoster().then(setReps);
   }, [userId, isAdmin, isSalesRep]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleTransferContact = async (contactId, newRepUserId, contactName) => {
+    const targetLabel = newRepUserId
+      ? repDisplayName(repOptions.find(r => r.user_id === newRepUserId))
+      : 'Unassigned';
+    if (!window.confirm(`Transfer ${contactName || 'this contact'} to ${targetLabel}?`)) return;
+
+    setTransferringId(contactId);
+    setError('');
+    const result = await transferUploadedContact(contactId, newRepUserId || null);
+    if (!result.ok) {
+      setError(result.error || 'Transfer failed.');
+    } else {
+      setMessage('Contact transferred.');
+      await load();
+      setTimeout(() => setMessage(''), 3000);
+    }
+    setTransferringId(null);
+  };
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -151,7 +175,7 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: t.bgMuted }}>
-                {['Name', 'Company', 'Email', 'Phone', 'Type', 'Status', 'Source'].map(h => (
+                {['Name', 'Company', 'Email', 'Phone', 'Type', 'Status', 'Assigned to', 'Source'].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10, color: t.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: t.borderHairline }}>{h}</th>
                 ))}
               </tr>
@@ -166,6 +190,28 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, textTransform: 'capitalize', color: t.textSecondary }}>{c.account_type || '—'}</td>
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
                     <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: (STATUS_COLORS[c.status] || '#CCC') + '22', color: STATUS_COLORS[c.status] || t.textSecondary }}>{c.status}</span>
+                    {c.linked_user_id && (
+                      <div style={{ fontSize: 10, color: t.successText, marginTop: 4 }}>Signed up</div>
+                    )}
+                  </td>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, minWidth: 150 }}>
+                    {(isAdmin || isSalesRep) && repOptions.length > 0 ? (
+                      <select
+                        value={c.assigned_rep_id || ''}
+                        disabled={transferringId === c.id}
+                        onChange={(e) => handleTransferContact(c.id, e.target.value || null, c.name || c.company)}
+                        style={{ ...inputStyle, fontSize: 12, padding: '6px 8px', width: '100%', cursor: transferringId === c.id ? 'wait' : 'pointer' }}
+                      >
+                        <option value="">Unassigned</option>
+                        {repOptions.map(r => (
+                          <option key={r.user_id} value={r.user_id}>
+                            {repDisplayName(r)}{r.rep_code ? ` (${r.rep_code})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span style={{ fontSize: 12, color: t.textSecondary }}>{repNameById[c.assigned_rep_id] || '—'}</span>
+                    )}
                   </td>
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, fontSize: 11, color: t.textFaint }}>{c.source_filename || '—'}</td>
                 </tr>

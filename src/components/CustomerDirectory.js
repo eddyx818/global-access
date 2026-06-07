@@ -3,23 +3,33 @@ import { supabase } from '../lib/supabase';
 import { fetchAllProfiles } from '../lib/community';
 import { formatRoleLabel } from '../lib/roles';
 import { getAccountBadges } from '../lib/accountBadges';
+import { fetchRepRoster } from '../lib/repCodes';
+import { transferSignedUpCustomer, repDisplayName, buildRepOptions } from '../lib/customerTransfer';
 import CustomerBadges from './CustomerBadges';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
 
 const STATUS_COLOR = { online: '#4CAF7D', away: '#C9A84C', offline: '#CCC' };
 
-export default function CustomerDirectory({ repUserId = null }) {
+export default function CustomerDirectory({ repUserId = null, canTransfer = true }) {
   const { t } = useTheme();
   const ui = getAdminUi();
   const [users, setUsers] = useState([]);
   const [repNames, setRepNames] = useState({});
+  const [reps, setReps] = useState([]);
   const [stats, setStats] = useState({});
   const [filter, setFilter] = useState('');
   const [sortKey, setSortKey] = useState('last_active_at');
   const [loading, setLoading] = useState(true);
+  const [transferringId, setTransferringId] = useState(null);
+  const [transferError, setTransferError] = useState('');
 
   useEffect(() => { load(); }, [repUserId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!canTransfer) return;
+    fetchRepRoster().then(setReps);
+  }, [canTransfer]);
 
   const load = async () => {
     setLoading(true);
@@ -53,6 +63,25 @@ export default function CustomerDirectory({ repUserId = null }) {
     setUsers(merged);
     setStats({ total: merged.length, online: merged.filter(u => u.status === 'online').length });
     setLoading(false);
+  };
+
+  const repOptions = buildRepOptions(reps);
+
+  const handleTransfer = async (customerUserId, newRepUserId, customerName) => {
+    const targetLabel = newRepUserId
+      ? repDisplayName(repOptions.find(r => r.user_id === newRepUserId))
+      : 'Unassigned';
+    if (!window.confirm(`Transfer ${customerName || 'this customer'} to ${targetLabel}?`)) return;
+
+    setTransferringId(customerUserId);
+    setTransferError('');
+    const result = await transferSignedUpCustomer(customerUserId, newRepUserId || null);
+    if (!result.ok) {
+      setTransferError(result.error || 'Transfer failed.');
+    } else {
+      await load();
+    }
+    setTransferringId(null);
   };
 
   const filtered = users
@@ -97,6 +126,13 @@ export default function CustomerDirectory({ repUserId = null }) {
         <button onClick={load} style={{ ...ui.tabBtn(true) }}>↻</button>
       </div>
 
+      {transferError && (
+        <div style={{ background: t.errorBg, border: `0.5px solid ${t.errorBorder}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: t.errorText, marginBottom: 12 }}>
+          {transferError}
+          <button type="button" onClick={() => setTransferError('')} style={{ background: 'none', border: 'none', color: t.errorText, cursor: 'pointer', fontFamily: 'inherit', marginLeft: 8 }}>×</button>
+        </div>
+      )}
+
       {loading ? <div style={{ fontSize: 13, color: '#AAA' }}>Loading...</div> : (
         <div style={{ overflowX: 'auto', ...ui.card, padding: 0 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -111,6 +147,9 @@ export default function CustomerDirectory({ repUserId = null }) {
                 {th('pages_viewed', 'Pages')}
                 {th('messages_sent', 'Messages')}
                 {th('last_active_at', 'Last active')}
+                {canTransfer && (
+                  <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10, color: '#AAA', letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '0.5px solid #E8E4DF' }}>Transfer to</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -144,6 +183,23 @@ export default function CustomerDirectory({ repUserId = null }) {
                   <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, fontSize: 11, color: t.textFaint }}>
                     {u.last_active_at ? new Date(u.last_active_at).toLocaleString() : '—'}
                   </td>
+                  {canTransfer && (
+                    <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, minWidth: 160 }}>
+                      <select
+                        value={u.referred_by_user_id || ''}
+                        disabled={transferringId === u.user_id}
+                        onChange={(e) => handleTransfer(u.user_id, e.target.value || null, u.name || u.email)}
+                        style={{ ...ui.input, fontSize: 12, padding: '6px 8px', width: '100%', cursor: transferringId === u.user_id ? 'wait' : 'pointer' }}
+                      >
+                        <option value="">Unassigned</option>
+                        {repOptions.map(r => (
+                          <option key={r.user_id} value={r.user_id}>
+                            {repDisplayName(r)}{r.rep_code ? ` (${r.rep_code})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
