@@ -505,11 +505,11 @@ function boothStylePool(aisleId) {
   return boothPoolCache[aisleId];
 }
 
-const boothStripCache = { key: '', canvas: null, stripW: 0, stripH: 0 };
+const boothStripCache = new Map();
 
 function getHorizontalBoothStrip(aisleId, baseBoothW, wallH, styles) {
   const key = `${aisleId}:v2:${Math.round(baseBoothW)}:${Math.round(wallH)}`;
-  if (boothStripCache.key === key && boothStripCache.canvas) return boothStripCache;
+  if (boothStripCache.has(key)) return boothStripCache.get(key);
 
   let stripW = 0;
   FAR_WALL_BOOTH_LAYOUT.forEach((slot) => {
@@ -531,11 +531,13 @@ function getHorizontalBoothStrip(aisleId, baseBoothW, wallH, styles) {
       x += bw + baseBoothW * slot.gap;
     });
   }
-  boothStripCache.key = key;
-  boothStripCache.canvas = canvas;
-  boothStripCache.stripW = stripW;
-  boothStripCache.stripH = wallH;
-  return boothStripCache;
+  const strip = { key, canvas, stripW, stripH: wallH };
+  boothStripCache.set(key, strip);
+  if (boothStripCache.size > 8) {
+    const oldest = boothStripCache.keys().next().value;
+    boothStripCache.delete(oldest);
+  }
+  return strip;
 }
 
 function drawConventionCeiling(ctx, w, h, scroll) {
@@ -554,7 +556,7 @@ function drawConventionCeiling(ctx, w, h, scroll) {
 }
 
 function blitHorizontalStrip(ctx, strip, destX, destY, destW, destH, offset) {
-  if (!strip.canvas || strip.stripW <= 0) return;
+  if (!strip?.canvas || strip.stripW <= 0) return;
   const sx = offset % strip.stripW;
   const sw = Math.min(destW, strip.stripW - sx);
   ctx.drawImage(strip.canvas, sx, 0, sw, strip.stripH, destX, destY, sw, destH);
@@ -929,6 +931,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
   const hudSnapshotRef = useRef({ score: -1, lives: -1, products: -1, aisle: 0 });
   const endedRef = useRef(false);
   const endGameRef = useRef(null);
+  const mountedRef = useRef(true);
 
   const [hud, setHud] = useState({ score: 0, lives: LIVES, products: 0, aisle: 0, phase: 'ready' });
   const [leaderboard, setLeaderboard] = useState([]);
@@ -938,6 +941,11 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
   const loadBoard = useCallback(async () => {
     const r = await fetchLobbyLeaderboard(8);
     if (r.ok) setLeaderboard(r.rows);
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
   }, []);
 
   useEffect(() => { loadBoard(); }, [loadBoard]);
@@ -956,6 +964,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
     };
     hudSnapshotRef.current = { score: -1, lives: -1, products: -1, aisle: 0 };
     endedRef.current = false;
+    setSubmitting(false);
     setHud({ score: 0, lives: LIVES, products: 0, aisle: 0, phase: 'playing' });
     setLastRun(null);
   }, []);
@@ -980,9 +989,12 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
     }));
     onGameOver?.(run);
     setSubmitting(true);
-    await submitLobbyScore({ playerName, score: run.score, productsCollected: run.products });
-    setSubmitting(false);
-    loadBoard();
+    try {
+      await submitLobbyScore({ playerName, score: run.score, productsCollected: run.products });
+    } finally {
+      if (mountedRef.current) setSubmitting(false);
+    }
+    if (mountedRef.current) loadBoard();
   }, [loadBoard, onGameOver, playerName]);
 
   endGameRef.current = endGame;
@@ -1123,6 +1135,7 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
         const playerBox = playerCollisionBox(s);
 
         s.entities = s.entities.filter((e) => {
+          if (!s.running) return true;
           e.x -= s.speed * dt * 0.82;
           if (e.x < -0.22) return false;
           if (e.type === 'brand' && hit(playerBox, e)) {
@@ -1133,22 +1146,28 @@ export default function LobbyRunnerGame({ playerName = 'Guest', onGameOver, them
             s.chaserOffset = Math.max(0, s.chaserOffset - 0.02);
             return false;
           }
-          if ((e.type === 'vendor' || e.type === 'booth' || e.type === 'security') && handleObstacleCollision(s, e, playerBox)) {
-            endGameRef.current?.(s, 'caught');
+          if (e.type === 'vendor' || e.type === 'booth' || e.type === 'security') {
+            const fatal = handleObstacleCollision(s, e, playerBox);
+            if (fatal) {
+              endGameRef.current?.(s, 'caught');
+              return false;
+            }
           }
           return true;
         });
 
-        if (s.registerProgress >= CHECKOUT_GOAL) {
+        if (s.running && s.registerProgress >= CHECKOUT_GOAL) {
           s.score += 600;
           endGameRef.current?.(s, 'checkout');
         }
 
-        const scoreInt = Math.floor(s.score);
-        const snap = hudSnapshotRef.current;
-        if (scoreInt !== snap.score || s.lives !== snap.lives || s.products !== snap.products || s.aisleIdx !== snap.aisle) {
-          hudSnapshotRef.current = { score: scoreInt, lives: s.lives, products: s.products, aisle: s.aisleIdx };
-          setHud({ score: scoreInt, lives: s.lives, products: s.products, aisle: s.aisleIdx, phase: 'playing' });
+        if (s.running) {
+          const scoreInt = Math.floor(s.score);
+          const snap = hudSnapshotRef.current;
+          if (scoreInt !== snap.score || s.lives !== snap.lives || s.products !== snap.products || s.aisleIdx !== snap.aisle) {
+            hudSnapshotRef.current = { score: scoreInt, lives: s.lives, products: s.products, aisle: s.aisleIdx };
+            setHud({ score: scoreInt, lives: s.lives, products: s.products, aisle: s.aisleIdx, phase: 'playing' });
+          }
         }
       }
 
