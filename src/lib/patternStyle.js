@@ -54,27 +54,23 @@ export function getPatternAppearance(brandColor, pageBg, { isNight = false, isMo
   };
 }
 
-/** How many repeats fill a rotated mobile viewport (long names need more tiles). */
+/** Tile count for seamless diagonal fill — short names (Rise, Sokka) need many more repeats. */
 export function getPatternDensity(label, isMobile) {
-  const len = Math.max((label || '').replace(/\s+/g, '').length, 3);
   const charSlots = Math.max((label || '').length, 3);
+  const shortBoost = charSlots <= 5 ? 2.6 : charSlots <= 8 ? 1.8 : charSlots <= 12 ? 1.35 : 1;
 
   if (isMobile) {
-    const charWidthVw = 6.8;
-    const gapVw = 7;
-    const wordVw = charSlots * charWidthVw;
-    const unitVw = wordVw + gapVw;
-    const targetVw = 340;
-    return {
-      repeatsPerRow: Math.max(14, Math.ceil(targetVw / unitVw) + 2),
-      rowCount: 40,
-    };
+    const unitVw = charSlots * 5.2 + 3.5;
+    const targetVw = 520;
+    const repeatsPerRow = Math.max(28, Math.ceil((targetVw / unitVw) * shortBoost) + 6);
+    return { repeatsPerRow, rowCount: 56 };
   }
 
-  return {
-    repeatsPerRow: Math.max(12, Math.ceil(120 / len) + 4),
-    rowCount: 28,
-  };
+  // Desktop — same packed tiling; short names need extra repeats on wide screens
+  const unitVw = charSlots * 3.6 + 2;
+  const targetVw = 440;
+  const repeatsPerRow = Math.max(22, Math.ceil((targetVw / unitVw) * shortBoost) + 5);
+  return { repeatsPerRow, rowCount: 40 };
 }
 
 /** Sample watermark styling for admin background previews. */
