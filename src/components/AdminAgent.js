@@ -15,6 +15,7 @@ import {
 import { saveProductContent } from '../lib/content';
 import { commercePayloadFromForm } from '../lib/pricing';
 import DesignPreview from './DesignPreview';
+import { useTheme } from '../context/ThemeContext';
 
 const EXTENDED_PROMPT = `
 Extended capabilities (file uploads, products, analytics):
@@ -148,6 +149,7 @@ function formatAnalysisSummary(analysis) {
 }
 
 export default function AdminAgent() {
+  const { t } = useTheme();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
@@ -526,11 +528,11 @@ export default function AdminAgent() {
     maxWidth: '80%',
     padding: '10px 14px',
     borderRadius: role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-    background: role === 'user' ? '#1A1A1A' : '#F8F6F3',
-    color: role === 'user' ? '#FFF' : '#1A1A1A',
+    background: role === 'user' ? t.bubbleMineBg : t.bgMuted,
+    color: role === 'user' ? t.bubbleMineText : t.text,
     fontSize: 13,
     lineHeight: 1.5,
-    border: role === 'user' ? 'none' : '0.5px solid #E0DDD8',
+    border: role === 'user' ? 'none' : t.borderHairline,
     whiteSpace: 'pre-wrap',
   });
 
@@ -547,18 +549,18 @@ export default function AdminAgent() {
       />
 
       <button onClick={() => setOpen(o => !o)}
-        style={{ position: 'fixed', bottom: 24, right: 24, width: 52, height: 52, borderRadius: '50%', background: '#1A1A1A', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: '0 4px 20px rgba(0,0,0,0.25)', zIndex: 999, transition: 'all 0.2s' }}
+        style={{ position: 'fixed', bottom: 24, right: 24, width: 52, height: 52, borderRadius: '50%', background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: `0 4px 20px ${t.shadow}`, zIndex: 999, transition: 'all 0.2s' }}
         onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; }}
         onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}>
         {open ? '×' : '✦'}
       </button>
 
       {open && (
-        <div style={{ position: 'fixed', bottom: 88, right: 24, width: 380, height: 520, background: '#FFF', borderRadius: 20, boxShadow: '0 8px 40px rgba(0,0,0,0.15)', border: '0.5px solid #E0DDD8', display: 'flex', flexDirection: 'column', zIndex: 998, overflow: 'hidden' }}>
-          <div style={{ background: '#1A1A1A', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4CAF7D' }} />
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#FFF', letterSpacing: '0.04em' }}>Admin Assistant</div>
-            <div style={{ fontSize: 11, color: '#888', marginLeft: 'auto' }}>Powered by Claude</div>
+        <div style={{ position: 'fixed', bottom: 88, right: 24, width: 380, height: 520, background: t.bgElevated, borderRadius: 20, boxShadow: `0 8px 40px ${t.shadow}`, border: t.borderHairline, display: 'flex', flexDirection: 'column', zIndex: 998, overflow: 'hidden' }}>
+          <div style={{ background: t.headerBg, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: t.accent }} />
+            <div style={{ fontSize: 13, fontWeight: 600, color: t.headerText, letterSpacing: '0.04em' }}>Admin Assistant</div>
+            <div style={{ fontSize: 11, color: t.headerMuted, marginLeft: 'auto' }}>Powered by Claude</div>
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', scrollbarWidth: 'none' }}>
@@ -572,8 +574,8 @@ export default function AdminAgent() {
                     )}
                     {pending && (
                       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                        <button onClick={handleConfirm} style={{ flex: 1, background: '#4CAF7D', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✓ Yes, do it</button>
-                        <button onClick={handleCancel} style={{ flex: 1, background: '#F8F6F3', color: '#555', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '8px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>✗ Cancel</button>
+                        <button onClick={handleConfirm} style={{ flex: 1, background: t.accent, color: '#FFF', border: 'none', borderRadius: 8, padding: '8px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✓ Yes, do it</button>
+                        <button onClick={handleCancel} style={{ flex: 1, background: t.bgMuted, color: t.textSecondary, border: t.borderHairline, borderRadius: 8, padding: '8px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>✗ Cancel</button>
                       </div>
                     )}
                   </div>
@@ -584,28 +586,28 @@ export default function AdminAgent() {
             ))}
             {(loading || uploading) && (
               <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 10 }}>
-                <div style={{ ...bubbleStyle('assistant'), color: '#AAA' }}>{uploading ? 'uploading & analyzing...' : 'thinking...'}</div>
+                <div style={{ ...bubbleStyle('assistant'), color: t.textFaint }}>{uploading ? 'uploading & analyzing...' : 'thinking...'}</div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
           {attachment && (
-            <div style={{ padding: '6px 12px', borderTop: '0.5px solid #F0EDE8', display: 'flex', alignItems: 'center', gap: 8, background: '#FAFAF8' }}>
+            <div style={{ padding: '6px 12px', borderTop: t.borderHairlineLight, display: 'flex', alignItems: 'center', gap: 8, background: t.bgHover }}>
               {isImageFile(attachment.file) && (
                 <img src={attachment.record.file_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover' }} />
               )}
-              <span style={{ fontSize: 11, color: '#666', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachment.file.name}</span>
-              <button onClick={() => setAttachment(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#AAA', fontSize: 14 }}>×</button>
+              <span style={{ fontSize: 11, color: t.textSecondary, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachment.file.name}</span>
+              <button onClick={() => setAttachment(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textFaint, fontSize: 14 }}>×</button>
             </div>
           )}
 
-          <div style={{ padding: '0.75rem', borderTop: '0.5px solid #F0EDE8', display: 'flex', gap: 8 }}>
+          <div style={{ padding: '0.75rem', borderTop: t.borderHairlineLight, display: 'flex', gap: 8 }}>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={loading || uploading}
               title="Attach image or document"
-              style={{ width: 36, height: 36, background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 10, cursor: loading || uploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+              style={{ width: 36, height: 36, background: t.inputBg, border: t.borderHairline, borderRadius: 10, cursor: loading || uploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
               📎
             </button>
             <input
@@ -613,11 +615,11 @@ export default function AdminAgent() {
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
               placeholder="Ask me to update anything..."
-              style={{ flex: 1, background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: '#1A1A1A' }}
+              style={{ flex: 1, background: t.inputBg, border: t.borderHairline, borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: t.text }}
               disabled={loading || uploading}
             />
             <button onClick={handleSend} disabled={!canSend}
-              style={{ width: 36, height: 36, background: canSend ? '#1A1A1A' : '#E0DDD8', border: 'none', borderRadius: 10, cursor: canSend ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#FFF', transition: 'all 0.15s', flexShrink: 0 }}>
+              style={{ width: 36, height: 36, background: canSend ? t.btnPrimaryBg : t.border, border: 'none', borderRadius: 10, cursor: canSend ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: canSend ? t.btnPrimaryText : t.textDisabled, transition: 'all 0.15s', flexShrink: 0 }}>
               →
             </button>
           </div>

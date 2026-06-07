@@ -75,3 +75,76 @@ export const t = {
   browseBannerBorder: 'var(--ga-browse-banner-border)',
   browseBannerText: 'var(--ga-browse-banner-text)',
 };
+
+/** Shared styles for admin dashboard panels */
+export function getAdminUi() {
+  return {
+    page: {
+      minHeight: '100vh',
+      background: t.bg,
+      fontFamily: "'DM Sans', sans-serif",
+      color: t.text,
+      transition: 'background 0.35s ease, color 0.35s ease',
+    },
+    header: {
+      background: t.bgElevated,
+      borderBottom: t.borderHairline,
+      padding: '0 1.5rem',
+      height: 52,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      flexWrap: 'wrap',
+    },
+    card: {
+      background: t.bgElevated,
+      border: t.borderHairlineLight,
+      borderRadius: 12,
+      padding: '1.25rem',
+    },
+    statCard: {
+      background: t.bgElevated,
+      border: t.borderHairlineLight,
+      borderRadius: 12,
+      padding: '1rem',
+    },
+    sectionLabel: {
+      fontSize: 12,
+      color: t.textFaint,
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
+      marginBottom: 12,
+    },
+    row: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      padding: '10px 0',
+      borderBottom: `0.5px solid ${t.borderSubtle}`,
+      fontSize: 13,
+    },
+    input: {
+      width: '100%',
+      background: t.inputBg,
+      border: t.borderHairline,
+      borderRadius: 8,
+      padding: '10px 12px',
+      color: t.text,
+      fontSize: 14,
+      outline: 'none',
+      boxSizing: 'border-box',
+      fontFamily: 'inherit',
+    },
+    tabBtn: (active) => ({
+      background: active ? t.btnPrimaryBg : 'transparent',
+      color: active ? t.btnPrimaryText : t.textMuted,
+      border: active ? `0.5px solid ${t.btnPrimaryBg}` : t.borderHairline,
+      borderRadius: 8,
+      padding: '8px 16px',
+      fontSize: 13,
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      fontWeight: active ? 600 : 400,
+    }),
+  };
+}

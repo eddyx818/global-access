@@ -2,13 +2,15 @@ import React from 'react';
 import { BRANDS } from '../lib/data';
 import { getFontFamily, getButtonRadius, DEFAULT_GLOBAL_STYLES } from '../lib/design';
 import { formatPrice, getVisiblePrices, getActivePromo } from '../lib/pricing';
+import { useTheme } from '../context/ThemeContext';
 
 function Swatch({ color, label }) {
+  const { t } = useTheme();
   if (!color) return null;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <div style={{ width: 16, height: 16, borderRadius: 4, background: color, border: '0.5px solid rgba(0,0,0,0.15)' }} />
-      <span style={{ fontSize: 10, color: '#666' }}>{label}: {color}</span>
+      <span style={{ fontSize: 10, color: t.textSecondary }}>{label}: {color}</span>
     </div>
   );
 }
@@ -22,7 +24,7 @@ export function HeroPreview({ data, brandName, brandColor }) {
   const ctaColor = data.cta_color ? '#FFF' : '#1A1A1A';
 
   return (
-    <div style={{ borderRadius: 10, overflow: 'hidden', border: '0.5px solid #E0DDD8', marginTop: 8 }}>
+    <div style={{ borderRadius: 10, overflow: 'hidden', border: '0.5px solid var(--ga-border)', marginTop: 8 }}>
       <div style={{ background: bg, padding: '20px 16px', textAlign: 'center', position: 'relative', minHeight: 100 }}>
         <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 30% 60%, ${brandColor || '#4CAF7D'}55 0%, transparent 60%)`, pointerEvents: 'none' }} />
         <div style={{ position: 'relative', fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: '#FFF', marginBottom: 6 }}>{headline}</div>
@@ -37,7 +39,7 @@ export function GlobalStylesPreview({ data }) {
   const styles = { ...DEFAULT_GLOBAL_STYLES, ...data };
   const radius = getButtonRadius(styles.button_style);
   return (
-    <div style={{ borderRadius: 10, border: '0.5px solid #E0DDD8', padding: 12, marginTop: 8, background: '#FFF' }}>
+    <div style={{ borderRadius: 10, border: '0.5px solid var(--ga-border)', padding: 12, marginTop: 8, background: 'var(--ga-bg-elevated)' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
         <Swatch color={styles.primary_color} label="Primary" />
         <Swatch color={styles.secondary_color} label="Secondary" />
@@ -64,7 +66,7 @@ export function BrandLayoutPreview({ data }) {
   };
 
   return (
-    <div style={{ borderRadius: 10, border: '0.5px solid #E0DDD8', padding: 12, marginTop: 8, background: '#FAFAF8' }}>
+    <div style={{ borderRadius: 10, border: '0.5px solid var(--ga-border)', padding: 12, marginTop: 8, background: '#FAFAF8' }}>
       <div style={{ fontSize: 10, color: '#888', marginBottom: 8 }}>
         {brand?.name || data.brand_id} · {data.header_style || 'hero'} header · {cols}-col grid
       </div>
@@ -73,7 +75,7 @@ export function BrandLayoutPreview({ data }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 6 }}>
         {[1, 2, 3].slice(0, cols * 2).map(i => (
-          <div key={i} style={{ ...cardStyles[cardStyle], borderRadius: 6, padding: '8px 6px', background: '#FFF', fontSize: 9, color: '#666', textAlign: 'center' }}>
+          <div key={i} style={{ ...cardStyles[cardStyle], borderRadius: 6, padding: '8px 6px', background: 'var(--ga-bg-elevated)', fontSize: 9, color: '#666', textAlign: 'center' }}>
             Item {i}
           </div>
         ))}
@@ -84,7 +86,7 @@ export function BrandLayoutPreview({ data }) {
 
 export function AssetPreview({ data }) {
   return (
-    <div style={{ borderRadius: 10, border: '0.5px solid #E0DDD8', padding: 10, marginTop: 8, background: '#FFF' }}>
+    <div style={{ borderRadius: 10, border: '0.5px solid var(--ga-border)', padding: 10, marginTop: 8, background: 'var(--ga-bg-elevated)' }}>
       <div style={{ fontSize: 10, color: '#888', marginBottom: 6 }}>{data.asset_type} · {data.brand_id}{data.sku ? ` · ${data.sku}` : ''}</div>
       {data.file_url && (
         <img src={data.file_url} alt="preview" style={{ maxWidth: '100%', maxHeight: 80, borderRadius: 6, objectFit: 'contain', background: '#F8F6F3' }}
@@ -100,7 +102,7 @@ export function ProductPreview({ data }) {
   const prices = getVisiblePrices(data, 'retailer', 'master_case');
   const promo = getActivePromo(data, 'retailer');
   return (
-    <div style={{ borderRadius: 10, border: '0.5px solid #E0DDD8', padding: 12, marginTop: 8, background: '#FFF' }}>
+    <div style={{ borderRadius: 10, border: '0.5px solid var(--ga-border)', padding: 12, marginTop: 8, background: 'var(--ga-bg-elevated)' }}>
       {(data.images?.[0] || data.image_url) && (
         <img src={data.images?.[0] || data.image_url} alt="" style={{ width: '100%', maxHeight: 80, objectFit: 'cover', borderRadius: 8, marginBottom: 8 }} />
       )}
@@ -123,7 +125,7 @@ export function ProductPreview({ data }) {
 export function BulkImportPreview({ data }) {
   const count = data.products?.length || 0;
   return (
-    <div style={{ borderRadius: 10, border: '0.5px solid #E0DDD8', padding: 12, marginTop: 8, background: '#FFF', fontSize: 11, color: '#666' }}>
+    <div style={{ borderRadius: 10, border: '0.5px solid var(--ga-border)', padding: 12, marginTop: 8, background: 'var(--ga-bg-elevated)', fontSize: 11, color: '#666' }}>
       Import {count} product{count !== 1 ? 's' : ''}{data.overwrite_existing ? ' (overwrite existing)' : ''}
     </div>
   );
@@ -132,10 +134,10 @@ export function BulkImportPreview({ data }) {
 export function NavigationPreview({ data }) {
   const items = data._previewItems || (data.label ? [{ label: data.label, url: data.url }] : []);
   return (
-    <div style={{ borderRadius: 10, border: '0.5px solid #E0DDD8', padding: '8px 12px', marginTop: 8, background: 'rgba(245,242,237,0.95)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+    <div style={{ borderRadius: 10, border: '0.5px solid var(--ga-border)', padding: '8px 12px', marginTop: 8, background: 'rgba(245,242,237,0.95)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
       <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 14, color: '#1A1A1A' }}>Global Access</span>
       {items.map((item, i) => (
-        <span key={i} style={{ fontSize: 10, color: '#555', background: '#FFF', border: '0.5px solid #E0DDD8', borderRadius: 12, padding: '3px 10px' }}>{item.label}</span>
+        <span key={i} style={{ fontSize: 10, color: '#555', background: 'var(--ga-bg-elevated)', border: '0.5px solid var(--ga-border)', borderRadius: 12, padding: '3px 10px' }}>{item.label}</span>
       ))}
       {data.action === 'remove' && (
         <span style={{ fontSize: 10, color: '#C0392B' }}>− {data.item_id}</span>

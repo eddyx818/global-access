@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { BRANDS } from '../lib/data';
+import { useTheme } from '../context/ThemeContext';
+import { getAdminUi } from '../lib/theme';
 
 const BG_PRESETS = [
   { label: 'Warm Cream', value: '#F5F2ED' },
@@ -14,6 +16,8 @@ const BG_PRESETS = [
 ];
 
 export default function BrandManager({ onSaved }) {
+  const { t } = useTheme();
+  const ui = getAdminUi();
   const [hiddenBrands, setHiddenBrands] = useState([]);
   const [customBrands, setCustomBrands] = useState([]);
   const [bgColor, setBgColor] = useState('#F5F2ED');
@@ -103,25 +107,25 @@ export default function BrandManager({ onSaved }) {
     onSaved && onSaved();
   };
 
-  const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '10px 12px', color: '#1A1A1A', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
-  const labelStyle = { fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' };
-  const card = { background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 12, padding: '1.25rem', marginBottom: 10 };
+  const inputStyle = { ...ui.input, fontSize: 13 };
+  const labelStyle = { fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' };
+  const card = { ...ui.card, marginBottom: 10 };
 
   const CATEGORIES = ['Catering Gas', 'Tablets', 'Papers', 'Beverages', 'Functional Edibles', 'Other'];
 
   return (
     <div>
-      {saved && <div style={{ background: '#F0FAF4', border: '0.5px solid #C6EDD7', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#2D7A50', marginBottom: 16 }}>{saved}</div>}
+      {saved && <div style={{ background: t.successBg, border: `0.5px solid ${t.successBorder}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: t.successText, marginBottom: 16 }}>{saved}</div>}
 
       {/* Background Color */}
       <div style={card}>
-        <div style={{ fontSize: 12, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14, fontWeight: 500 }}>Site Background Color</div>
+        <div style={ui.sectionLabel}>Site Background Color</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8, marginBottom: 14 }}>
           {BG_PRESETS.map(preset => (
             <button key={preset.value} onClick={() => handleBgChange(preset.value)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: `0.5px solid ${bgColor === preset.value ? '#1A1A1A' : '#E0DDD8'}`, borderRadius: 8, cursor: 'pointer', background: bgColor === preset.value ? '#F8F6F3' : '#FFF', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: `0.5px solid ${bgColor === preset.value ? t.btnPrimaryBg : t.border}`, borderRadius: 8, cursor: 'pointer', background: bgColor === preset.value ? t.bgHover : t.bgElevated, fontFamily: 'inherit', transition: 'all 0.15s' }}>
               <div style={{ width: 20, height: 20, borderRadius: 4, background: preset.value, border: '0.5px solid rgba(0,0,0,0.08)', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: '#555', fontWeight: bgColor === preset.value ? 600 : 400 }}>{preset.label}</span>
+              <span style={{ fontSize: 12, color: t.textSecondary, fontWeight: bgColor === preset.value ? 600 : 400 }}>{preset.label}</span>
             </button>
           ))}
         </div>
@@ -134,7 +138,7 @@ export default function BrandManager({ onSaved }) {
             </div>
           </div>
           <div style={{ marginTop: 20 }}>
-            <button onClick={() => handleBgChange(bgColor)} style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Apply</button>
+            <button onClick={() => handleBgChange(bgColor)} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Apply</button>
           </div>
         </div>
         {/* Live preview */}
@@ -145,21 +149,21 @@ export default function BrandManager({ onSaved }) {
 
       {/* Hardcoded brands — show/hide */}
       <div style={card}>
-        <div style={{ fontSize: 12, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14, fontWeight: 500 }}>Brand Visibility</div>
-        <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>Toggle brands on/off. Hidden brands won't appear on the portal for buyers.</div>
+        <div style={ui.sectionLabel}>Brand Visibility</div>
+        <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 12 }}>Toggle brands on/off. Hidden brands won't appear on the portal for buyers.</div>
         {BRANDS.map(brand => {
           const isHidden = hiddenBrands.includes(brand.id);
           return (
-            <div key={brand.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '0.5px solid #F0EDE8' }}>
+            <div key={brand.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: brand.color, flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: isHidden ? '#CCC' : '#1A1A1A' }}>{brand.name}</div>
-                  <div style={{ fontSize: 11, color: '#AAA' }}>{brand.category}</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: isHidden ? t.textDisabled : t.text }}>{brand.name}</div>
+                  <div style={{ fontSize: 11, color: t.textFaint }}>{brand.category}</div>
                 </div>
               </div>
               <button onClick={() => toggleBrandVisibility(brand.id)}
-                style={{ background: isHidden ? '#F8F6F3' : brand.color + '18', border: `0.5px solid ${isHidden ? '#E0DDD8' : brand.color + '55'}`, borderRadius: 20, padding: '5px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, color: isHidden ? '#AAA' : brand.color, transition: 'all 0.15s' }}>
+                style={{ background: isHidden ? t.bgHover : brand.color + '18', border: `0.5px solid ${isHidden ? t.border : brand.color + '55'}`, borderRadius: 20, padding: '5px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, color: isHidden ? t.textFaint : brand.color, transition: 'all 0.15s' }}>
                 {isHidden ? 'Show' : 'Visible ✓'}
               </button>
             </div>
@@ -170,18 +174,18 @@ export default function BrandManager({ onSaved }) {
       {/* Custom brands */}
       {customBrands.length > 0 && (
         <div style={card}>
-          <div style={{ fontSize: 12, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14, fontWeight: 500 }}>Custom Brands</div>
+          <div style={ui.sectionLabel}>Custom Brands</div>
           {customBrands.map(brand => (
-            <div key={brand.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '0.5px solid #F0EDE8' }}>
+            <div key={brand.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: brand.color }} />
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 500 }}>{brand.name}</div>
-                  <div style={{ fontSize: 11, color: '#AAA' }}>{brand.category} · {brand.products?.length || 0} product(s)</div>
+                  <div style={{ fontSize: 11, color: t.textFaint }}>{brand.category} · {brand.products?.length || 0} product(s)</div>
                 </div>
               </div>
               <button onClick={() => handleDeleteCustomBrand(brand.id)}
-                style={{ background: '#FEF0F0', border: '0.5px solid #FECACA', borderRadius: 20, padding: '5px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: '#C53030' }}>
+                style={{ background: t.errorBg, border: `0.5px solid ${t.errorBorder}`, borderRadius: 20, padding: '5px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: t.errorText }}>
                 Delete
               </button>
             </div>
@@ -192,14 +196,14 @@ export default function BrandManager({ onSaved }) {
       {/* Add new brand */}
       <div style={{ marginBottom: '1rem' }}>
         <button onClick={() => setShowAddForm(!showAddForm)}
-          style={{ width: '100%', background: showAddForm ? '#F8F6F3' : '#1A1A1A', color: showAddForm ? '#555' : '#FFF', border: `0.5px solid ${showAddForm ? '#E0DDD8' : '#1A1A1A'}`, borderRadius: 10, padding: '13px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+          style={{ width: '100%', background: showAddForm ? t.bgHover : t.btnPrimaryBg, color: showAddForm ? t.textSecondary : t.btnPrimaryText, border: showAddForm ? t.borderHairline : `0.5px solid ${t.btnPrimaryBg}`, borderRadius: 10, padding: '13px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
           {showAddForm ? '× Cancel' : '+ Add New Brand'}
         </button>
       </div>
 
       {showAddForm && (
-        <div style={{ background: '#FAFAFA', border: '0.5px solid #E0DDD8', borderRadius: 14, padding: '1.5rem', marginBottom: '1rem' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A', marginBottom: '1.25rem' }}>New Brand Details</div>
+        <div style={{ ...ui.card, borderRadius: 14, marginBottom: '1rem' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: '1.25rem' }}>New Brand Details</div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
             <div>
@@ -271,10 +275,10 @@ export default function BrandManager({ onSaved }) {
           </div>
 
           <button onClick={handleAddBrand} disabled={saving || !newBrand.name || !newBrand.product_sku}
-            style={{ width: '100%', background: !newBrand.name || !newBrand.product_sku ? '#E0DDD8' : '#1A1A1A', color: !newBrand.name || !newBrand.product_sku ? '#AAA' : '#FFF', border: 'none', borderRadius: 10, padding: '13px', fontSize: 13, fontWeight: 700, cursor: !newBrand.name || !newBrand.product_sku ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            style={{ width: '100%', background: !newBrand.name || !newBrand.product_sku ? t.border : t.btnPrimaryBg, color: !newBrand.name || !newBrand.product_sku ? t.textFaint : t.btnPrimaryText, border: 'none', borderRadius: 10, padding: '13px', fontSize: 13, fontWeight: 700, cursor: !newBrand.name || !newBrand.product_sku ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
             {saving ? 'Adding...' : 'Add Brand to Portal →'}
           </button>
-          <div style={{ fontSize: 11, color: '#CCC', textAlign: 'center', marginTop: 8 }}>You can upload images and edit flavors from the Content tab after adding</div>
+          <div style={{ fontSize: 11, color: t.textDisabled, textAlign: 'center', marginTop: 8 }}>You can upload images and edit flavors from the Content tab after adding</div>
         </div>
       )}
     </div>

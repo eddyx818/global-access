@@ -4,10 +4,14 @@ import { fetchAllProfiles } from '../lib/community';
 import { formatRoleLabel } from '../lib/roles';
 import { getAccountBadges } from '../lib/accountBadges';
 import CustomerBadges from './CustomerBadges';
+import { useTheme } from '../context/ThemeContext';
+import { getAdminUi } from '../lib/theme';
 
 const STATUS_COLOR = { online: '#4CAF7D', away: '#C9A84C', offline: '#CCC' };
 
 export default function CustomerDirectory({ repUserId = null }) {
+  const { t } = useTheme();
+  const ui = getAdminUi();
   const [users, setUsers] = useState([]);
   const [repNames, setRepNames] = useState({});
   const [stats, setStats] = useState({});
@@ -88,13 +92,13 @@ export default function CustomerDirectory({ repUserId = null }) {
       <div style={{ display: 'flex', gap: 12, marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ fontSize: 13, color: '#666' }}>{stats.total || 0} users · {stats.online || 0} online</div>
         <input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Search users..."
-          style={{ flex: 1, minWidth: 160, background: '#FFF', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '8px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none' }} />
-        <button onClick={exportCsv} style={{ background: '#FFF', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '8px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Export CSV</button>
-        <button onClick={load} style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>↻</button>
+          style={{ flex: 1, minWidth: 160, ...ui.input, fontSize: 13 }} />
+        <button onClick={exportCsv} style={{ background: t.bgElevated, border: t.borderHairline, borderRadius: 8, padding: '8px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: t.text }}>Export CSV</button>
+        <button onClick={load} style={{ ...ui.tabBtn(true) }}>↻</button>
       </div>
 
       {loading ? <div style={{ fontSize: 13, color: '#AAA' }}>Loading...</div> : (
-        <div style={{ overflowX: 'auto', background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 12 }}>
+        <div style={{ overflowX: 'auto', ...ui.card, padding: 0 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#FAFAF8' }}>
@@ -112,13 +116,13 @@ export default function CustomerDirectory({ repUserId = null }) {
             <tbody>
               {filtered.map(u => (
                 <tr key={u.id || u.user_id}>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED' }}>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
                     <div style={{ fontWeight: 500 }}>{u.username || u.name || '—'}</div>
                     <div style={{ fontSize: 11, color: '#AAA' }}>{u.email}</div>
                   </td>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', color: '#666' }}>{u.company || '—'}</td>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', color: '#666' }}>{formatRoleLabel(u.role || u.user_type)}</td>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED' }}>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{u.company || '—'}</td>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{formatRoleLabel(u.role || u.user_type)}</td>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
                     <CustomerBadges profile={u} />
                   </td>
                   {!repUserId && (
@@ -129,15 +133,15 @@ export default function CustomerDirectory({ repUserId = null }) {
                       )}
                     </td>
                   )}
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED' }}>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#666' }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLOR[u.status] || STATUS_COLOR.offline }} />
                       {u.status || 'offline'}
                     </span>
                   </td>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', color: '#666' }}>{u.pages_viewed}</td>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', color: '#666' }}>{u.messages_sent}</td>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', fontSize: 11, color: '#AAA' }}>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{u.pages_viewed}</td>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{u.messages_sent}</td>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, fontSize: 11, color: t.textFaint }}>
                     {u.last_active_at ? new Date(u.last_active_at).toLocaleString() : '—'}
                   </td>
                 </tr>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../context/ThemeContext';
+import { getAdminUi } from '../lib/theme';
 
 const BRANDS = [
   { id: 'churros-locos', name: 'Churros Locos', color: '#F5943A' },
@@ -13,6 +15,8 @@ const BRANDS = [
 ];
 
 export default function MarketingDashboard() {
+  const { t } = useTheme();
+  const ui = getAdminUi();
   const [drafts, setDrafts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -95,9 +99,9 @@ export default function MarketingDashboard() {
   const pendingDrafts = drafts.filter(d => d.status === 'pending');
   const sentDrafts = drafts.filter(d => d.status === 'sent');
 
-  const card = { background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 12, padding: '1.25rem', marginBottom: 12 };
-  const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '10px 12px', color: '#1A1A1A', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
-  const labelStyle = { fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' };
+  const card = { ...ui.card, marginBottom: 12 };
+  const inputStyle = { ...ui.input, fontSize: 13 };
+  const labelStyle = { fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' };
 
   return (
     <div>

@@ -5,11 +5,15 @@ import { formatRoleLabel } from '../lib/roles';
 import { BRANDS } from '../lib/data';
 import { CRM_TIER, normalizeMasterBrandIds } from '../lib/accountBadges';
 import CustomerBadges from './CustomerBadges';
+import { useTheme } from '../context/ThemeContext';
+import { getAdminUi } from '../lib/theme';
 
 const ROLES = ['retailer', 'distributor', 'sales_rep', 'admin'];
 const ROLE_COLORS = { retailer: '#4CAF7D', distributor: '#C9A84C', sales_rep: '#E07A5F', admin: '#7B6CF6' };
 
 export default function UserManager() {
+  const { t } = useTheme();
+  const ui = getAdminUi();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -168,28 +172,29 @@ export default function UserManager() {
     return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
   };
 
-  const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '10px 12px', color: '#1A1A1A', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
-  const labelStyle = { fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' };
-  const card = { background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 12, padding: '1.25rem', marginBottom: 10 };
+  const inputStyle = { ...ui.input, fontSize: 13 };
+  const labelStyle = { fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' };
+  const card = { ...ui.card, marginBottom: 10 };
+  const secBtn = { background: t.bgHover, border: t.borderHairline, borderRadius: 8, padding: '8px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: t.textSecondary };
+  const primaryBtn = { background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 };
 
   return (
     <div>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-        <div style={{ fontSize: 12, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase' }}>User Accounts ({users.length})</div>
-        <button onClick={() => setShowCreate(!showCreate)}
-          style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+        <div style={ui.sectionLabel}>User Accounts ({users.length})</div>
+        <button onClick={() => setShowCreate(!showCreate)} style={primaryBtn}>
           {showCreate ? '× Cancel' : '+ Add User'}
         </button>
       </div>
 
-      {saved && <div style={{ background: '#F0FAF4', border: '0.5px solid #C6EDD7', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#2D7A50', marginBottom: 12 }}>{saved}</div>}
-      {error && <div style={{ background: '#FEF0F0', border: '0.5px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#C53030', marginBottom: 12 }}>{error} <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C53030', fontFamily: 'inherit', fontSize: 13, marginLeft: 8 }}>×</button></div>}
+      {saved && <div style={{ background: t.successBg, border: `0.5px solid ${t.successBorder}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: t.successText, marginBottom: 12 }}>{saved}</div>}
+      {error && <div style={{ background: t.errorBg, border: `0.5px solid ${t.errorBorder}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: t.errorText, marginBottom: 12 }}>{error} <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.errorText, fontFamily: 'inherit', fontSize: 13, marginLeft: 8 }}>×</button></div>}
 
       {/* Create user form */}
       {showCreate && (
-        <div style={{ background: '#FAFAFA', border: '0.5px solid #E0DDD8', borderRadius: 14, padding: '1.5rem', marginBottom: '1.5rem' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', marginBottom: '1.25rem' }}>Create New Account</div>
+        <div style={{ ...ui.card, borderRadius: 14, marginBottom: '1.5rem' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: '1.25rem' }}>Create New Account</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
             <div>
               <label style={labelStyle}>Name</label>
@@ -208,8 +213,7 @@ export default function UserManager() {
             <label style={labelStyle}>Temporary Password *</label>
             <div style={{ display: 'flex', gap: 8 }}>
               <input value={createForm.password} onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))} placeholder="Min 6 characters" style={{ ...inputStyle, flex: 1 }} />
-              <button onClick={() => setCreateForm(f => ({ ...f, password: generatePassword() }))}
-                style={{ background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '10px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: '#555', whiteSpace: 'nowrap' }}>
+              <button onClick={() => setCreateForm(f => ({ ...f, password: generatePassword() }))} style={{ ...secBtn, padding: '10px 14px', whiteSpace: 'nowrap' }}>
                 Generate
               </button>
             </div>
@@ -219,12 +223,12 @@ export default function UserManager() {
             <div style={{ display: 'flex', gap: 8 }}>
               {ROLES.map(role => (
                 <button key={role} onClick={() => setCreateForm(f => ({ ...f, role }))}
-                  style={{ flex: 1, padding: '10px 8px', border: `0.5px solid ${createForm.role === role ? ROLE_COLORS[role] : '#E0DDD8'}`, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, background: createForm.role === role ? ROLE_COLORS[role] + '18' : '#FFF', color: createForm.role === role ? ROLE_COLORS[role] : '#888', fontWeight: createForm.role === role ? 600 : 400, transition: 'all 0.15s' }}>
+                  style={{ flex: 1, padding: '10px 8px', border: `0.5px solid ${createForm.role === role ? ROLE_COLORS[role] : t.border}`, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, background: createForm.role === role ? ROLE_COLORS[role] + '18' : t.bgElevated, color: createForm.role === role ? ROLE_COLORS[role] : t.textMuted, fontWeight: createForm.role === role ? 600 : 400, transition: 'all 0.15s' }}>
                   {formatRoleLabel(role)}
                 </button>
               ))}
             </div>
-            <div style={{ fontSize: 11, color: '#CCC', marginTop: 6 }}>
+            <div style={{ fontSize: 11, color: t.textDisabled, marginTop: 6 }}>
               {createForm.role === 'retailer' ? 'Sees individual flavors, case ordering' :
                createForm.role === 'distributor' ? 'Sees pallet configs, bulk ordering' :
                createForm.role === 'sales_rep' ? 'Sales dashboard — own customers, messages, and contact imports. Gets a personal access code.' :
@@ -232,16 +236,16 @@ export default function UserManager() {
             </div>
           </div>
           <button onClick={handleCreate} disabled={creating}
-            style={{ width: '100%', background: creating ? '#E0DDD8' : '#1A1A1A', color: creating ? '#AAA' : '#FFF', border: 'none', borderRadius: 10, padding: '13px', fontSize: 13, fontWeight: 700, cursor: creating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            style={{ width: '100%', background: creating ? t.border : t.btnPrimaryBg, color: creating ? t.textFaint : t.btnPrimaryText, border: 'none', borderRadius: 10, padding: '13px', fontSize: 13, fontWeight: 700, cursor: creating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
             {creating ? 'Creating account...' : 'Create Account →'}
           </button>
         </div>
       )}
 
       {/* Users list */}
-      {loading && <div style={{ fontSize: 13, color: '#AAA' }}>Loading users...</div>}
+      {loading && <div style={{ fontSize: 13, color: t.textFaint }}>Loading users...</div>}
       {!loading && users.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '2rem', fontSize: 13, color: '#CCC' }}>
+        <div style={{ textAlign: 'center', padding: '2rem', fontSize: 13, color: t.textDisabled }}>
           No user accounts yet. Click "Add User" to create one.
         </div>
       )}
@@ -262,7 +266,7 @@ export default function UserManager() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   {ROLES.map(role => (
                     <button key={role} onClick={() => setEditForm(f => ({ ...f, role }))}
-                      style={{ flex: 1, padding: '9px 4px', border: `0.5px solid ${editForm.role === role ? ROLE_COLORS[role] : '#E0DDD8'}`, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, background: editForm.role === role ? ROLE_COLORS[role] + '18' : '#FFF', color: editForm.role === role ? ROLE_COLORS[role] : '#888', fontWeight: editForm.role === role ? 600 : 400, transition: 'all 0.15s' }}>
+                      style={{ flex: 1, padding: '9px 4px', border: `0.5px solid ${editForm.role === role ? ROLE_COLORS[role] : t.border}`, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, background: editForm.role === role ? ROLE_COLORS[role] + '18' : t.bgElevated, color: editForm.role === role ? ROLE_COLORS[role] : t.textMuted, fontWeight: editForm.role === role ? 600 : 400, transition: 'all 0.15s' }}>
                       {formatRoleLabel(role)}
                     </button>
                   ))}
@@ -273,27 +277,25 @@ export default function UserManager() {
                   <label style={labelStyle}>Personal access code</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input value={editForm.rep_code || ''} onChange={e => setEditForm(f => ({ ...f, rep_code: e.target.value }))} placeholder="e.g. jane-a1b2" style={{ ...inputStyle, flex: 1 }} />
-                    <button type="button" onClick={() => setEditForm(f => ({ ...f, rep_code: normalizeRepCode(generateRepCodeFromName(f.name || user.email, user.user_id)) }))}
-                      style={{ background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: '#555', whiteSpace: 'nowrap' }}>
+                    <button type="button" onClick={() => setEditForm(f => ({ ...f, rep_code: normalizeRepCode(generateRepCodeFromName(f.name || user.email, user.user_id)) }))} style={secBtn}>
                       Generate
                     </button>
                   </div>
-                  <div style={{ fontSize: 11, color: '#AAA', marginTop: 6 }}>Retailers enter this at the gate so you get credit for sign-ups.</div>
+                  <div style={{ fontSize: 11, color: t.textFaint, marginTop: 6 }}>Retailers enter this at the gate so you get credit for sign-ups.</div>
                 </div>
               )}
               <div style={{ marginBottom: '1rem' }}>
                 <label style={labelStyle}>New Password (leave blank to keep current)</label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input value={editForm.new_password || ''} onChange={e => setEditForm(f => ({ ...f, new_password: e.target.value }))} placeholder="Leave blank to keep current" style={{ ...inputStyle, flex: 1 }} />
-                  <button onClick={() => setEditForm(f => ({ ...f, new_password: generatePassword() }))}
-                    style={{ background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: '#555' }}>
+                  <button onClick={() => setEditForm(f => ({ ...f, new_password: generatePassword() }))} style={secBtn}>
                     Generate
                   </button>
                 </div>
               </div>
               {editForm.role === 'retailer' && (
-                <div style={{ marginBottom: '1rem', padding: '12px 14px', background: '#FFFBEB', border: '0.5px solid #F5D87A', borderRadius: 10 }}>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 13, color: '#555' }}>
+                <div style={{ marginBottom: '1rem', padding: '12px 14px', background: t.warningBg, border: `0.5px solid ${t.warningBorder}`, borderRadius: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 13, color: t.textSecondary }}>
                     <input
                       type="checkbox"
                       checked={editForm.crm_tier === CRM_TIER.VIP}
@@ -302,7 +304,7 @@ export default function UserManager() {
                     />
                     <span>
                       <strong style={{ color: '#A07A20' }}>★ Key account (VIP)</strong>
-                      <span style={{ display: 'block', fontSize: 11, color: '#888', marginTop: 4, lineHeight: 1.45 }}>
+                      <span style={{ display: 'block', fontSize: 11, color: t.textMuted, marginTop: 4, lineHeight: 1.45 }}>
                         Shows a star badge for your team in messages and the customer directory.
                       </span>
                     </span>
@@ -320,7 +322,7 @@ export default function UserManager() {
                     />
                     <span>
                       <strong style={{ color: '#2563EB' }}>🐋 Whale account</strong>
-                      <span style={{ display: 'block', fontSize: 11, color: '#888', marginTop: 4, lineHeight: 1.45 }}>
+                      <span style={{ display: 'block', fontSize: 11, color: t.textMuted, marginTop: 4, lineHeight: 1.45 }}>
                         Top-tier distributor — visible to your team in chat and CRM lists.
                       </span>
                     </span>
@@ -363,7 +365,7 @@ export default function UserManager() {
                     />
                     <span>
                       <strong style={{ color: '#A07A20' }}>Master Distributor qualified</strong>
-                      <span style={{ display: 'block', fontSize: 11, color: '#888', marginTop: 4, lineHeight: 1.45 }}>
+                      <span style={{ display: 'block', fontSize: 11, color: t.textMuted, marginTop: 4, lineHeight: 1.45 }}>
                         Unlocks the private Master price list on brand pages for this account.
                       </span>
                     </span>
@@ -371,8 +373,8 @@ export default function UserManager() {
                 </div>
               )}
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => handleSaveEdit(user)} style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Save</button>
-                <button onClick={() => setEditing(null)} style={{ background: 'none', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '9px 16px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', color: '#AAA' }}>Cancel</button>
+                <button onClick={() => handleSaveEdit(user)} style={{ ...primaryBtn, padding: '9px 20px' }}>Save</button>
+                <button onClick={() => setEditing(null)} style={{ background: 'none', border: t.borderHairline, borderRadius: 8, padding: '9px 16px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', color: t.textFaint }}>Cancel</button>
               </div>
             </div>
           ) : (
@@ -382,27 +384,27 @@ export default function UserManager() {
                   <div style={{ fontWeight: 500, fontSize: 15 }}>{user.name || 'Unnamed'}</div>
                   <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: (ROLE_COLORS[user.role] || '#888') + '18', color: ROLE_COLORS[user.role] || '#888', fontWeight: 600, letterSpacing: '0.06em' }}>{formatRoleLabel(user.role) || 'Unknown'}</span>
                   <CustomerBadges profile={user} />
-                  {user.disabled && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#FEF0F0', color: '#E05A5A', fontWeight: 600 }}>Disabled</span>}
+                  {user.disabled && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: t.errorBg, color: t.errorText, fontWeight: 600 }}>Disabled</span>}
                   {user.role === 'distributor' && user.master_pricing_interest && !user.master_pricing_qualified && (
-                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#F8F6F3', color: '#888', fontWeight: 600 }}>Volume interest</span>
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: t.bgHover, color: t.textMuted, fontWeight: 600 }}>Volume interest</span>
                   )}
                 </div>
-                <div style={{ fontSize: 13, color: '#888' }}>{user.company || '—'}</div>
-                <div style={{ fontSize: 12, color: '#AAA', marginTop: 2 }}>{user.email}</div>
+                <div style={{ fontSize: 13, color: t.textMuted }}>{user.company || '—'}</div>
+                <div style={{ fontSize: 12, color: t.textFaint, marginTop: 2 }}>{user.email}</div>
                 {user.rep_code && (
                   <div style={{ fontSize: 11, color: '#C9A84C', marginTop: 4, fontWeight: 600 }}>Code: {user.rep_code}</div>
                 )}
                 {user.temp_password && (
-                  <div style={{ fontSize: 11, color: '#CCC', marginTop: 3 }}>Temp password: <span style={{ fontFamily: 'monospace', background: '#F8F6F3', padding: '1px 6px', borderRadius: 4 }}>{user.temp_password}</span></div>
+                  <div style={{ fontSize: 11, color: t.textDisabled, marginTop: 3 }}>Temp password: <span style={{ fontFamily: 'monospace', background: t.bgHover, padding: '1px 6px', borderRadius: 4 }}>{user.temp_password}</span></div>
                 )}
-                <div style={{ fontSize: 11, color: '#CCC', marginTop: 2 }}>{new Date(user.created_at).toLocaleDateString()}</div>
+                <div style={{ fontSize: 11, color: t.textDisabled, marginTop: 2 }}>{new Date(user.created_at).toLocaleDateString()}</div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => handleEdit(user)} style={{ background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '7px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: '#555' }}>Edit</button>
+                <button onClick={() => handleEdit(user)} style={secBtn}>Edit</button>
                 {user.disabled ? (
-                  <button onClick={() => handleEnable(user)} style={{ background: '#F0FAF4', border: '0.5px solid #C6EDD7', borderRadius: 8, padding: '7px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: '#2D7A50' }}>Enable</button>
+                  <button onClick={() => handleEnable(user)} style={{ ...secBtn, background: t.successBg, border: `0.5px solid ${t.successBorder}`, color: t.successText }}>Enable</button>
                 ) : (
-                  <button onClick={() => handleDisable(user)} style={{ background: '#FEF0F0', border: '0.5px solid #FECACA', borderRadius: 8, padding: '7px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: '#C53030' }}>Disable</button>
+                  <button onClick={() => handleDisable(user)} style={{ ...secBtn, background: t.errorBg, border: `0.5px solid ${t.errorBorder}`, color: t.errorText }}>Disable</button>
                 )}
               </div>
             </div>

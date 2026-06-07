@@ -2,10 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { readFileAsText } from '../lib/adminUpload';
 import { parseContactSpreadsheet, importContacts, fetchUploadedContacts } from '../lib/contactImport';
 import { fetchRepRoster } from '../lib/repCodes';
+import { useTheme } from '../context/ThemeContext';
+import { getAdminUi } from '../lib/theme';
 
 const STATUS_COLORS = { imported: '#C9A84C', contacted: '#4CAF7D', converted: '#7B6CF6', archived: '#AAA' };
 
 export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep = false, defaultRepId = null }) {
+  const { t } = useTheme();
+  const ui = getAdminUi();
   const [contacts, setContacts] = useState([]);
   const [reps, setReps] = useState([]);
   const [assignedRepId, setAssignedRepId] = useState(defaultRepId || userId || '');
@@ -87,26 +91,26 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
     URL.revokeObjectURL(url);
   };
 
-  const inputStyle = { width: '100%', background: '#F8F6F3', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' };
+  const inputStyle = { ...ui.input, fontSize: 13 };
 
   return (
-    <div style={{ background: '#FFF', border: '0.5px solid #E8E4DF', borderRadius: 12, padding: '1.25rem' }}>
-      <div style={{ fontSize: 12, color: '#AAA', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Contact import</div>
-      <p style={{ fontSize: 13, color: '#666', marginBottom: '1rem', lineHeight: 1.5 }}>
+    <div style={ui.card}>
+      <div style={ui.sectionLabel}>Contact import</div>
+      <p style={{ fontSize: 13, color: t.textSecondary, marginBottom: '1rem', lineHeight: 1.5 }}>
         Upload a CSV spreadsheet (Excel: Save As → CSV). Columns: name, company, email, phone, address, account type, store type, notes.
       </p>
 
-      {message && <div style={{ background: '#F0FAF4', border: '0.5px solid #C6EDD7', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#2D7A50', marginBottom: 12 }}>{message}</div>}
-      {error && <div style={{ background: '#FEF0F0', border: '0.5px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#C53030', marginBottom: 12 }}>{error}</div>}
+      {message && <div style={{ background: t.successBg, border: `0.5px solid ${t.successBorder}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: t.successText, marginBottom: 12 }}>{message}</div>}
+      {error && <div style={{ background: t.errorBg, border: `0.5px solid ${t.errorBorder}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: t.errorText, marginBottom: 12 }}>{error}</div>}
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: '1rem', alignItems: 'flex-end' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <label style={{ fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, textTransform: 'uppercase' }}>Choose file</label>
+          <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, textTransform: 'uppercase' }}>Choose file</label>
           <input type="file" accept=".csv,.txt,text/csv" onChange={handleFile} style={{ fontSize: 13 }} />
         </div>
         {isAdmin && reps.length > 0 && (
           <div style={{ minWidth: 180 }}>
-            <label style={{ fontSize: 11, color: '#AAA', display: 'block', marginBottom: 6, textTransform: 'uppercase' }}>Assign to rep</label>
+            <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, textTransform: 'uppercase' }}>Assign to rep</label>
             <select value={assignedRepId} onChange={e => setAssignedRepId(e.target.value)} style={inputStyle}>
               <option value={userId}>Me (admin upload)</option>
               {reps.map(r => (
@@ -118,17 +122,17 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
       </div>
 
       {preview.length > 0 && (
-        <div style={{ marginBottom: '1.25rem', padding: '1rem', background: '#FAFAF8', borderRadius: 10, border: '0.5px solid #E8E4DF' }}>
+        <div style={{ marginBottom: '1.25rem', padding: '1rem', background: t.bgHover, borderRadius: 10, border: t.borderHairlineLight }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Preview ({preview.length} rows from {filename})</div>
-          <div style={{ maxHeight: 160, overflow: 'auto', fontSize: 12, color: '#555', marginBottom: 12 }}>
+          <div style={{ maxHeight: 160, overflow: 'auto', fontSize: 12, color: t.textSecondary, marginBottom: 12 }}>
             {preview.slice(0, 8).map((r, i) => (
-              <div key={i} style={{ padding: '4px 0', borderBottom: '0.5px solid #F0EDE8' }}>
+              <div key={i} style={{ padding: '4px 0', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
                 {r.name || '—'} · {r.company || '—'} · {r.email || r.phone || '—'}
               </div>
             ))}
-            {preview.length > 8 && <div style={{ color: '#AAA', marginTop: 6 }}>+ {preview.length - 8} more</div>}
+            {preview.length > 8 && <div style={{ color: t.textFaint, marginTop: 6 }}>+ {preview.length - 8} more</div>}
           </div>
-          <button onClick={handleImport} disabled={importing} style={{ background: importing ? '#E0DDD8' : '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: importing ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+          <button onClick={handleImport} disabled={importing} style={{ background: importing ? t.border : t.btnPrimaryBg, color: importing ? t.textFaint : t.btnPrimaryText, border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: importing ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
             {importing ? 'Importing…' : `Import ${preview.length} contacts`}
           </button>
         </div>
@@ -136,39 +140,39 @@ export default function ContactImportPanel({ userId, isAdmin = false, isSalesRep
 
       <div style={{ display: 'flex', gap: 10, marginBottom: '1rem', flexWrap: 'wrap' }}>
         <input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Search contacts…" style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
-        <button onClick={exportCsv} style={{ background: '#FFF', border: '0.5px solid #E0DDD8', borderRadius: 8, padding: '8px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Export CSV</button>
-        <button onClick={load} style={{ background: '#1A1A1A', color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>↻</button>
+        <button onClick={exportCsv} style={{ background: t.bgElevated, border: t.borderHairline, borderRadius: 8, padding: '8px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: t.text }}>Export CSV</button>
+        <button onClick={load} style={{ ...ui.tabBtn(true) }}>↻</button>
       </div>
 
       {loading ? (
-        <div style={{ fontSize: 13, color: '#AAA' }}>Loading…</div>
+        <div style={{ fontSize: 13, color: t.textFaint }}>Loading…</div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: '#FAFAF8' }}>
+              <tr style={{ background: t.bgMuted }}>
                 {['Name', 'Company', 'Email', 'Phone', 'Type', 'Status', 'Source'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10, color: '#AAA', letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '0.5px solid #E8E4DF' }}>{h}</th>
+                  <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10, color: t.textFaint, letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: t.borderHairline }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map(c => (
                 <tr key={c.id}>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', fontWeight: 500 }}>{c.name || '—'}</td>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', color: '#666' }}>{c.company || '—'}</td>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', color: '#666' }}>{c.email || '—'}</td>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', color: '#666' }}>{c.phone || '—'}</td>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', textTransform: 'capitalize', color: '#666' }}>{c.account_type || '—'}</td>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED' }}>
-                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: (STATUS_COLORS[c.status] || '#CCC') + '22', color: STATUS_COLORS[c.status] || '#666' }}>{c.status}</span>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, fontWeight: 500 }}>{c.name || '—'}</td>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{c.company || '—'}</td>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{c.email || '—'}</td>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, color: t.textSecondary }}>{c.phone || '—'}</td>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, textTransform: 'capitalize', color: t.textSecondary }}>{c.account_type || '—'}</td>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: (STATUS_COLORS[c.status] || '#CCC') + '22', color: STATUS_COLORS[c.status] || t.textSecondary }}>{c.status}</span>
                   </td>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', fontSize: 11, color: '#AAA' }}>{c.source_filename || '—'}</td>
+                  <td style={{ padding: '10px', borderBottom: `0.5px solid ${t.borderSubtle}`, fontSize: 11, color: t.textFaint }}>{c.source_filename || '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {!filtered.length && <div style={{ padding: 24, textAlign: 'center', color: '#AAA', fontSize: 13 }}>No contacts yet. Upload a CSV to get started.</div>}
+          {!filtered.length && <div style={{ padding: 24, textAlign: 'center', color: t.textFaint, fontSize: 13 }}>No contacts yet. Upload a CSV to get started.</div>}
         </div>
       )}
     </div>
