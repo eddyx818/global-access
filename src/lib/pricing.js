@@ -5,6 +5,17 @@ export function formatPrice(value) {
   return `$${n.toFixed(2)}`;
 }
 
+export function parsePackFields(src = {}) {
+  return {
+    units_per_inner: src.units_per_inner ?? null,
+    inner_unit_label: src.inner_unit_label || '',
+    inners_per_case: src.inners_per_case ?? null,
+    inner_pack_label: src.inner_pack_label || '',
+    cases_per_pallet: src.cases_per_pallet ?? null,
+    pack_config_note: src.pack_config_note || '',
+  };
+}
+
 export function parseCommerceFields(po = {}) {
   return {
     price_per_unit: po.price_per_unit ?? null,
@@ -30,8 +41,32 @@ export function parseCommerceFields(po = {}) {
 }
 
 export function mergeProductCommerce(product, po = {}) {
-  const c = parseCommerceFields(po);
-  return { ...product, ...c };
+  const merged = { ...product, ...po };
+  return { ...product, ...parseCommerceFields(po), ...parsePackFields(merged) };
+}
+
+export function getPackConfigLines(product) {
+  const lines = [];
+  const unitLabel = product.inner_unit_label || 'units';
+  const packLabel = product.inner_pack_label || 'boxes';
+  const packLabelPlural = product.inners_per_case === 1 ? packLabel : `${packLabel}s`;
+
+  if (product.units_per_inner && product.inners_per_case) {
+    lines.push(`${product.units_per_inner} ${unitLabel} per ${packLabel}`);
+    lines.push(`${product.inners_per_case} ${packLabelPlural} per case`);
+  } else if (product.units_per_inner) {
+    lines.push(`${product.units_per_inner} ${unitLabel} per case`);
+  } else if (product.inners_per_case) {
+    lines.push(`${product.inners_per_case} ${packLabelPlural} per case`);
+  }
+
+  if (product.cases_per_pallet) {
+    lines.push(`${product.cases_per_pallet} cases per pallet`);
+  }
+
+  if (product.pack_config_note) lines.push(product.pack_config_note);
+
+  return lines;
 }
 
 export function getOrderPrice(product, orderMode) {
@@ -48,7 +83,9 @@ export function getMasterOrderPrice(product, orderMode) {
   return null;
 }
 
-export function getVisiblePrices(product, userType, orderMode = 'master_case', { masterPricingQualified = false } = {}) {
+export function getVisiblePrices(product, userType, orderMode = 'master_case', { masterPricingQualified = false, pricingVisible = true } = {}) {
+  if (!pricingVisible) return [];
+
   const isDistributor = userType === 'distributor';
   const lines = [];
 
@@ -81,8 +118,8 @@ export function getVisiblePrices(product, userType, orderMode = 'master_case', {
   return lines;
 }
 
-export function getActivePromo(product, userType) {
-  if (!product.promo_active || !product.promo_label) return null;
+export function getActivePromo(product, userType, { pricingVisible = true } = {}) {
+  if (!pricingVisible || !product.promo_active || !product.promo_label) return null;
   const audience = product.promo_audience || 'both';
   if (audience !== 'both' && audience !== userType) return null;
   return { label: product.promo_label, detail: product.promo_detail };
@@ -109,6 +146,18 @@ export function getMoqLabel(product) {
 
 export function minQtyForProduct(product) {
   return product.moq_qty && product.moq_qty > 0 ? product.moq_qty : 1;
+}
+
+export function packPayloadFromForm(data) {
+  const int = (v) => (v === '' || v === null || v === undefined ? null : parseInt(v, 10));
+  return {
+    units_per_inner: int(data.units_per_inner),
+    inner_unit_label: data.inner_unit_label || null,
+    inners_per_case: int(data.inners_per_case),
+    inner_pack_label: data.inner_pack_label || null,
+    cases_per_pallet: int(data.cases_per_pallet),
+    pack_config_note: data.pack_config_note || null,
+  };
 }
 
 export function commercePayloadFromForm(data) {

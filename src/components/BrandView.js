@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import ProductCommerceInfo from './ProductCommerceInfo';
 import { minQtyForProduct } from '../lib/pricing';
 
-export default function BrandView({ brand, userType, onBack, toggleInterest, isInterested, interests, onSubmit, isMobile, masterPricingQualified = false }) {
+export default function BrandView({ brand, userType, onBack, toggleInterest, isInterested, interests, onSubmit, isMobile, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess }) {
   const [lightbox, setLightbox] = useState(null);
   const [lightboxIdx, setLightboxIdx] = useState(0);
   const [orderMode, setOrderMode] = useState({}); // per sku: 'master_case' | 'pallet'
@@ -264,7 +264,15 @@ export default function BrandView({ brand, userType, onBack, toggleInterest, isI
               )}
 
               <div style={{ padding: '1rem 1.25rem 1.25rem' }}>
-                <ProductCommerceInfo product={product} userType={userType} orderMode={currentMode} masterPricingQualified={masterPricingQualified} />
+                <ProductCommerceInfo
+                  product={product}
+                  userType={userType}
+                  orderMode={currentMode}
+                  masterPricingQualified={masterPricingQualified}
+                  pricingVisible={pricingVisible}
+                  onSignIn={onSignIn}
+                  onRequestAccess={onRequestAccess}
+                />
 
                 {/* Order unit toggle for distributors with 'both' option */}
                 {showToggle && (

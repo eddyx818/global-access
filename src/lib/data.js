@@ -16,14 +16,17 @@ export const BRANDS = [
     gallery: ["/images/churros-locos/mad-honey-horchata.jpeg","/images/churros-locos/mushroom-horchata.jpeg","/images/churros-locos/sex-royal-strawberry.jpeg"],
     products: [
       { sku: "CL-MUSH-5000", name: "Mushroom 5,000mg", detail: "40 pieces/jar · 10 jars/case", orderUnit: "master_case", image: "/images/churros-locos/mushroom-horchata.jpeg",
+        units_per_inner: 40, inner_unit_label: "pieces", inners_per_case: 10, inner_pack_label: "jar",
         flavors_retail: ["Chocolate","Strawberry Cheesecake","Horchata","Cookies & Cream"],
         flavors_distro: ["Chocolate","Strawberry Cheesecake","Horchata","Cookies & Cream"] },
       { sku: "CL-MAD-10000", name: "Mad Honey 10,000mg", detail: "40 pieces/jar · 10 jars/case", orderUnit: "master_case", image: "/images/churros-locos/mad-honey-horchata.jpeg",
+        units_per_inner: 40, inner_unit_label: "pieces", inners_per_case: 10, inner_pack_label: "jar",
         flavors_retail: ["Hazelnut Milk Chocolate","Strawberry Cheesecake","Horchata","Cookies & Cream"],
         flavors_distro: ["Hazelnut Milk Chocolate","Strawberry Cheesecake","Horchata","Cookies & Cream"] },
       { sku: "CL-SEX", name: "Sex Royal Honey", detail: "40 pieces/jar · 10 jars/case", orderUnit: "master_case", image: "/images/churros-locos/sex-royal-strawberry.jpeg",
-        flavors_retail: ["Hazelnut Milk Chocolate","Strawberry Cheesecake","Strawberry","Cookies & Cream"],
-        flavors_distro: ["Hazelnut Milk Chocolate","Strawberry Cheesecake","Strawberry","Cookies & Cream"] },
+        units_per_inner: 40, inner_unit_label: "pieces", inners_per_case: 10, inner_pack_label: "jar",
+        flavors_retail: ["Chocolate","Strawberry"],
+        flavors_distro: ["Chocolate","Strawberry"] },
     ]
   },
   {
@@ -38,6 +41,7 @@ export const BRANDS = [
       {
         sku: "GW-200", name: "200g · Mini", orderUnit: "pallet",
         detail: "20 units/case · 60 cases/pallet · Each case is pre-mixed",
+        inners_per_case: 20, inner_pack_label: "units", cases_per_pallet: 60,
         image: "/images/goldwhip/200g-original.png",
         // 200g: each case is pre-mixed — buyer selects which variety cases they want
         // Retailers pick variety case type

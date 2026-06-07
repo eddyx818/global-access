@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import React, { useState } from 'react';
 import { BRANDS } from '../lib/data';
 import { saveBrandContent, saveProductContent, uploadBrandImage } from '../lib/content';
-import { parseCommerceFields } from '../lib/pricing';
+import { parseCommerceFields, parsePackFields } from '../lib/pricing';
 
 const FONT_STYLES = [
   { id: 'modern', label: 'Modern', font: "'DM Sans', sans-serif", preview: 'Clean & minimal' },
@@ -47,6 +47,7 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
         flavors_retail: po.flavors_retail ? JSON.parse(po.flavors_retail) : [...p.flavors_retail],
         flavors_distro: po.flavors_distro ? JSON.parse(po.flavors_distro) : [...p.flavors_distro],
         ...parseCommerceFields(po),
+        ...parsePackFields({ ...p, ...po }),
       };
     });
     setProductForms(pf);
@@ -62,6 +63,7 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
       setProductForms(pf => ({ ...pf, [sku]: { ...pf[sku], image_url: url } }));
       await saveProductContent(brandId, sku, { ...productForms[sku], image_url: url });
       setSaved('Image uploaded!'); setTimeout(() => setSaved(''), 2000);
+      window.dispatchEvent(new CustomEvent('ga-content-updated'));
       onSaved && onSaved();
     }
     setUploading(u => ({ ...u, [sku]: false }));
@@ -103,6 +105,7 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
     await Promise.all(selectedBrand.products.map(p => saveProductContent(selectedBrand.id, p.sku, productForms[p.sku] || {})));
     setSaving(false);
     setSaved('All changes saved!'); setTimeout(() => setSaved(''), 2500);
+    window.dispatchEvent(new CustomEvent('ga-content-updated'));
     onSaved && onSaved();
   };
 
@@ -208,7 +211,7 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
                   <label style={labelStyle}>Details / Specs</label>
                   <input value={productForms[product.sku]?.detail || ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], detail: e.target.value } }))} style={inputStyle} placeholder={product.detail} />
                 </div>
-                <div>
+                <div style={{ marginBottom: 10 }}>
                   <label style={labelStyle}>Order Unit (Distributors)</label>
                   <select value={productForms[product.sku]?.orderUnit || product.orderUnit} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], orderUnit: e.target.value } }))}
                     style={{ ...inputStyle, cursor: 'pointer' }}>
@@ -216,6 +219,33 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
                     <option value="pallet">Pallet Only</option>
                     <option value="both">Both (buyer chooses)</option>
                   </select>
+                </div>
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #F0EDE8' }}>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 10, lineHeight: 1.5 }}>
+                    Pack configuration — shown to all visitors (including access-code guests). Fill only the levels that apply to this SKU.
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 10 }}>
+                    {[['units_per_inner', 'Count (smallest unit)'], ['inners_per_case', 'Per case count'], ['cases_per_pallet', 'Cases per pallet']].map(([field, label]) => (
+                      <div key={field}>
+                        <label style={labelStyle}>{label}</label>
+                        <input type="number" min="1" value={productForms[product.sku]?.[field] ?? ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], [field]: e.target.value } }))} style={inputStyle} placeholder="—" />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                    <div>
+                      <label style={labelStyle}>Smallest unit name</label>
+                      <input value={productForms[product.sku]?.inner_unit_label || ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], inner_unit_label: e.target.value } }))} style={inputStyle} placeholder="e.g. pieces, chewables" />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Inner pack name</label>
+                      <input value={productForms[product.sku]?.inner_pack_label || ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], inner_pack_label: e.target.value } }))} style={inputStyle} placeholder="e.g. jar, box, pouch" />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Extra pack note (optional)</label>
+                    <input value={productForms[product.sku]?.pack_config_note || ''} onChange={e => setProductForms(pf => ({ ...pf, [product.sku]: { ...pf[product.sku], pack_config_note: e.target.value } }))} style={inputStyle} placeholder="e.g. Flat pack · tube display" />
+                  </div>
                 </div>
               </div>
             </div>

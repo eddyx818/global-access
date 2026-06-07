@@ -42,7 +42,7 @@ You have access to these actions. When the user asks you to do something, respon
 
 Available actions:
 - update_brand_content: Update brand tagline, description, color. data: {brand_id, tagline?, description?, color?}
-- update_product_content: Update product name, detail, flavors. data: {brand_id, sku, name?, detail?, flavors_retail?, flavors_distro?}
+- update_product_content: Update product name, detail, flavors, pack config. data: {brand_id, sku, name?, detail?, flavors_retail?, flavors_distro?, units_per_inner?, inner_unit_label?, inners_per_case?, inner_pack_label?, cases_per_pallet?, pack_config_note?}
 - update_product_pricing: Update SKU pricing, MOQ, shipping, and promotions. data: {brand_id, sku, price_per_unit?, price_per_case?, price_per_pallet?, price_master_per_unit?, price_master_per_case?, price_master_per_pallet?, price_wholesale?, price_retail?, price_msrp?, moq_qty?, moq_unit?, shipping_included?, shipping_free_after_moq?, free_shipping_moq_qty?, shipping_note?, promo_label?, promo_detail?, promo_active?, promo_audience?}
 - toggle_flavor_soldout: Mark a flavor sold out or in stock. data: {brand_id, sku, flavor, flavor_type, sold_out}
 - add_flavor: Add a new flavor to a product. data: {brand_id, sku, flavor, flavor_type}
@@ -434,13 +434,20 @@ export default function AdminAgent() {
       }
 
       case 'update_product_content': {
-        const payload = { brand_id: data.brand_id, sku: data.sku, updated_at: new Date().toISOString() };
-        if (data.name) payload.name = data.name;
-        if (data.detail) payload.detail = data.detail;
-        if (data.flavors_retail) payload.flavors_retail = JSON.stringify(data.flavors_retail);
-        if (data.flavors_distro) payload.flavors_distro = JSON.stringify(data.flavors_distro);
-        const { error } = await supabase.from('product_content').upsert(payload, { onConflict: 'sku' });
-        if (error) throw new Error(error.message);
+        if (!data.brand_id || !data.sku) throw new Error('brand_id and sku are required');
+        const ok = await saveProductContent(data.brand_id, data.sku, {
+          ...(data.name !== undefined && { name: data.name }),
+          ...(data.detail !== undefined && { detail: data.detail }),
+          ...(data.flavors_retail !== undefined && { flavors_retail: data.flavors_retail }),
+          ...(data.flavors_distro !== undefined && { flavors_distro: data.flavors_distro }),
+          ...(data.units_per_inner !== undefined && { units_per_inner: data.units_per_inner }),
+          ...(data.inner_unit_label !== undefined && { inner_unit_label: data.inner_unit_label }),
+          ...(data.inners_per_case !== undefined && { inners_per_case: data.inners_per_case }),
+          ...(data.inner_pack_label !== undefined && { inner_pack_label: data.inner_pack_label }),
+          ...(data.cases_per_pallet !== undefined && { cases_per_pallet: data.cases_per_pallet }),
+          ...(data.pack_config_note !== undefined && { pack_config_note: data.pack_config_note }),
+        });
+        if (!ok) throw new Error('Could not save product content');
         break;
       }
 

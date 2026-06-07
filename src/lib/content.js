@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import { BRANDS } from './data';
 import { DEFAULT_GLOBAL_STYLES, parseJsonField } from './design';
-import { mergeProductCommerce, commercePayloadFromForm } from './pricing';
+import { mergeProductCommerce, commercePayloadFromForm, packPayloadFromForm } from './pricing';
 
 export function useBrandContent() {
   const [brandOverrides, setBrandOverrides] = useState({});
@@ -75,13 +75,21 @@ export function useBrandContent() {
     return allBrands.map(brand => {
       const override = brandOverrides[brand.id] || {};
 
-      // Gallery: admin uploads + hardcoded brand photos only (product images stay on product cards)
+      // Gallery: admin gallery uploads + Supabase product photos + hardcoded brand photos
       const galleryItems = (galleryOverrides[brand.id] || [])
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
         .map(g => g.image_url)
-        .filter(Boolean);
+        .filter(url => url && /^https?:\/\//.test(url));
 
-      const finalGallery = [...new Set([...galleryItems, ...(brand.gallery || [])])].filter(Boolean);
+      const uploadedProductImages = brand.products
+        .map(p => (productOverrides[p.sku] || {}).image_url)
+        .filter(url => url && /^https?:\/\//.test(url));
+
+      const finalGallery = [...new Set([
+        ...galleryItems,
+        ...uploadedProductImages,
+        ...(brand.gallery || []),
+      ])].filter(Boolean);
 
       return {
         ...brand,
@@ -132,16 +140,24 @@ export async function saveProductContent(brandId, sku, data) {
   const payload = {
     brand_id: brandId,
     sku,
-    name: data.name || null,
-    detail: data.detail || null,
-    image_url: data.image_url || null,
-    order_unit: data.orderUnit || null,
     updated_at: new Date().toISOString(),
   };
-  // Always save flavor fields (even empty arrays) so deletions persist
-  payload.flavors_retail = data.flavors_retail ? JSON.stringify(data.flavors_retail) : null;
-  payload.flavors_distro = data.flavors_distro ? JSON.stringify(data.flavors_distro) : null;
-  Object.assign(payload, commercePayloadFromForm(data));
+  if (data.name !== undefined) payload.name = data.name || null;
+  if (data.detail !== undefined) payload.detail = data.detail || null;
+  if (data.image_url !== undefined) payload.image_url = data.image_url || null;
+  if (data.orderUnit !== undefined) payload.order_unit = data.orderUnit || null;
+  if (data.flavors_retail !== undefined) payload.flavors_retail = JSON.stringify(data.flavors_retail);
+  if (data.flavors_distro !== undefined) payload.flavors_distro = JSON.stringify(data.flavors_distro);
+
+  const commerce = commercePayloadFromForm(data);
+  for (const [key, value] of Object.entries(commerce)) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) payload[key] = value;
+  }
+
+  const pack = packPayloadFromForm(data);
+  for (const [key, value] of Object.entries(pack)) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) payload[key] = value;
+  }
 
   const { error } = await supabase.from('product_content').upsert(payload, { onConflict: 'sku' });
   if (error) console.error('saveProductContent error:', error);
