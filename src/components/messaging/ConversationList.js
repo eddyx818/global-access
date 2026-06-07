@@ -3,7 +3,7 @@ import { getConversationTitle, getCustomerParticipantId } from '../../lib/commun
 import { CustomerNameWithBadges } from '../CustomerBadges';
 import { useTheme } from '../../context/ThemeContext';
 
-export default function ConversationList({ conversations, profiles, currentUserId, isStaff = false, onSelect, onMessageSupport, isMobile = false }) {
+export default function ConversationList({ conversations, profiles, currentUserId, isStaff = false, onSelect, onMessageSupport, isMobile = false, customerChatLabel = 'Trade Desk' }) {
   const { t } = useTheme();
 
   if (!conversations.length) {
@@ -17,7 +17,7 @@ export default function ConversationList({ conversations, profiles, currentUserI
             {onMessageSupport && (
               <button type="button" onClick={onMessageSupport}
                 style={{ background: t.accent, color: '#FFF', border: 'none', borderRadius: 12, padding: isMobile ? '14px 24px' : '10px 18px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', minHeight: 48 }}>
-                Message Global Access
+                Message {customerChatLabel}
               </button>
             )}
           </>
@@ -32,12 +32,12 @@ export default function ConversationList({ conversations, profiles, currentUserI
         <div style={{ padding: '12px 14px', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
           <button onClick={onMessageSupport}
             style={{ width: '100%', background: t.bgMuted, color: t.text, border: t.borderHairline, borderRadius: 10, padding: '10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            + New message to Global Access
+            + New message to {customerChatLabel}
           </button>
         </div>
       )}
       {conversations.map(convo => {
-        const label = getConversationTitle(convo, profiles, currentUserId, { isAdmin: isStaff, isSalesRep: isStaff });
+        const label = getConversationTitle(convo, profiles, currentUserId, { isAdmin: isStaff, isSalesRep: isStaff, customerChatLabel });
         const customerId = isStaff ? getCustomerParticipantId(convo, profiles) : null;
         const p = profiles[customerId || convo.participant_user_ids.find(id => id !== currentUserId)] || {};
         const subtitle = isStaff

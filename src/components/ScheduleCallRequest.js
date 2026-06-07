@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { saveProfile } from '../lib/community';
 import { useTheme } from '../context/ThemeContext';
 
-export default function ScheduleCallRequest({ user, onSendMessage, isMobile = false }) {
+export default function ScheduleCallRequest({ user, onSendMessage, isMobile = false, chatLabel = 'Trade Desk' }) {
   const { t } = useTheme();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState('');
@@ -101,7 +101,7 @@ export default function ScheduleCallRequest({ user, onSendMessage, isMobile = fa
       {open && (
         <div style={{ padding: '0 14px 12px' }}>
           <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: 10 }}>
-            Send a preferred date and time directly to Support — no need to open Profile.
+            Send a preferred date and time directly to {chatLabel} — no need to open Profile.
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
             <div>

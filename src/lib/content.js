@@ -47,6 +47,7 @@ export function useBrandContent() {
   const [heroConfig, setHeroConfig] = useState({});
   const [globalStyles, setGlobalStyles] = useState(DEFAULT_GLOBAL_STYLES);
   const [navigation, setNavigation] = useState([]);
+  const [customerChatLabel, setCustomerChatLabel] = useState('');
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -60,6 +61,7 @@ export function useBrandContent() {
             if (s.key === 'hero_config') setHeroConfig(parseJsonField(s.value, {}));
             if (s.key === 'global_styles') setGlobalStyles({ ...DEFAULT_GLOBAL_STYLES, ...parseJsonField(s.value, {}) });
             if (s.key === 'navigation') setNavigation(parseJsonField(s.value, []));
+            if (s.key === 'customer_chat_label') setCustomerChatLabel(s.value || '');
           });
         }
       } catch (_) {}
@@ -121,7 +123,7 @@ export function useBrandContent() {
     });
   };
 
-  return { getMergedBrands, loadContent, loading, brandOverrides, productOverrides, bgColor, heroConfig, globalStyles, navigation };
+  return { getMergedBrands, loadContent, loading, brandOverrides, productOverrides, bgColor, heroConfig, globalStyles, navigation, customerChatLabel };
 }
 
 export async function saveBrandContent(brandId, data) {

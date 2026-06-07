@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
 
-export function InterestView({ interests, toggleInterest, form, setForm, onSubmit, onBack, isMobile, profileSaved = false }) {
+export function InterestView({ interests, toggleInterest, form, setForm, onSubmit, onBack, isMobile, profileSaved = false, chatLabel = 'Trade Desk' }) {
   const { t } = useTheme();
   const inputStyle = { width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '11px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
   const lockedStyle = { ...inputStyle, opacity: 0.75, background: t.bgSubtle };
@@ -12,7 +12,7 @@ export function InterestView({ interests, toggleInterest, form, setForm, onSubmi
       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, letterSpacing: '0.04em', color: t.text, marginBottom: 4 }}>Request a Quote</div>
       <div style={{ fontSize: 13, color: t.textMuted, marginBottom: '1.75rem', lineHeight: 1.6 }}>
         {profileSaved
-          ? 'Your saved details are below. Add notes for this quote — we will follow up in Support chat with pricing and availability.'
+          ? `Your saved details are below. Add notes for this quote — we will follow up in ${chatLabel} with pricing and availability.`
           : 'Tell us who you are and we will follow up with pricing and availability.'}
       </div>
       <div style={{ background: t.bgElevated, border: t.borderHairlineLight, borderRadius: 12, padding: '1.25rem', marginBottom: '1rem' }}>
@@ -58,12 +58,12 @@ export function InterestView({ interests, toggleInterest, form, setForm, onSubmi
       <button onClick={onSubmit} disabled={interests.length === 0} style={{ width: '100%', background: interests.length > 0 ? t.btnPrimaryBg : t.border, color: interests.length > 0 ? t.btnPrimaryText : t.textDisabled, border: 'none', borderRadius: 10, padding: '15px', fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', cursor: interests.length > 0 ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontFamily: 'inherit' }}>
         Request quote ({interests.length} item{interests.length !== 1 ? 's' : ''}) →
       </button>
-      <div style={{ textAlign: 'center', fontSize: 12, color: t.textDisabled, marginTop: 10 }}>Saved to our team. Track status in Support chat — WhatsApp is shared after we confirm.</div>
+      <div style={{ textAlign: 'center', fontSize: 12, color: t.textDisabled, marginTop: 10 }}>Saved to our team. Track updates in {chatLabel}.</div>
     </div>
   );
 }
 
-export function ThanksView({ onBack, onOpenSupport }) {
+export function ThanksView({ onBack, onOpenSupport, chatLabel = 'Trade Desk' }) {
   const { t } = useTheme();
 
   return (
@@ -71,11 +71,11 @@ export function ThanksView({ onBack, onOpenSupport }) {
       <div style={{ width: 72, height: 72, background: t.successBg, border: `0.5px solid ${t.successBorder}`, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, marginBottom: '1.5rem' }}>✓</div>
       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 44, letterSpacing: '0.04em', color: t.text, marginBottom: 8 }}>Quote Requested!</div>
       <div style={{ fontSize: 15, color: t.textMuted, lineHeight: 1.7, maxWidth: 400, marginBottom: '2rem' }}>
-        Your quote request was submitted. Track status in Support chat — our team will reply there or by email. Direct WhatsApp contact is shared once we confirm your inquiry in chat.
+        Your quote request was submitted. Our team will reply in {chatLabel} — that is the best place for pricing, availability, and order questions.
       </div>
       {onOpenSupport && (
         <button onClick={onOpenSupport} style={{ background: t.accent, color: '#FFF', border: 'none', borderRadius: 10, padding: '12px 32px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12 }}>
-          Open Support chat
+          Open {chatLabel}
         </button>
       )}
       <button onClick={onBack} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 10, padding: '12px 32px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Browse More Brands</button>

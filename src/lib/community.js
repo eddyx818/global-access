@@ -334,9 +334,9 @@ export function getCustomerParticipantId(convo, profiles = {}) {
   });
 }
 
-export function getConversationTitle(convo, profiles, currentUserId, { isAdmin = false, isSalesRep = false } = {}) {
+export function getConversationTitle(convo, profiles, currentUserId, { isAdmin = false, isSalesRep = false, customerChatLabel = 'Trade Desk' } = {}) {
   if (convo.is_group) {
-    return convo.group_name || 'Group chat';
+    return convo.group_name || customerChatLabel;
   }
   if (isAdmin || isSalesRep) {
     const customerId = getCustomerParticipantId(convo, profiles);
@@ -345,7 +345,7 @@ export function getConversationTitle(convo, profiles, currentUserId, { isAdmin =
   }
   const otherId = (convo.participant_user_ids || []).find(id => id !== currentUserId);
   const p = profiles[otherId] || {};
-  if (p.is_portal_admin) return 'Global Access';
+  if (p.is_portal_admin || p.is_sales_rep) return customerChatLabel;
   return p.username || p.name || p.company || 'User';
 }
 
@@ -546,9 +546,25 @@ export async function submitInterestToSupport(userId, { form, interests, userTyp
   return convo;
 }
 
-export function redactProfileContacts(profile, { contactRevealed, isSelf }) {
+export function redactProfileContacts(profile, { contactRevealed, isSelf, viewerIsStaff = false, subjectIsStaff = false } = {}) {
   if (!profile) return profile;
-  if (contactRevealed || isSelf) return profile;
-  const { email, phone, ...rest } = profile;
-  return { ...rest, email: null, phone: null };
+  if (isSelf) return profile;
+  // Staff always see customer contact details in chat.
+  if (viewerIsStaff && !subjectIsStaff) return profile;
+  // Customers never see staff personal email or phone.
+  if (subjectIsStaff) {
+    const { email, phone, ...rest } = profile;
+    return { ...rest, email: null, phone: null };
+  }
+  if (!contactRevealed) {
+    const { email, phone, ...rest } = profile;
+    return { ...rest, email: null, phone: null };
+  }
+  // Peer customers: phone/WhatsApp only — no email.
+  const { email, ...rest } = profile;
+  return { ...rest, email: null };
+}
+
+export function profileIsStaff(profile) {
+  return !!(profile?.is_portal_admin || profile?.is_sales_rep);
 }

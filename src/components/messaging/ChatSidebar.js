@@ -3,7 +3,7 @@ import {
   fetchConversations, fetchMessages, sendMessage, markMessagesRead,
   getOrCreateDirectConversation, getOrCreateSupportConversation, subscribeToMessages, getUnreadCount,
   fetchContactableUsers, getConversationTitle, isGroupConversation,
-  getCustomerParticipantId, confirmConversationContact, redactProfileContacts,
+  getCustomerParticipantId, confirmConversationContact,
 } from '../../lib/community';
 import { getNotificationPrefs, requestNotificationPermission } from '../../lib/notificationPrefs';
 import { subscribeToPushNotifications } from '../../lib/pushNotifications';
@@ -49,6 +49,7 @@ export default function ChatSidebar({
   profileComplete = true,
   onRequireProfile,
   openSupportOnLoad = 0,
+  customerChatLabel = 'Trade Desk',
 }) {
   const { t } = useTheme();
   const isStaff = isAdmin || isSalesRep;
@@ -269,22 +270,15 @@ export default function ChatSidebar({
 
   const activeIsGroup = isGroupConversation(activeConvo);
   const contactRevealed = !!activeConvo?.contact_revealed;
-  const otherUserId = activeConvo && !activeIsGroup
-    ? activeConvo.participant_user_ids.find(id => id !== user.id)
-    : null;
-  const otherProfile = otherUserId ? profiles[otherUserId] : null;
-  const safeOtherProfile = otherProfile
-    ? redactProfileContacts(otherProfile, { contactRevealed, isSelf: false })
-    : null;
 
   const activeCustomerProfile = activeConvo && isStaff && !activeIsGroup
     ? profiles[getCustomerParticipantId(activeConvo, profiles)]
     : null;
-  const adminCustomerProfile = isAdmin && activeCustomerProfile ? activeCustomerProfile : null;
+  const staffCustomerProfile = isStaff && activeCustomerProfile ? activeCustomerProfile : null;
 
   const headerTitle = activeConvo
-    ? getConversationTitle(activeConvo, profiles, user.id, { isAdmin, isSalesRep })
-    : (isStaff ? `Messages${unread ? ` (${unread})` : ''}` : 'Support');
+    ? getConversationTitle(activeConvo, profiles, user.id, { isAdmin, isSalesRep, customerChatLabel })
+    : (isStaff ? `Messages${unread ? ` (${unread})` : ''}` : customerChatLabel);
   const headerSub = activeIsGroup
     ? `${(activeConvo.participant_user_ids || []).length} members`
     : (isStaff && activeConvo ? 'Customer conversation' : (isPage && !activeConvo ? 'Chat with our team' : null));
@@ -381,18 +375,18 @@ export default function ChatSidebar({
           <>
             {!activeIsGroup && (
               <div style={{ padding: '12px 14px', borderBottom: t.borderHairlineLight, background: t.bgHover, fontSize: 12, color: t.textSecondary, lineHeight: 1.5, flexShrink: 0 }}>
-                {isAdmin && adminCustomerProfile && (
+                {staffCustomerProfile && (
                   <div style={{ marginBottom: contactRevealed ? 10 : 0 }}>
-                    <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Customer (visible to you only)</div>
-                    <div style={{ fontWeight: 600, color: t.text, marginBottom: 4 }}>{adminCustomerProfile.name || 'Unnamed'}{adminCustomerProfile.company ? ` · ${adminCustomerProfile.company}` : ''}</div>
+                    <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Customer (team only)</div>
+                    <div style={{ fontWeight: 600, color: t.text, marginBottom: 4 }}>{staffCustomerProfile.name || 'Unnamed'}{staffCustomerProfile.company ? ` · ${staffCustomerProfile.company}` : ''}</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-                      {adminCustomerProfile.email && <span>📧 {adminCustomerProfile.email}</span>}
-                      {adminCustomerProfile.phone && (
-                        <a href={`https://wa.me/${adminCustomerProfile.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ color: t.accent, textDecoration: 'none', fontWeight: 600 }}>
-                          WhatsApp {adminCustomerProfile.phone}
+                      {staffCustomerProfile.email && <span>📧 {staffCustomerProfile.email}</span>}
+                      {staffCustomerProfile.phone && (
+                        <a href={`https://wa.me/${staffCustomerProfile.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ color: t.accent, textDecoration: 'none', fontWeight: 600 }}>
+                          WhatsApp {staffCustomerProfile.phone}
                         </a>
                       )}
-                      {customerInquiry && (
+                      {isAdmin && customerInquiry && (
                         <select
                           value={customerInquiry.quote_status || 'new'}
                           disabled={statusUpdating}
@@ -405,28 +399,13 @@ export default function ChatSidebar({
                         </select>
                       )}
                     </div>
-                    {adminCustomerProfile.referral_code_used && (
-                      <div style={{ fontSize: 11, color: t.gold, marginTop: 6 }}>Signed up with code: {adminCustomerProfile.referral_code_used}</div>
-                    )}
-                  </div>
-                )}
-                {isStaff && activeCustomerProfile && !isAdmin && (
-                  <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontWeight: 600, color: t.text, marginBottom: 4 }}>{activeCustomerProfile.name || 'Customer'}{activeCustomerProfile.company ? ` · ${activeCustomerProfile.company}` : ''}</div>
-                    {customerInquiry && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                    {!isAdmin && customerInquiry && (
+                      <div style={{ marginTop: 8 }}>
                         <QuoteStatusBadge status={customerInquiry.quote_status || 'new'} />
-                        <select
-                          value={customerInquiry.quote_status || 'new'}
-                          disabled={statusUpdating}
-                          onChange={(e) => handleQuoteStatusChange(e.target.value)}
-                          style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8, border: t.borderHairline, background: t.bgElevated, fontFamily: 'inherit', cursor: statusUpdating ? 'wait' : 'pointer' }}
-                        >
-                          {QUOTE_STATUSES.map(s => (
-                            <option key={s.id} value={s.id}>{s.label}</option>
-                          ))}
-                        </select>
                       </div>
+                    )}
+                    {staffCustomerProfile.referral_code_used && (
+                      <div style={{ fontSize: 11, color: t.gold, marginTop: 6 }}>Signed up with code: {staffCustomerProfile.referral_code_used}</div>
                     )}
                   </div>
                 )}
@@ -443,30 +422,25 @@ export default function ChatSidebar({
                 {!contactRevealed && (
                   <>
                     {isAdmin ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: adminCustomerProfile ? 10 : 0, paddingTop: adminCustomerProfile ? 10 : 0, borderTop: adminCustomerProfile ? t.borderHairline : 'none' }}>
-                        <span>Your direct contact info is hidden from the customer until you confirm below. Multiple admins can reply in this thread.</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: staffCustomerProfile ? 10 : 0, paddingTop: staffCustomerProfile ? 10 : 0, borderTop: staffCustomerProfile ? t.borderHairline : 'none' }}>
+                        <span>Confirm when you are ready to proceed. Customers stay in {customerChatLabel} — your personal email is never shared.</span>
                         <button type="button" onClick={handleConfirmContact} disabled={confirming}
                           style={{ alignSelf: 'flex-start', background: t.accent, color: '#FFF', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: confirming ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                          {confirming ? 'Confirming…' : 'Share my contact info with customer'}
+                          {confirming ? 'Confirming…' : 'Confirm inquiry for customer'}
                         </button>
                       </div>
-                    ) : (
-                      <span>Our team will confirm your inquiry in chat before sharing direct contact details.</span>
-                    )}
+                    ) : !isStaff ? (
+                      <span>Our team will confirm your inquiry in chat. You can message us here anytime.</span>
+                    ) : null}
                   </>
                 )}
-                {contactRevealed && !isAdmin && safeOtherProfile && (safeOtherProfile.phone || safeOtherProfile.email) && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                    {safeOtherProfile.email && <span>📧 {safeOtherProfile.email}</span>}
-                    {safeOtherProfile.phone && (
-                      <a href={`https://wa.me/${safeOtherProfile.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ color: t.accent, textDecoration: 'none', fontWeight: 600 }}>
-                        WhatsApp {safeOtherProfile.phone}
-                      </a>
-                    )}
+                {contactRevealed && !isStaff && (
+                  <div style={{ fontSize: 12, color: t.successText, fontWeight: 600 }}>
+                    Your inquiry is confirmed — continue in {customerChatLabel}.
                   </div>
                 )}
                 {contactRevealed && isAdmin && (
-                  <div style={{ fontSize: 11, color: t.successText, marginTop: 8 }}>Your contact info is visible to this customer.</div>
+                  <div style={{ fontSize: 11, color: t.successText, marginTop: 8 }}>Inquiry confirmed for this customer. Their contact info remains visible to your team only.</div>
                 )}
               </div>
             )}
@@ -483,6 +457,7 @@ export default function ChatSidebar({
               <ScheduleCallRequest
                 user={user}
                 isMobile={isPage}
+                chatLabel={customerChatLabel}
                 onSendMessage={(text) => handleSend(text)}
               />
             )}
@@ -505,6 +480,7 @@ export default function ChatSidebar({
             onSelect={setActiveConvo}
             onMessageSupport={!isStaff ? openSupportChat : null}
             isMobile={isPage}
+            customerChatLabel={customerChatLabel}
           />
         ) : (
           <UserList users={contactableUsers} onSelect={(u) => openChatWith(u.user_id)} emptyLabel={isSalesRep ? 'No assigned customers yet. Share your rep code when signing people up.' : 'No customers yet.'} />

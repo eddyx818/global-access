@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { validateAccessCode } from '../lib/repCodes';
 import { setPortalReferral, getPortalReferral } from '../lib/session';
 import { getRememberLogin, getSavedLogin, saveLogin, clearSavedLogin } from '../lib/loginPrefs';
+import { emailVerificationRequired, isEmailVerified, resendSignupConfirmation } from '../lib/authGate';
+import { isValidRequestEmail, isHoneypotClean, canSubmitAccessRequest } from '../lib/accessRequestGate';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggle from './ThemeToggle';
  
@@ -22,7 +24,9 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     name: '', company: '', email: '', phone: '',
     account_type: 'retailer', store_type: '', address: '',
     location_count: '1', has_retail: false, retail_count: '1',
+    website: '',
   });
+  const [pendingVerifyEmail, setPendingVerifyEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -86,20 +90,38 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
   };
  
   const handleLogin = async () => {
-    setLoading(true); setError('');
+    setLoading(true); setError(''); setPendingVerifyEmail('');
     const trimmedEmail = email.trim().toLowerCase();
     const { data, error: err } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password });
-    setLoading(false);
     if (err) {
+      setLoading(false);
       setError('Invalid email or password.');
       return;
     }
+    if (emailVerificationRequired() && !isEmailVerified(data.user)) {
+      await supabase.auth.signOut();
+      setPendingVerifyEmail(trimmedEmail);
+      setLoading(false);
+      setError('Please verify your email before signing in. Check your inbox for the confirmation link.');
+      return;
+    }
+    setLoading(false);
     if (rememberMe) {
       saveLogin({ email: trimmedEmail, password, remember: true });
     } else {
       clearSavedLogin();
     }
     onLoggedIn(data.user);
+  };
+
+  const handleResendVerification = async () => {
+    if (!pendingVerifyEmail) return;
+    setLoading(true);
+    setError('');
+    const { error: err } = await resendSignupConfirmation(pendingVerifyEmail);
+    setLoading(false);
+    if (err) setError('Could not resend verification email. Try again in a few minutes.');
+    else setSuccess('Verification email sent — check your inbox.');
   };
  
   const handleReset = async () => {
@@ -116,7 +138,23 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
       setError('Please fill in name, company, and email.');
       return;
     }
+    if (!isValidRequestEmail(reqForm.email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (!isHoneypotClean(reqForm)) {
+      setSuccess("Request sent! We'll reach out within 1 business day.");
+      setError('');
+      return;
+    }
     setLoading(true);
+    setError('');
+    const gate = await canSubmitAccessRequest(reqForm.email);
+    if (!gate.ok) {
+      setLoading(false);
+      setError(gate.error);
+      return;
+    }
     await onRequestAccess(reqForm);
     setLoading(false);
     setSuccess("Request sent! We'll reach out within 1 business day.");
@@ -138,7 +176,10 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
     const { data, error: err } = await supabase.auth.signUp({
       email: regForm.email.trim().toLowerCase(),
       password: regForm.password,
-      options: { data: { name: regForm.name, company: regForm.company, role: regForm.account_type } },
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: { name: regForm.name, company: regForm.company, role: regForm.account_type },
+      },
     });
     if (err) { setError(err.message); setLoading(false); return; }
     if (data.user) {
@@ -157,7 +198,12 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
-      setSuccess('Account created! Check your email to confirm, then sign in.');
+      if (emailVerificationRequired() && !data.session) {
+        setPendingVerifyEmail(regForm.email.trim().toLowerCase());
+        setSuccess('Account created! Check your email to verify, then sign in.');
+      } else {
+        setSuccess('Account created! You can sign in now.');
+      }
       setMode('login');
     }
     setLoading(false);
@@ -228,6 +274,11 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                 Remember me on this device
               </label>
               {error && <ErrBox msg={error} />}
+              {pendingVerifyEmail && (
+                <button type="button" onClick={handleResendVerification} disabled={loading} style={{ ...btnPrimary, background: t.bgElevated, color: t.text, border: t.borderHairline, marginBottom: '0.75rem', opacity: loading ? 0.7 : 1 }}>
+                  Resend verification email
+                </button>
+              )}
               <button onClick={handleLogin} disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.6 : 1 }}>{loading ? 'Signing in...' : 'Sign In →'}</button>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <button onClick={() => setMode('reset')} style={btnLink}>Forgot password?</button>
@@ -281,6 +332,11 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
               </div>
               {error && <ErrBox msg={error} />}
               {success && <OkBox msg={success} />}
+              {pendingVerifyEmail && mode === 'register' && (
+                <button type="button" onClick={handleResendVerification} disabled={loading} style={{ ...btnPrimary, background: t.bgElevated, color: t.text, border: t.borderHairline, marginBottom: '0.75rem', opacity: loading ? 0.7 : 1 }}>
+                  Resend verification email
+                </button>
+              )}
               <button onClick={handleRegister} disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.6 : 1 }}>{loading ? 'Creating...' : 'Create Account →'}</button>
               <div style={{ textAlign: 'center' }}><button onClick={() => setMode('login')} style={btnLink}>← Back to sign in</button></div>
             </>
@@ -290,6 +346,8 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
           {mode === 'request' && (
             <>
               <p style={{ fontSize: 13, color: '#888', marginBottom: '1.25rem', lineHeight: 1.6 }}>Tell us about your business. We'll review and reach out within 1 business day.</p>
+
+              <input type="text" name="website" value={reqForm.website} onChange={e => setReq('website', e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0 }} />
  
               {/* Account type toggle */}
               <div style={{ marginBottom: '1.25rem' }}>

@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import MasterPricingNotice from './MasterPricingNotice';
 import { useTheme } from '../context/ThemeContext';
 
-export default function HomeView({ onBrandClick, isMobile, userType, masterPricingQualified, masterPricingInterest, onSetMasterPricingInterest }) {
+export default function HomeView({ onBrandClick, isMobile, userType, masterPricingQualified, masterPricingInterest, onSetMasterPricingInterest, chatLabel = 'Trade Desk' }) {
   const { t, isNight } = useTheme();
   const [slideIdx, setSlideIdx] = useState(0);
   const [galleryIdx, setGalleryIdx] = useState(0); // cycles hero bg image
@@ -380,7 +380,7 @@ export default function HomeView({ onBrandClick, isMobile, userType, masterPrici
       {/* Footer */}
       <div style={{ borderTop: t.borderHairline, padding: '2rem 1.5rem', textAlign: 'center' }}>
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.12em', color: t.text, marginBottom: 6 }}>Global Access</div>
-        <div style={{ fontSize: 12, color: t.textDisabled }}>Trade portal · Invite only · Contact us via Support chat or your interest form</div>
+        <div style={{ fontSize: 12, color: t.textDisabled }}>Trade portal · Invite only · Contact us via {chatLabel} or your quote request</div>
       </div>
     </div>
   );

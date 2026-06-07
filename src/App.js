@@ -3,6 +3,7 @@ import { supabase, trackEvent, getSessionId } from './lib/supabase';
 import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, getPortalReferral } from './lib/session';
 import { getSavedLogin } from './lib/loginPrefs';
 import { updateUserPresence, resolveAuthRole, ensurePortalAdminFlag, submitInterestToSupport, isProfileComplete } from './lib/community';
+import { resolveCustomerChatLabel, staffChatLabel } from './lib/chatLabels';
 import { useBrandContent } from './lib/content';
 import { getFontFamily } from './lib/design';
 import LoginScreen from './components/LoginScreen';
@@ -22,6 +23,8 @@ import { useMessageAlerts } from './hooks/useMessageAlerts';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import { getNotificationPermission } from './lib/notificationPrefs';
 import { subscribeToPushNotifications } from './lib/pushNotifications';
+import { emailVerificationRequired, isEmailVerified } from './lib/authGate';
+import { isHoneypotClean } from './lib/accessRequestGate';
 import { useTheme } from './context/ThemeContext';
 
 export default function App() {
@@ -45,7 +48,7 @@ export default function App() {
   const [isPortalAdmin, setIsPortalAdmin] = useState(false);
   const [isSalesRep, setIsSalesRep] = useState(false);
   const [staffProfile, setStaffProfile] = useState(null);
-  const { getMergedBrands, bgColor, globalStyles, navigation } = useBrandContent();
+  const { getMergedBrands, bgColor, globalStyles, navigation, customerChatLabel } = useBrandContent();
   const { unread: chatUnread, refresh: refreshUnread } = useUnreadCount(user?.id, {
     isAdmin: isPortalAdmin,
     isSalesRep,
@@ -60,7 +63,7 @@ export default function App() {
   const showInstallPrompt = isMobileDevice && !isInstalled;
   const showInstallBanner = showInstallPrompt && inPortalView;
   const showMobileNav = mobileShell && !!user;
-  const chatLabel = isPortalAdmin ? 'Messages' : 'Support';
+  const chatLabel = isPortalAdmin || isSalesRep ? staffChatLabel() : resolveCustomerChatLabel(customerChatLabel);
 
   const openChat = () => {
     if (user && !isPortalAdmin && !isProfileComplete(form)) {
@@ -210,6 +213,11 @@ export default function App() {
   }, []);
 
   const applySessionUser = async (sessionUser) => {
+    if (emailVerificationRequired() && !isEmailVerified(sessionUser)) {
+      await supabase.auth.signOut();
+      setAuthState('login');
+      return;
+    }
     const { isAdmin, isSalesRep: salesRep, authState: nextAuth } = await resolveAuthRole(sessionUser);
     setUser(sessionUser);
     setIsPortalAdmin(isAdmin);
@@ -430,6 +438,7 @@ export default function App() {
   };
 
   const handleRequestAccess = async (data) => {
+    if (!isHoneypotClean(data)) return;
     const referral = await getPortalReferral();
     await supabase.from('access_requests').insert({
       name: data.name,
@@ -555,6 +564,7 @@ export default function App() {
             profileComplete={isProfileComplete(form)}
             onRequireProfile={requireProfileForChat}
             openSupportOnLoad={openSupportOnLoad}
+            customerChatLabel={chatLabel}
           />
         </ChatErrorBoundary>
       )}
@@ -579,7 +589,7 @@ export default function App() {
         <div style={{ position: 'fixed', inset: 0, background: t.overlay, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
           <div style={{ background: t.bgElevated, borderRadius: 20, padding: '2rem', maxWidth: 420, width: '100%', boxShadow: `0 24px 64px ${t.shadow}` }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: '0.04em', color: t.text, marginBottom: 6 }}>Ready to connect?</div>
-            <p style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.6, marginBottom: '1.5rem' }}>Request a quote from your list here. We will follow up via Support chat or email — direct contact is shared after we confirm your inquiry.</p>
+            <p style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.6, marginBottom: '1.5rem' }}>Request a quote from your list here. Our team will follow up in {chatLabel} with pricing and availability.</p>
             {[['name','Your name *'],['company','Company / Store *'],['phone','Phone / WhatsApp'],['email','Email']].map(([field, label]) => (
               <div key={field} style={{ marginBottom: '0.875rem' }}>
                 <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
@@ -606,6 +616,7 @@ export default function App() {
           masterPricingQualified={masterPricingQualified}
           masterPricingInterest={masterPricingInterest}
           onSetMasterPricingInterest={user?.id && userType === 'distributor' ? setMasterPricingInterestFlag : null}
+          chatLabel={chatLabel}
         />
       )}
       {view === 'chat' && mobileShell && user && (
@@ -622,13 +633,14 @@ export default function App() {
               profileComplete={isProfileComplete(form)}
               onRequireProfile={requireProfileForChat}
               openSupportOnLoad={openSupportOnLoad}
+              customerChatLabel={chatLabel}
             />
           </ChatErrorBoundary>
         </div>
       )}
       {view === 'chat' && mobileShell && !user && (
         <div style={{ ...mobilePageShellStyle, alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center' }}>
-          <div style={{ fontSize: 14, color: t.textMuted, marginBottom: 12 }}>Sign in to use Support chat.</div>
+          <div style={{ fontSize: 14, color: t.textMuted, marginBottom: 12 }}>Sign in to use {chatLabel}.</div>
           <button type="button" onClick={() => setAuthState('login')} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             Sign in
           </button>
@@ -667,6 +679,7 @@ export default function App() {
           pricingVisible={authState !== 'browse'}
           onSignIn={authState === 'browse' ? () => setAuthState('login') : null}
           onRequestAccess={authState === 'browse' ? () => setShowSignupPrompt(true) : null}
+          chatLabel={chatLabel}
         />
       )}
       {view === 'interest' && (
@@ -679,12 +692,14 @@ export default function App() {
           onBack={() => setView(activeBrand ? 'brand' : 'home')}
           isMobile={isMobile}
           profileSaved={isProfileComplete(form)}
+          chatLabel={chatLabel}
         />
       )}
       {view === 'thanks' && (
         <ThanksView
           onBack={goHome}
           onOpenSupport={user ? openChat : null}
+          chatLabel={chatLabel}
         />
       )}
       </div>

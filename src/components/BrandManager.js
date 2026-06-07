@@ -22,6 +22,7 @@ export default function BrandManager({ onSaved }) {
   const [hiddenBrands, setHiddenBrands] = useState([]);
   const [customBrands, setCustomBrands] = useState([]);
   const [bgColor, setBgColor] = useState('#F5F2ED');
+  const [customerChatLabel, setCustomerChatLabel] = useState('Trade Desk');
   const [showAddForm, setShowAddForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState('');
@@ -41,6 +42,7 @@ export default function BrandManager({ onSaved }) {
         data.forEach(s => {
           if (s.key === 'hidden_brands') setHiddenBrands(JSON.parse(s.value || '[]'));
           if (s.key === 'bg_color') setBgColor(s.value || '#F5F2ED');
+          if (s.key === 'customer_chat_label') setCustomerChatLabel(s.value || 'Trade Desk');
           if (s.key === 'custom_brands') setCustomBrands(JSON.parse(s.value || '[]'));
         });
       }
@@ -66,6 +68,15 @@ export default function BrandManager({ onSaved }) {
     await saveSetting('bg_color', color);
     setSaved('Background updated!'); setTimeout(() => setSaved(''), 2000);
     onSaved && onSaved();
+  };
+
+  const handleChatLabelSave = async () => {
+    const label = (customerChatLabel || 'Trade Desk').trim() || 'Trade Desk';
+    setCustomerChatLabel(label);
+    await saveSetting('customer_chat_label', label);
+    setSaved('Chat label updated!'); setTimeout(() => setSaved(''), 2000);
+    onSaved && onSaved();
+    window.dispatchEvent(new Event('ga-content-updated'));
   };
 
   const handleAddBrand = async () => {
@@ -117,6 +128,21 @@ export default function BrandManager({ onSaved }) {
   return (
     <div>
       {saved && <div style={{ background: t.successBg, border: `0.5px solid ${t.successBorder}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, color: t.successText, marginBottom: 16 }}>{saved}</div>}
+
+      {/* Customer chat label */}
+      <div style={card}>
+        <div style={ui.sectionLabel}>Buyer chat label</div>
+        <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
+          Name shown in the nav and mobile bottom bar for customers (e.g. Trade Desk, Inquiries, Global Access Team). Quotes and follow-ups stay in this chat — no personal WhatsApp required.
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <label style={labelStyle}>Label</label>
+            <input value={customerChatLabel} onChange={e => setCustomerChatLabel(e.target.value)} placeholder="Trade Desk" style={{ ...inputStyle, maxWidth: 320 }} />
+          </div>
+          <button type="button" onClick={handleChatLabelSave} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Save</button>
+        </div>
+      </div>
 
       {/* Background Color */}
       <div style={card}>
