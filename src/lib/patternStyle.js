@@ -54,11 +54,26 @@ export function getPatternAppearance(brandColor, pageBg, { isNight = false, isMo
   };
 }
 
+/** How many repeats fill a rotated mobile viewport (long names need more tiles). */
 export function getPatternDensity(label, isMobile) {
-  const len = Math.max((label || '').length, 4);
+  const len = Math.max((label || '').replace(/\s+/g, '').length, 3);
+  const charSlots = Math.max((label || '').length, 3);
+
+  if (isMobile) {
+    const charWidthVw = 6.8;
+    const gapVw = 7;
+    const wordVw = charSlots * charWidthVw;
+    const unitVw = wordVw + gapVw;
+    const targetVw = 340;
+    return {
+      repeatsPerRow: Math.max(14, Math.ceil(targetVw / unitVw) + 2),
+      rowCount: 40,
+    };
+  }
+
   return {
-    repeatsPerRow: isMobile ? Math.max(6, Math.ceil(56 / len)) : Math.max(10, Math.ceil(96 / len)),
-    rowCount: isMobile ? 24 : 28,
+    repeatsPerRow: Math.max(12, Math.ceil(120 / len) + 4),
+    rowCount: 28,
   };
 }
 

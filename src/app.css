@@ -236,6 +236,7 @@ html.app-native body {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: stretch;
   gap: clamp(1.25rem, 3.5vw, 3rem);
 }
 
@@ -243,8 +244,11 @@ html.app-native body {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
+  justify-content: flex-start;
   gap: clamp(2rem, 6vw, 6rem);
   flex-shrink: 0;
+  width: max-content;
+  min-width: 100%;
 }
 
 .brand-name-pattern__word {
@@ -264,19 +268,32 @@ html.app-native body {
 }
 
 .brand-name-pattern[data-mobile='true'] .brand-name-pattern__row {
-  gap: clamp(1.5rem, 9vw, 3rem);
+  gap: clamp(1.25rem, 7vw, 2.5rem);
+  justify-content: space-between;
+  min-width: 400vmax;
+  width: 400vmax;
 }
 
 .brand-name-pattern[data-mobile='true'] .brand-name-pattern__canvas {
-  width: 320vmax;
-  height: 320vmax;
-  gap: clamp(1rem, 5vw, 2rem);
+  width: 420vmax;
+  height: 420vmax;
+  gap: clamp(0.85rem, 4vw, 1.75rem);
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
   .brand-name-pattern__canvas {
-    width: 260vmax;
-    height: 260vmax;
+    width: 360vmax;
+    height: 360vmax;
+  }
+
+  .brand-name-pattern[data-mobile='true'] .brand-name-pattern__canvas {
+    width: 420vmax;
+    height: 420vmax;
+  }
+
+  .brand-name-pattern[data-mobile='true'] .brand-name-pattern__row {
+    min-width: 420vmax;
+    width: 420vmax;
   }
 }
 

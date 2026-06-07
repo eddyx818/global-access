@@ -36,7 +36,10 @@ export default function BrandNamePattern({ brand, isMobile, isNight = false, pag
           <div
             key={rowIdx}
             className="brand-name-pattern__row"
-            style={{ paddingLeft: rowIdx % 2 === 0 ? 0 : 'clamp(1.5rem, 5vw, 5rem)' }}
+            style={{
+              paddingLeft: rowIdx % 2 === 0 ? 0 : 'clamp(1.5rem, 5vw, 5rem)',
+              ...(isMobile ? { minWidth: '400vmax' } : {}),
+            }}
           >
             {Array.from({ length: repeatsPerRow }, (_, wordIdx) => (
               <span key={wordIdx} className="brand-name-pattern__word">
