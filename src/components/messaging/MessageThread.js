@@ -1,16 +1,102 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { isChatImage } from '../../lib/chatAttachments';
-import { getChatDisplayName } from '../../lib/community';
+import { getChatDisplayName, isMessageHiddenFromCustomer } from '../../lib/community';
 import CustomerBadges from '../CustomerBadges';
 import { useTheme } from '../../context/ThemeContext';
 
-export default function MessageThread({ messages, currentUserId, profiles, loading, isGroup = false, showStaffNames = false, isStaff = false }) {
+function MessageDeleteMenu({ msg, mine, isStaff, customerUserId, onDelete, onClose }) {
+  const { t } = useTheme();
+  const hiddenFromCustomer = isStaff && isMessageHiddenFromCustomer(msg, customerUserId);
+
+  const run = async (scope) => {
+    onClose();
+    await onDelete?.(msg.id, scope);
+  };
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: '100%',
+        [mine ? 'right' : 'left']: 0,
+        marginTop: 4,
+        zIndex: 20,
+        minWidth: 168,
+        background: t.bgElevated,
+        border: t.borderHairline,
+        borderRadius: 10,
+        boxShadow: `0 8px 24px ${t.shadow}`,
+        overflow: 'hidden',
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        type="button"
+        onClick={() => run('me')}
+        style={{
+          display: 'block',
+          width: '100%',
+          textAlign: 'left',
+          padding: '10px 12px',
+          border: 'none',
+          background: 'transparent',
+          color: t.text,
+          fontSize: 13,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        {isStaff ? 'Delete for me' : 'Delete message'}
+      </button>
+      {isStaff && customerUserId && !hiddenFromCustomer && (
+        <button
+          type="button"
+          onClick={() => run('customer')}
+          style={{
+            display: 'block',
+            width: '100%',
+            textAlign: 'left',
+            padding: '10px 12px',
+            border: 'none',
+            borderTop: t.borderHairlineLight,
+            background: 'transparent',
+            color: t.errorText,
+            fontSize: 13,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          Delete for customer
+        </button>
+      )}
+    </div>
+  );
+}
+
+export default function MessageThread({
+  messages,
+  currentUserId,
+  profiles,
+  loading,
+  isGroup = false,
+  showStaffNames = false,
+  isStaff = false,
+  customerUserId = null,
+  onDeleteMessage = null,
+}) {
   const { t } = useTheme();
   const endRef = useRef(null);
+  const [menuMessageId, setMenuMessageId] = useState(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    const close = () => setMenuMessageId(null);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, []);
 
   if (loading) {
     return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textFaint, fontSize: 13 }}>Loading...</div>;
@@ -21,13 +107,13 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
     return getChatDisplayName(p, { viewerIsStaff: isStaff });
   };
 
-  const renderAttachment = (msg, mine) => {
+  const renderAttachment = (msg, mine, muted) => {
     if (!msg.attachment_url) return null;
     const name = msg.attachment_name || 'Attachment';
     const isImage = isChatImage(msg.attachment_type, name);
     if (isImage) {
       return (
-        <a href={msg.attachment_url} target="_blank" rel="noreferrer" style={{ display: 'block', marginBottom: msg.content && !msg.content.startsWith('📎 ') ? 8 : 0 }}>
+        <a href={msg.attachment_url} target="_blank" rel="noreferrer" style={{ display: 'block', marginBottom: msg.content && !msg.content.startsWith('📎 ') ? 8 : 0, opacity: muted ? 0.65 : 1 }}>
           <img
             src={msg.attachment_url}
             alt={name}
@@ -54,6 +140,7 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
           textDecoration: 'none',
           fontSize: 13,
           fontWeight: 500,
+          opacity: muted ? 0.65 : 1,
         }}
       >
         📄 {name}
@@ -66,6 +153,8 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
     if (msg.attachment_url && msg.content.startsWith('📎 ')) return null;
     return msg.content;
   };
+
+  const canDelete = (msg) => !msg.is_system && onDeleteMessage;
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, background: t.bgHover, minHeight: 0 }}>
@@ -90,26 +179,85 @@ export default function MessageThread({ messages, currentUserId, profiles, loadi
         const isCustomerSender = showStaffNames && !fromProfile.is_portal_admin && !fromProfile.is_sales_rep;
         const staffLabel = fromProfile.is_portal_admin ? (fromProfile.name || 'Team') : senderName(msg.from_user_id);
         const body = displayContent(msg);
+        const hiddenFromCustomer = isStaff && isMessageHiddenFromCustomer(msg, customerUserId);
+        const showMenu = canDelete(msg);
+
         return (
-          <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
+          <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start', position: 'relative' }}>
             {showName && (
               <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 3, marginLeft: 4, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                 <span>{staffLabel}</span>
                 {isCustomerSender && <CustomerBadges profile={fromProfile} size="sm" />}
               </div>
             )}
-            <div style={{
-              maxWidth: '85%', padding: '10px 14px', borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-              background: mine ? t.bubbleMineBg : t.bubbleOtherBg, color: mine ? t.bubbleMineText : t.bubbleOtherText,
-              fontSize: 15, lineHeight: 1.45, border: mine ? 'none' : t.borderHairlineLight,
-              boxShadow: mine ? 'none' : `0 1px 4px ${t.shadow}`,
-            }}>
-              {renderAttachment(msg, mine)}
-              {body}
-              <div style={{ fontSize: 9, color: mine ? 'rgba(255,255,255,0.45)' : t.textDisabled, marginTop: 4, textAlign: 'right' }}>
-                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                {mine && !isGroup && msg.read_status ? ' · read' : ''}
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: mine ? 'row-reverse' : 'row', maxWidth: '100%' }}>
+              <div style={{
+                position: 'relative',
+                maxWidth: '85%', padding: '10px 14px', borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                background: mine ? t.bubbleMineBg : t.bubbleOtherBg, color: mine ? t.bubbleMineText : t.bubbleOtherText,
+                fontSize: 15, lineHeight: 1.45, border: hiddenFromCustomer ? `1px dashed ${t.warningBorder}` : (mine ? 'none' : t.borderHairlineLight),
+                boxShadow: mine ? 'none' : `0 1px 4px ${t.shadow}`,
+                opacity: hiddenFromCustomer ? 0.92 : 1,
+              }}>
+                {hiddenFromCustomer && (
+                  <div style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    color: t.warningText,
+                    marginBottom: 6,
+                  }}>
+                    Hidden from customer
+                  </div>
+                )}
+                {renderAttachment(msg, mine, hiddenFromCustomer)}
+                {body && (
+                  <span style={{ opacity: hiddenFromCustomer ? 0.85 : 1, whiteSpace: 'pre-wrap' }}>
+                    {body}
+                  </span>
+                )}
+                <div style={{ fontSize: 9, color: mine ? 'rgba(255,255,255,0.45)' : t.textDisabled, marginTop: 4, textAlign: 'right' }}>
+                  {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {mine && !isGroup && msg.read_status ? ' · read' : ''}
+                </div>
+                {menuMessageId === msg.id && (
+                  <MessageDeleteMenu
+                    msg={msg}
+                    mine={mine}
+                    isStaff={isStaff}
+                    customerUserId={customerUserId}
+                    onDelete={onDeleteMessage}
+                    onClose={() => setMenuMessageId(null)}
+                  />
+                )}
               </div>
+              {showMenu && (
+                <button
+                  type="button"
+                  aria-label="Message options"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuMessageId(prev => (prev === msg.id ? null : msg.id));
+                  }}
+                  style={{
+                    flexShrink: 0,
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    border: t.borderHairline,
+                    background: t.bgElevated,
+                    color: t.textMuted,
+                    fontSize: 14,
+                    lineHeight: 1,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    padding: 0,
+                  }}
+                >
+                  ···
+                </button>
+              )}
             </div>
           </div>
         );

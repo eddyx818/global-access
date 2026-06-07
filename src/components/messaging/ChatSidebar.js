@@ -5,6 +5,7 @@ import {
   fetchContactableUsers, getConversationTitle, isGroupConversation,
   getCustomerParticipantId, confirmConversationContact,
   joinStaffToConversation, updateCustomerAppointment, sendMessage as sendChatMessage,
+  softDeleteMessage, isMessageHiddenForUser,
 } from '../../lib/community';
 import { filterAndSortConversations, loadConvoPrefs, pinConversation, unpinConversation, hideConversation } from '../../lib/conversationPrefs';
 import { validateAppointmentSlot, minAppointmentDateStr } from '../../lib/appointments';
@@ -143,19 +144,29 @@ export default function ChatSidebar({
       setLoading(false);
     });
     if (subRef.current) subRef.current.unsubscribe();
-    subRef.current = subscribeToMessages(activeConvo.id, async (msg) => {
-      setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg]);
-      await mergeProfiles([], [msg]);
-      if (!isGroupConversation(activeConvo)) {
-        const shouldMark = isStaff
-          ? !profiles[msg.from_user_id]?.is_portal_admin
-          : msg.to_user_id === user.id;
-        if (shouldMark) {
-          await markMessagesRead(activeConvo.id, user.id, { isAdmin, isSalesRep });
-          refresh();
+    subRef.current = subscribeToMessages(
+      activeConvo.id,
+      async (msg) => {
+        setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg]);
+        await mergeProfiles([], [msg]);
+        if (!isGroupConversation(activeConvo)) {
+          const shouldMark = isStaff
+            ? !profiles[msg.from_user_id]?.is_portal_admin
+            : msg.to_user_id === user.id;
+          if (shouldMark) {
+            await markMessagesRead(activeConvo.id, user.id, { isAdmin, isSalesRep });
+            refresh();
+          }
         }
-      }
-    });
+      },
+      async (msg) => {
+        if (isMessageHiddenForUser(msg, user.id, { isPortalAdmin: isAdmin })) {
+          setMessages(prev => prev.filter(m => m.id !== msg.id));
+          return;
+        }
+        setMessages(prev => prev.map(m => (m.id === msg.id ? msg : m)));
+      },
+    );
     return () => subRef.current?.unsubscribe();
   }, [activeConvo?.id, user.id, isStaff]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -303,6 +314,20 @@ export default function ChatSidebar({
     if (!(open || isPage) || !profileComplete) return;
     openSupportChat().catch(() => {});
   }, [openSupportOnLoad]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDeleteMessage = async (messageId, scope) => {
+    const label = scope === 'customer'
+      ? 'Hide this message from the customer? Your team and admins can still see it.'
+      : 'Delete this message for you?';
+    if (!window.confirm(label)) return;
+    const result = await softDeleteMessage(messageId, scope);
+    if (!result.ok) {
+      window.alert(result.error || 'Could not delete message.');
+      return;
+    }
+    const msgs = await fetchMessages(activeConvo.id);
+    setMessages(msgs);
+  };
 
   const handleSend = async (text, attachment = null) => {
     if (!activeConvo) return;
@@ -602,7 +627,17 @@ export default function ChatSidebar({
                 )}
               </div>
             )}
-            <MessageThread messages={messages} currentUserId={user.id} profiles={profiles} loading={loading} isGroup={activeIsGroup} showStaffNames={isStaff} isStaff={isStaff} />
+            <MessageThread
+              messages={messages}
+              currentUserId={user.id}
+              profiles={profiles}
+              loading={loading}
+              isGroup={activeIsGroup}
+              showStaffNames={isStaff}
+              isStaff={isStaff}
+              customerUserId={customerUserId}
+              onDeleteMessage={handleDeleteMessage}
+            />
             {!isStaff && activeConvo && (
               <ScheduleCallRequest
                 user={user}

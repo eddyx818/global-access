@@ -13,6 +13,7 @@ export default function MobileBottomNav({
   unread = 0,
   chatLabel = 'Support',
   showList = true,
+  listLabel = 'My List',
   showQuotes = false,
   showChat = true,
   showProfile = true,
@@ -21,7 +22,7 @@ export default function MobileBottomNav({
 
   const items = [
     { id: 'home', label: 'Home', icon: '⌂', onClick: onHome, active: activeView === 'home' || activeView === 'brand' },
-    showList && { id: 'list', label: 'My List', icon: '☰', onClick: onList, active: activeView === 'interest', badge: listCount || null },
+    showList && { id: 'list', label: listLabel, icon: '☰', onClick: onList, active: activeView === 'interest', badge: listCount || null },
     showQuotes && { id: 'quotes', label: 'Quotes', icon: '📋', onClick: onQuotes, active: activeView === 'quotes', badge: quotesCount || null },
     showChat && { id: 'chat', label: chatLabel, icon: '💬', onClick: onChat, active: activeView === 'chat', badge: unread || null, accent: true },
     showProfile && { id: 'profile', label: 'Profile', icon: '👤', onClick: onProfile, active: activeView === 'profile' },

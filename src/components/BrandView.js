@@ -6,7 +6,7 @@ import { subscribeStockNotify, fetchMyStockAlerts, stockAlertKey } from '../lib/
 import { useTheme } from '../context/ThemeContext';
 import { useBrandContent } from '../lib/content';
 
-export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, updateInterestLine, isInterested, interests, onSubmit, isMobile, hasBottomNav = false, enableQuoteFlow = true, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess, chatLabel = 'Trade Desk' }) {
+export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, updateInterestLine, isInterested, interests, onSubmit, isMobile, hasBottomNav = false, enableQuoteFlow = true, staffPriceCheck = false, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess, chatLabel = 'Trade Desk' }) {
   const { t, isNight } = useTheme();
   const { bgColor } = useBrandContent();
   const [lightbox, setLightbox] = useState(null);
@@ -597,7 +597,9 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
           boxSizing: 'border-box',
         }}>
           <button onClick={onSubmit} style={{ width: '100%', maxWidth: 760, margin: '0 auto', display: 'block', background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em', fontFamily: 'inherit' }}>
-            Request quote ({interests.length} item{interests.length !== 1 ? 's' : ''}) →
+            {staffPriceCheck
+              ? `Price check (${interests.length} item${interests.length !== 1 ? 's' : ''}) →`
+              : `Request quote (${interests.length} item${interests.length !== 1 ? 's' : ''}) →`}
           </button>
         </div>
       )}

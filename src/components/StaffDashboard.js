@@ -18,7 +18,7 @@ const tabBtn = (active, theme) => ({
   fontWeight: active ? 600 : 400,
 });
 
-export default function StaffDashboard({ user, profile, onLogout }) {
+export default function StaffDashboard({ user, profile, onLogout, onViewCatalog }) {
   const { t } = useTheme();
   const [tab, setTab] = useState('messages');
   const { unread, refresh: refreshUnread } = useUnreadCount(user?.id, {
@@ -38,9 +38,20 @@ export default function StaffDashboard({ user, profile, onLogout }) {
             </div>
           )}
         </div>
-        <button onClick={onLogout} style={{ background: 'transparent', border: `0.5px solid ${t.border}`, color: t.headerMuted, borderRadius: 8, padding: '8px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
-          Sign out
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {onViewCatalog && (
+            <button
+              type="button"
+              onClick={onViewCatalog}
+              style={{ background: t.gold, color: '#1A1A1A', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              Price check catalog
+            </button>
+          )}
+          <button onClick={onLogout} style={{ background: 'transparent', border: `0.5px solid ${t.border}`, color: t.headerMuted, borderRadius: 8, padding: '8px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Sign out
+          </button>
+        </div>
       </div>
 
       <div style={{ padding: '1rem 1.25rem', maxWidth: 960, margin: '0 auto' }}>

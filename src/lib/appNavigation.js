@@ -33,6 +33,7 @@ export function readSavedPortalNav(userId) {
   if (!saved || saved.userId !== userId) return null;
   return {
     adminMode: saved.adminMode === 'portal' ? 'portal' : 'dashboard',
+    repMode: saved.repMode === 'portal' ? 'portal' : 'dashboard',
     view: saved.view || 'home',
     activeBrand: saved.activeBrand || null,
     adminTab: saved.adminTab || 'overview',

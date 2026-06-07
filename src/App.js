@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
 import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, getPortalReferral } from './lib/session';
 import { getRememberLogin, getSavedLogin } from './lib/loginPrefs';
-import { updateUserPresence, resolveAuthRole, ensurePortalAdminFlag, submitInterestToSupport, isProfileComplete } from './lib/community';
+import { updateUserPresence, resolveAuthRole, ensurePortalAdminFlag, submitInterestToSupport, sendStaffPriceCheck, isProfileComplete } from './lib/community';
 import { resolveCustomerChatLabel, staffChatLabel } from './lib/chatLabels';
 import { useBrandContent } from './lib/content';
 import { getFontFamily } from './lib/design';
@@ -44,6 +44,7 @@ export default function App() {
   const homeScrollRef = useRef(0);
   const [authState, setAuthState] = useState('loading');
   const [adminMode, setAdminMode] = useState('dashboard');
+  const [repMode, setRepMode] = useState('dashboard');
   const [user, setUser] = useState(null);
   const [userType, setUserType] = useState('retailer'); // 'distributor' | 'retailer'
   const [view, setView] = useState('home');
@@ -67,7 +68,10 @@ export default function App() {
     if (authState === 'admin' && adminMode === 'portal') {
       loadContent();
     }
-  }, [authState, adminMode, loadContent]);
+    if (authState === 'sales_rep' && repMode === 'portal') {
+      loadContent();
+    }
+  }, [authState, adminMode, repMode, loadContent]);
 
   const { unread: chatUnread, refresh: refreshUnread } = useUnreadCount(user?.id, {
     isAdmin: isPortalAdmin,
@@ -78,11 +82,16 @@ export default function App() {
   const [quotesNewCount, setQuotesNewCount] = useState(0);
   const isStaffPortalUser = isPortalAdmin || isSalesRep;
   const isAdminPortalPreview = authState === 'admin' && adminMode === 'portal';
-  const showCustomerShopping = !isStaffPortalUser || isAdminPortalPreview;
+  const isRepCatalog = authState === 'sales_rep' && repMode === 'portal';
+  const isStaffCatalogPortal = isAdminPortalPreview || isRepCatalog;
+  const isStaffPriceCheck = isStaffCatalogPortal;
+  const showCustomerShopping = !isStaffPortalUser || isStaffCatalogPortal;
   const showCustomerList = showCustomerShopping;
-  const showStaffTools = isStaffPortalUser && !isAdminPortalPreview;
+  const showStaffTools = isStaffPortalUser && !isStaffCatalogPortal;
 
-  const inPortalView = authState === 'portal' || authState === 'browse' || (authState === 'admin' && adminMode === 'portal');
+  const inPortalView = authState === 'portal' || authState === 'browse'
+    || (authState === 'admin' && adminMode === 'portal')
+    || (authState === 'sales_rep' && repMode === 'portal');
   const isMobileDevice = isMobile || /Android|iPhone|iPad|iPod|Mobile/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : '');
   // Phone/PWA layout: use UA detection, not only viewport width (landscape can exceed 768px)
   const mobileShell = isMobileDevice && inPortalView;
@@ -159,6 +168,13 @@ export default function App() {
     if (mobileShell) setView('home');
   };
 
+  const openRepDashboard = () => {
+    setShowProfile(false);
+    setProfileGate(null);
+    setRepMode('dashboard');
+    if (mobileShell) setView('home');
+  };
+
   const navigateQuotes = () => {
     setShowProfile(false);
     setProfileGate(null);
@@ -193,11 +209,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isPortalAdmin || !inPortalView) return;
+    if (!isStaffPortalUser || !inPortalView) return;
     fetchRecentInquiries(50).then((rows) => {
       setQuotesNewCount(rows.filter(i => (i.quote_status || 'new') === 'new').length);
     });
-  }, [isPortalAdmin, inPortalView, view]);
+  }, [isStaffPortalUser, inPortalView, view]);
 
   // Recover orphaned views (desktop width with mobile routes, brand without id, etc.)
   useEffect(() => {
@@ -289,10 +305,11 @@ export default function App() {
       userId: user.id,
       authState,
       adminMode,
+      repMode,
       view,
       activeBrand,
     });
-  }, [user?.id, authState, adminMode, view, activeBrand]);
+  }, [user?.id, authState, adminMode, repMode, view, activeBrand]);
 
   useEffect(() => {
     const onPageShow = () => {
@@ -300,8 +317,10 @@ export default function App() {
       const saved = readSavedPortalNav(user.id);
       if (!saved) return;
       if (isPortalAdmin) setAdminMode(saved.adminMode);
+      if (isSalesRep) setRepMode(saved.repMode || 'dashboard');
       const inPortal = authState === 'portal' || authState === 'browse'
-        || (isPortalAdmin && saved.adminMode === 'portal');
+        || (isPortalAdmin && saved.adminMode === 'portal')
+        || (isSalesRep && saved.repMode === 'portal');
       if (inPortal && saved.view) {
         setView(saved.view);
         setActiveBrand(saved.activeBrand || null);
@@ -309,12 +328,13 @@ export default function App() {
     };
     window.addEventListener('pageshow', onPageShow);
     return () => window.removeEventListener('pageshow', onPageShow);
-  }, [user?.id, authState, isPortalAdmin]);
+  }, [user?.id, authState, isPortalAdmin, isSalesRep]);
 
   const resetEntryNavigation = () => {
     setView('home');
     setActiveBrand(null);
     setAdminMode('dashboard');
+    setRepMode('dashboard');
     setChatOpen(false);
     setShowProfile(false);
     setProfileGate(null);
@@ -349,8 +369,15 @@ export default function App() {
       await ensurePortalAdminFlag(sessionUser.id, sessionUser.email);
     }
 
+    if (salesRep) {
+      setRepMode(savedNav?.repMode === 'portal' ? 'portal' : 'dashboard');
+    } else {
+      setRepMode('dashboard');
+    }
+
     const inPortalShell = nextAuth === 'portal' || nextAuth === 'browse'
-      || (isAdmin && (savedNav?.adminMode === 'portal'));
+      || (isAdmin && (savedNav?.adminMode === 'portal'))
+      || (salesRep && (savedNav?.repMode === 'portal'));
 
     if (savedNav && inPortalShell) {
       const nextView = savedNav.view || 'home';
@@ -471,7 +498,9 @@ export default function App() {
   }, [user?.id, authState]);
 
   useEffect(() => {
-    const canTrack = authState === 'portal' || authState === 'browse' || (authState === 'admin' && adminMode === 'portal');
+    const canTrack = authState === 'portal' || authState === 'browse'
+      || (authState === 'admin' && adminMode === 'portal')
+      || (authState === 'sales_rep' && repMode === 'portal');
     if (!canTrack) return;
     const page = activeBrand ? `brand:${activeBrand}` : view;
     const userId = user?.id;
@@ -482,7 +511,7 @@ export default function App() {
       if (seconds > 2) trackEvent('time_on_page', page, { value: seconds, user_id: userId });
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, activeBrand, authState, adminMode]);
+  }, [view, activeBrand, authState, adminMode, repMode]);
 
   useEffect(() => {
     if (showStaffTools) setInterests([]);
@@ -591,6 +620,11 @@ export default function App() {
 
   const handleSubmitAttempt = () => {
     if (!showCustomerShopping) return;
+    if (isStaffPriceCheck) {
+      if (!interests.length) return;
+      doSubmit();
+      return;
+    }
     if (authState === 'browse') {
       setSignupPromptError('');
       setShowSignupPrompt(true);
@@ -607,6 +641,21 @@ export default function App() {
 
   const doSubmit = async () => {
     if (!showCustomerShopping) return;
+    if (isStaffPriceCheck) {
+      if (!interests.length || !user?.id) return;
+      try {
+        await sendStaffPriceCheck(user.id, {
+          interests,
+          userType,
+          notes: form.notes,
+        });
+        setOpenSupportOnLoad(n => n + 1);
+        setInterests([]);
+        setForm(f => ({ ...f, notes: '' }));
+        setView('thanks');
+      } catch (_) {}
+      return;
+    }
     const nameCheck = validatePersonName(form.name, { label: 'Name' });
     if (!nameCheck.ok) {
       const msg = nameCheck.error;
@@ -722,8 +771,15 @@ export default function App() {
       />
     </>
   );
-  if (authState === 'sales_rep') {
-    return <StaffDashboard user={user} profile={staffProfile} onLogout={handleLogout} />;
+  if (authState === 'sales_rep' && repMode === 'dashboard') {
+    return (
+      <StaffDashboard
+        user={user}
+        profile={staffProfile}
+        onLogout={handleLogout}
+        onViewCatalog={() => setRepMode('portal')}
+      />
+    );
   }
   if (authState === 'admin' && adminMode === 'dashboard') return <AdminDashboard user={user} onLogout={handleLogout} onViewPortal={() => setAdminMode('portal')} />;
 
@@ -768,13 +824,15 @@ export default function App() {
         includeSafeAreaTop={isMobileDevice && !portalTopChrome}
         unread={chatUnread}
         showCustomerList={showCustomerList}
+        listLabel={isStaffPriceCheck ? 'Price check' : 'My List'}
         onQuotes={isStaffPortalUser ? navigateQuotes : null}
         quotesNewCount={quotesNewCount}
         isAdmin={isPortalAdmin && adminMode === 'portal'}
         onAdminClick={openAdminDashboard}
-        showAdminPreview={isAdminPortalPreview}
+        showAdminPreview={isStaffCatalogPortal}
         previewUserType={userType}
         onPreviewUserTypeChange={setUserType}
+        onStaffHomeClick={isRepCatalog ? openRepDashboard : null}
       />
       {user && !mobileShell && (
         <ChatErrorBoundary onFallback={navigateHome}>
@@ -906,6 +964,7 @@ export default function App() {
           isMobile={isMobile || isMobileDevice}
           hasBottomNav={showMobileNav}
           enableQuoteFlow={showCustomerShopping}
+          staffPriceCheck={isStaffPriceCheck}
           masterPricingQualified={masterPricingQualified}
           pricingVisible={authState !== 'browse'}
           onSignIn={authState === 'browse' ? () => setAuthState('login') : null}
@@ -924,6 +983,7 @@ export default function App() {
           isMobile={isMobile}
           profileSaved={isProfileComplete(form)}
           chatLabel={chatLabel}
+          staffPriceCheck={isStaffPriceCheck}
         />
       )}
       {view === 'quotes' && isStaffPortalUser && (
@@ -938,6 +998,7 @@ export default function App() {
           onBack={goHome}
           onOpenSupport={user ? openChat : null}
           chatLabel={chatLabel}
+          staffPriceCheck={isStaffPriceCheck}
         />
       )}
       </div>
@@ -955,6 +1016,7 @@ export default function App() {
           unread={chatUnread}
           chatLabel={chatLabel}
           showList={showCustomerList}
+          listLabel={isStaffPriceCheck ? 'Price check' : 'My List'}
           showQuotes={isStaffPortalUser}
         />
       )}

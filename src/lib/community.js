@@ -171,6 +171,25 @@ export async function fetchMessages(conversationId) {
   return data || [];
 }
 
+export function isMessageHiddenForUser(msg, userId, { isPortalAdmin = false } = {}) {
+  if (isPortalAdmin || !userId) return false;
+  return (msg?.hidden_for_user_ids || []).includes(userId);
+}
+
+export function isMessageHiddenFromCustomer(msg, customerUserId) {
+  if (!customerUserId) return false;
+  return (msg?.hidden_for_user_ids || []).includes(customerUserId);
+}
+
+export async function softDeleteMessage(messageId, scope = 'me') {
+  const { data, error } = await supabase.rpc('soft_delete_message', {
+    p_message_id: messageId,
+    p_scope: scope,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: !!data };
+}
+
 export async function getOrCreateSupportConversation(customerId) {
   const admins = await fetchPortalAdmins();
   if (!admins.length) throw new Error('Support team is not available yet.');
@@ -483,16 +502,24 @@ export async function fetchRecentActivity(limit = 50) {
   return data || [];
 }
 
-export function subscribeToMessages(conversationId, onMessage) {
-  return supabase
-    .channel(`messages:${conversationId}`)
-    .on('postgres_changes', {
-      event: 'INSERT',
+export function subscribeToMessages(conversationId, onMessage, onUpdate = null) {
+  const channel = supabase.channel(`messages:${conversationId}`);
+  channel.on('postgres_changes', {
+    event: 'INSERT',
+    schema: 'public',
+    table: 'messages',
+    filter: `conversation_id=eq.${conversationId}`,
+  }, payload => onMessage(payload.new));
+  if (onUpdate) {
+    channel.on('postgres_changes', {
+      event: 'UPDATE',
       schema: 'public',
       table: 'messages',
       filter: `conversation_id=eq.${conversationId}`,
-    }, payload => onMessage(payload.new))
-    .subscribe();
+    }, payload => onUpdate(payload.new));
+  }
+  channel.subscribe();
+  return channel;
 }
 
 export function isProfileComplete(fields = {}) {
@@ -612,6 +639,33 @@ export async function confirmConversationContact(conversationId, adminUserId) {
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function sendStaffPriceCheck(staffUserId, { interests, userType, notes = '' }) {
+  const convo = await getOrCreateSupportConversation(staffUserId);
+  const itemsList = interests.map(i => {
+    const unit = i.orderUnitLabel || (i.orderMode === 'pallet' ? 'pallets' : 'cases');
+    const skuPart = i.sku ? `${i.sku} · ` : '';
+    return `• ${skuPart}${i.brandName} — ${i.productName}\n  ${i.flavor || '—'} · Qty ${i.qty || 1} ${unit}`;
+  }).join('\n');
+  const text = [
+    '📋 Internal price check (staff)',
+    '',
+    itemsList || '(No line items)',
+    '',
+    `Preview pricing as: ${userType === 'distributor' ? 'Distributor' : 'Retailer'}`,
+    notes?.trim() ? `Notes: ${notes.trim()}` : '',
+    '',
+    'Team — please reply with best pricing or catalog guidance.',
+  ].filter(Boolean).join('\n');
+  const adminId = convo.participant_user_ids.find(id => id !== staffUserId);
+  await sendMessage({
+    conversationId: convo.id,
+    fromUserId: staffUserId,
+    toUserId: adminId,
+    content: text,
+  });
+  return convo;
 }
 
 export async function submitInterestToSupport(userId, { form, interests, userType, masterPricingInterest = false }) {
