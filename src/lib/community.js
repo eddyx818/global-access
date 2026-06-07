@@ -395,7 +395,9 @@ export async function fetchStaffAvailability() {
 export function getCustomerParticipantId(convo, profiles = {}) {
   return (convo?.participant_user_ids || []).find(id => {
     const p = profiles[id];
-    return !p?.is_portal_admin && !p?.is_sales_rep;
+    if (p?.is_portal_admin || p?.is_sales_rep) return false;
+    const role = p?.role || '';
+    return role !== 'admin' && role !== 'sales_rep';
   });
 }
 

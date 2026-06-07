@@ -653,7 +653,9 @@ export default function App() {
         setInterests([]);
         setForm(f => ({ ...f, notes: '' }));
         setView('thanks');
-      } catch (_) {}
+      } catch (err) {
+        window.alert(err?.message || 'Could not send price check. Try again or open Messages.');
+      }
       return;
     }
     const nameCheck = validatePersonName(form.name, { label: 'Name' });
