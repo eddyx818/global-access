@@ -27,7 +27,7 @@ export default function StaffDashboard({ user, profile, onLogout }) {
     <div style={{ minHeight: '100vh', background: '#F5F2ED', fontFamily: "'DM Sans', sans-serif" }}>
       <div style={{ background: '#1A1A1A', padding: '12px 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <div>
-          <div style={{ fontSize: 11, color: '#888', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Sales rep</div>
+          <div style={{ fontSize: 11, color: '#888', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Sales</div>
           <div style={{ fontSize: 16, color: '#FFF', fontWeight: 600 }}>{profile?.name || user?.email}</div>
           {profile?.rep_code && (
             <div style={{ fontSize: 11, color: '#C9A84C', marginTop: 4 }}>

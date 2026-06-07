@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { fetchAllProfiles } from '../lib/community';
+import { formatRoleLabel } from '../lib/roles';
 
 const STATUS_COLOR = { online: '#4CAF7D', away: '#C9A84C', offline: '#CCC' };
 
@@ -112,7 +113,7 @@ export default function CustomerDirectory({ repUserId = null }) {
                     <div style={{ fontSize: 11, color: '#AAA' }}>{u.email}</div>
                   </td>
                   <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', color: '#666' }}>{u.company || '—'}</td>
-                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', textTransform: 'capitalize', color: '#666' }}>{u.role || u.user_type || '—'}</td>
+                  <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', color: '#666' }}>{formatRoleLabel(u.role || u.user_type)}</td>
                   {!repUserId && (
                     <td style={{ padding: '10px', borderBottom: '0.5px solid #F5F2ED', fontSize: 12, color: '#666' }}>
                       {u.signed_up_by}

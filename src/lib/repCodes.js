@@ -35,7 +35,7 @@ export async function validateAccessCode(rawCode) {
       valid: true,
       type: 'rep',
       repUserId: data.user_id,
-      repName: data.name || data.company || 'Sales rep',
+      repName: data.name || data.company || 'Sales',
       code,
     };
   }

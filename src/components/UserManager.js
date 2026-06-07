@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, supabaseAdmin } from '../lib/supabase';
 import { generateRepCodeFromName, normalizeRepCode } from '../lib/repCodes';
+import { formatRoleLabel } from '../lib/roles';
 
 const ROLES = ['retailer', 'distributor', 'sales_rep', 'admin'];
 const ROLE_COLORS = { retailer: '#4CAF7D', distributor: '#C9A84C', sales_rep: '#E07A5F', admin: '#7B6CF6' };
@@ -204,15 +205,15 @@ export default function UserManager() {
             <div style={{ display: 'flex', gap: 8 }}>
               {ROLES.map(role => (
                 <button key={role} onClick={() => setCreateForm(f => ({ ...f, role }))}
-                  style={{ flex: 1, padding: '10px 8px', border: `0.5px solid ${createForm.role === role ? ROLE_COLORS[role] : '#E0DDD8'}`, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, background: createForm.role === role ? ROLE_COLORS[role] + '18' : '#FFF', color: createForm.role === role ? ROLE_COLORS[role] : '#888', fontWeight: createForm.role === role ? 600 : 400, textTransform: 'capitalize', transition: 'all 0.15s' }}>
-                  {role}
+                  style={{ flex: 1, padding: '10px 8px', border: `0.5px solid ${createForm.role === role ? ROLE_COLORS[role] : '#E0DDD8'}`, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, background: createForm.role === role ? ROLE_COLORS[role] + '18' : '#FFF', color: createForm.role === role ? ROLE_COLORS[role] : '#888', fontWeight: createForm.role === role ? 600 : 400, transition: 'all 0.15s' }}>
+                  {formatRoleLabel(role)}
                 </button>
               ))}
             </div>
             <div style={{ fontSize: 11, color: '#CCC', marginTop: 6 }}>
               {createForm.role === 'retailer' ? 'Sees individual flavors, case ordering' :
                createForm.role === 'distributor' ? 'Sees pallet configs, bulk ordering' :
-               createForm.role === 'sales_rep' ? 'Rep dashboard — own customers, messages, contact imports. Gets a personal access code.' :
+               createForm.role === 'sales_rep' ? 'Sales dashboard — own customers, messages, and contact imports. Gets a personal access code.' :
                'Full admin dashboard access — use carefully'}
             </div>
           </div>
@@ -247,8 +248,8 @@ export default function UserManager() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   {ROLES.map(role => (
                     <button key={role} onClick={() => setEditForm(f => ({ ...f, role }))}
-                      style={{ flex: 1, padding: '9px 4px', border: `0.5px solid ${editForm.role === role ? ROLE_COLORS[role] : '#E0DDD8'}`, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, background: editForm.role === role ? ROLE_COLORS[role] + '18' : '#FFF', color: editForm.role === role ? ROLE_COLORS[role] : '#888', fontWeight: editForm.role === role ? 600 : 400, textTransform: 'capitalize', transition: 'all 0.15s' }}>
-                      {role}
+                      style={{ flex: 1, padding: '9px 4px', border: `0.5px solid ${editForm.role === role ? ROLE_COLORS[role] : '#E0DDD8'}`, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, background: editForm.role === role ? ROLE_COLORS[role] + '18' : '#FFF', color: editForm.role === role ? ROLE_COLORS[role] : '#888', fontWeight: editForm.role === role ? 600 : 400, transition: 'all 0.15s' }}>
+                      {formatRoleLabel(role)}
                     </button>
                   ))}
                 </div>
@@ -304,7 +305,7 @@ export default function UserManager() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <div style={{ fontWeight: 500, fontSize: 15 }}>{user.name || 'Unnamed'}</div>
-                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: (ROLE_COLORS[user.role] || '#888') + '18', color: ROLE_COLORS[user.role] || '#888', fontWeight: 600, textTransform: 'capitalize', letterSpacing: '0.06em' }}>{user.role || 'unknown'}</span>
+                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: (ROLE_COLORS[user.role] || '#888') + '18', color: ROLE_COLORS[user.role] || '#888', fontWeight: 600, letterSpacing: '0.06em' }}>{formatRoleLabel(user.role) || 'Unknown'}</span>
                   {user.disabled && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#FEF0F0', color: '#E05A5A', fontWeight: 600 }}>Disabled</span>}
                   {user.role === 'distributor' && user.master_pricing_qualified && (
                     <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#FDF6E3', color: '#A07A20', fontWeight: 600 }}>Master pricing</span>
