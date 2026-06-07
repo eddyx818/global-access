@@ -101,9 +101,9 @@ export default function Nav({
             Profile
           </button>
         )}
-        {isAdmin && (
-          <button type="button" onClick={onAdminClick} style={{ background: t.goldBg, color: t.gold, border: `0.5px solid ${t.gold}`, borderRadius: 20, padding: isMobile ? '4px 10px' : '5px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.06em', backdropFilter: 'blur(4px)' }}>
-            Admin
+        {isAdmin && onAdminClick && (
+          <button type="button" onClick={onAdminClick} style={{ background: t.goldBg, color: t.gold, border: `0.5px solid ${t.gold}`, borderRadius: 20, padding: isMobile ? '4px 10px' : '5px 14px', fontSize: isMobile ? 10 : 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.04em', backdropFilter: 'blur(4px)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            Dashboard
           </button>
         )}
         {onLogout && (

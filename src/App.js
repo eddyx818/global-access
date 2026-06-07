@@ -728,13 +728,10 @@ export default function App() {
       {authState === 'admin' && adminMode === 'portal' && (
         <div className="app-top-chrome app-safe-top-chrome" style={{ background: '#1A1A1A', paddingLeft: isMobileDevice ? '0.75rem' : '1.25rem', paddingRight: isMobileDevice ? '0.75rem' : '1.25rem', paddingBottom: isMobileDevice ? 6 : 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: isMobileDevice ? 'wrap' : 'nowrap' }}>
           <span style={{ fontSize: isMobileDevice ? 11 : 12, color: '#888' }}>Admin preview</span>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <select value={userType} onChange={e => setUserType(e.target.value)} style={{ background: '#2A2A2A', border: '0.5px solid #3A3A3A', borderRadius: 6, padding: isMobileDevice ? '3px 8px' : '4px 10px', fontSize: isMobileDevice ? 11 : 12, color: '#FFF', cursor: 'pointer', fontFamily: 'inherit', maxWidth: isMobileDevice ? 130 : undefined }}>
-              <option value="retailer">View as Retailer</option>
-              <option value="distributor">View as Distributor</option>
-            </select>
-            <button onClick={openAdminDashboard} style={{ background: '#C9A84C', color: '#1A1A1A', border: 'none', borderRadius: 6, padding: isMobileDevice ? '4px 10px' : '5px 14px', fontSize: isMobileDevice ? 11 : 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Dashboard</button>
-          </div>
+          <select value={userType} onChange={e => setUserType(e.target.value)} style={{ background: '#2A2A2A', border: '0.5px solid #3A3A3A', borderRadius: 6, padding: isMobileDevice ? '3px 8px' : '4px 10px', fontSize: isMobileDevice ? 11 : 12, color: '#FFF', cursor: 'pointer', fontFamily: 'inherit', maxWidth: isMobileDevice ? 140 : undefined }}>
+            <option value="retailer">View as Retailer</option>
+            <option value="distributor">View as Distributor</option>
+          </select>
         </div>
       )}
 
@@ -804,7 +801,6 @@ export default function App() {
           userType={userType}
           setUserType={setUserType}
           isStaff={isStaffPortalUser}
-          onOpenDashboard={isPortalAdmin ? openAdminDashboard : null}
           onClose={closeProfile}
           profileGate={profileGate}
           onSaved={handleProfileSaved}
@@ -888,7 +884,6 @@ export default function App() {
             userType={userType}
             setUserType={setUserType}
             isStaff={isStaffPortalUser}
-            onOpenDashboard={isPortalAdmin ? openAdminDashboard : null}
             variant="page"
             onClose={closeProfile}
             profileGate={profileGate}
@@ -934,7 +929,6 @@ export default function App() {
       {view === 'quotes' && isStaffPortalUser && (
         <StaffQuotesView
           isMobile={isMobile || isMobileDevice}
-          onOpenDashboard={isPortalAdmin ? openAdminDashboard : null}
           onCountsChange={setQuotesNewCount}
         />
       )}

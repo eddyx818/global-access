@@ -41,7 +41,6 @@ export default function ProfileModal({
   userType,
   setUserType,
   isStaff = false,
-  onOpenDashboard = null,
   onClose,
   variant = 'modal',
   profileGate = null,
@@ -261,29 +260,9 @@ export default function ProfileModal({
           <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: t.gold, fontWeight: 700, marginBottom: 6 }}>
             Staff account
           </div>
-          <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.55, marginBottom: onOpenDashboard ? 12 : 0 }}>
-            This is your team profile — not a customer account. Scheduling a call and quote lists are customer-only; use the quote inbox tab or dashboard to manage requests.
+          <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.55 }}>
+            This is your team profile — not a customer account. Scheduling a call and quote lists are customer-only. Use the Quotes tab or Dashboard button next to Sign out up top.
           </div>
-          {onOpenDashboard && (
-            <button
-              type="button"
-              onClick={onOpenDashboard}
-              style={{
-                width: '100%',
-                background: t.goldBg,
-                color: t.gold,
-                border: `0.5px solid ${t.gold}`,
-                borderRadius: 8,
-                padding: '11px 14px',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              Open admin dashboard →
-            </button>
-          )}
         </div>
       ) : (
         <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: '1rem', padding: '0 2px' }}>

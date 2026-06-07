@@ -15,7 +15,7 @@ function formatWhen(iso) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-export default function StaffQuotesView({ onOpenDashboard, onCountsChange, isMobile = true }) {
+export default function StaffQuotesView({ onCountsChange, isMobile = true }) {
   const { t } = useTheme();
   const [inquiries, setInquiries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,36 +71,13 @@ export default function StaffQuotesView({ onOpenDashboard, onCountsChange, isMob
         background: t.bgElevated,
         flexShrink: 0,
       }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
-          <div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: '0.04em', color: t.text }}>
-              Quote inbox
-            </div>
-            <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4, lineHeight: 1.45 }}>
-              Recent customer quote requests — update status or open the dashboard for full detail.
-            </div>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: '0.04em', color: t.text }}>
+            Quote inbox
           </div>
-          {onOpenDashboard && (
-            <button
-              type="button"
-              onClick={onOpenDashboard}
-              style={{
-                flexShrink: 0,
-                background: t.goldBg,
-                color: t.gold,
-                border: `0.5px solid ${t.gold}`,
-                borderRadius: 8,
-                padding: '8px 12px',
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Dashboard →
-            </button>
-          )}
+          <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4, lineHeight: 1.45 }}>
+            Recent customer quote requests — update status here or use Dashboard in the top bar for full detail.
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {[
