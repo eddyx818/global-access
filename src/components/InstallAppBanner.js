@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import SiteLogo from './SiteLogo';
 
 export default function InstallAppBanner({ canInstall, showIosHint, onInstall, onDismiss, className = '' }) {
   const [dismissed, setDismissed] = useState(() => {
@@ -30,16 +31,11 @@ export default function InstallAppBanner({ canInstall, showIosHint, onInstall, o
         width: 40,
         height: 40,
         borderRadius: 10,
-        background: '#F5F2ED',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontFamily: "'Bebas Neue', sans-serif",
-        fontSize: 22,
-        color: '#C9A84C',
+        overflow: 'hidden',
         flexShrink: 0,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
       }}>
-        GA
+        <SiteLogo height={40} style={{ width: 40, objectFit: 'cover' }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>Install Global Access</div>

@@ -1,9 +1,9 @@
-const CACHE = 'global-access-v7';
+const CACHE = 'global-access-v8';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(['/manifest.json', '/icon.svg']))
+    caches.open(CACHE).then((cache) => cache.addAll(['/manifest.json', '/logo.png']))
   );
 });
 
@@ -57,8 +57,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'Global Access', {
       body: data.body || 'New message',
-      icon: '/icon.svg',
-      badge: '/icon.svg',
+      icon: '/logo.png',
+      badge: '/logo.png',
       tag: data.conversationId ? `ga-chat-${data.conversationId}` : 'ga-chat',
       renotify: true,
       data: { url: data.url || '/', conversationId: data.conversationId || null },

@@ -3,6 +3,7 @@ import { useBrandContent } from '../lib/content';
 import { applyBrandOrder, saveUserBrandOrder } from '../lib/userBrandOrder';
 
 import MasterPricingNotice from './MasterPricingNotice';
+import SiteLogo from './SiteLogo';
 import { useTheme } from '../context/ThemeContext';
 
 const heroSlideKey = (userId) => `ga-hero-slide-${userId || 'guest'}`;
@@ -839,7 +840,7 @@ export default function HomeView({
 
       {/* Footer */}
       <div style={{ borderTop: t.borderHairline, padding: '2rem 1.5rem', textAlign: 'center' }}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.12em', color: t.text, marginBottom: 6 }}>Global Access</div>
+        <SiteLogo height={52} style={{ margin: '0 auto 10px' }} />
         <div style={{ fontSize: 12, color: t.textDisabled }}>Trade portal · Invite only · Contact us via {chatLabel} or your quote request</div>
       </div>
     </div>

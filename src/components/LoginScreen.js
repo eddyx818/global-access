@@ -8,6 +8,7 @@ import { canAccessPortal, fetchProfileAccess, resolveLoginEmail } from '../lib/a
 import { isValidRequestEmail, isValidPhone, getPhoneValidationError, isHoneypotClean, canSubmitAccessRequest, savePendingAccess, readPendingAccess, fetchAccessRequestStatus } from '../lib/accessRequestGate';
 import { validatePersonName, validateCompanyName } from '../lib/nameValidation';
 import AccessWaitingRoom from './AccessWaitingRoom';
+import SiteLogo from './SiteLogo';
 import { useTheme } from '../context/ThemeContext';
 import AddressFields, { EMPTY_ADDRESS } from './AddressFields';
 import { formatFullAddress } from '../lib/addressFormat';
@@ -281,9 +282,9 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
       <div style={{ width: '100%', maxWidth: mode === 'request' || mode === 'waiting' ? 480 : 400 }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: isMobile ? '1.5rem' : '2.5rem' }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.3em', color: t.textFaint, textTransform: 'uppercase', marginBottom: 10 }}>Trade Portal</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 44 : 52, letterSpacing: '0.06em', color: t.text, lineHeight: 1 }}>Global Access</div>
-          <div style={{ width: 36, height: 2, background: t.gold, margin: '14px auto 0', borderRadius: 1 }} />
+          <div style={{ fontSize: 11, letterSpacing: '0.3em', color: t.textFaint, textTransform: 'uppercase', marginBottom: 14 }}>Trade Portal</div>
+          <SiteLogo height={isMobile ? 88 : 104} style={{ margin: '0 auto' }} />
+          <div style={{ width: 36, height: 2, background: t.gold, margin: '16px auto 0', borderRadius: 1 }} />
         </div>
 
         <div style={{ background: t.bgElevated, border: t.borderHairline, borderRadius: 14, padding: isMobile ? '1.25rem' : '2rem', boxShadow: `0 4px 24px ${t.shadow}` }}>

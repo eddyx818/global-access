@@ -52,8 +52,8 @@ export async function showMessageNotification({ title, body, conversationId, onC
 
   const options = {
     body: body?.slice(0, 180) || 'New message',
-    icon: '/icon.svg',
-    badge: '/icon.svg',
+    icon: '/logo.png',
+    badge: '/logo.png',
     tag: conversationId ? `ga-chat-${conversationId}` : 'ga-chat',
     renotify: true,
     data: { conversationId, url: '/' },
