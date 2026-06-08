@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { BRANDS } from '../lib/data';
 import {
   saveBrandContent, saveProductContent, uploadBrandImage,
-  uploadGalleryImage, deleteGalleryImage, buildVisibleBrandPhotos,
+  uploadGalleryImage, deleteGalleryImage, setGalleryCatalogFeatured, buildVisibleBrandPhotos,
   buildHttpsImagePool, resolveProductImageUrl, buildResolvedProductImages, resolveBrandImageUrl,
 } from '../lib/content';
 import { parseCommerceFields, parsePackFields } from '../lib/pricing';
@@ -188,6 +188,15 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
     onSaved && onSaved();
   };
 
+  const handleToggleFeatured = async (galleryId, featured) => {
+    const result = await setGalleryCatalogFeatured(galleryId, featured);
+    if (!result.ok) return;
+    setGalleryItems(prev => prev.map(g => (
+      g.id === galleryId ? { ...g, catalog_featured: featured } : g
+    )));
+    onSaved && onSaved();
+  };
+
   const toggleFlavorSoldOut = (sku, flavorType, idx) => {
     setProductForms(pf => {
       const arr = [...(pf[sku][flavorType] || [])];
@@ -254,6 +263,7 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
         skuCards={skuCards}
         pendingStrip={pendingStrip}
         onDeletePlacard={handleDeletePlacard}
+        onToggleFeatured={handleToggleFeatured}
         brandColor={brandForm.color || selectedBrand.color}
       />
 

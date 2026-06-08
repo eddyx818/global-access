@@ -53,6 +53,11 @@ export default function HomeView({
     return customOrder ?? applyBrandOrder(allBrands, userId);
   }, [loading, customOrder, allBrands, userId]);
 
+  const catalogPhotosFor = (brand) => {
+    if (!brand) return [];
+    return (brand.catalogGallery?.length ? brand.catalogGallery : brand.gallery) || [];
+  };
+
   const heroBg = heroConfig.background_color || '#0D0D0D';
 
   useEffect(() => {
@@ -103,7 +108,7 @@ export default function HomeView({
       return undefined;
     }
     setGalleryIdx(0);
-    const gallery = brands[slideIdx]?.gallery || [];
+    const gallery = catalogPhotosFor(brands[slideIdx]);
     if (gallery.length <= 1) return undefined;
     galleryTimer.current = setInterval(() => setGalleryIdx(i => (i + 1) % gallery.length), 2500);
     return () => clearInterval(galleryTimer.current);
@@ -112,7 +117,7 @@ export default function HomeView({
 
   // Preload hero gallery images for the active brand (avoids pop-in on 2nd+ photo)
   useEffect(() => {
-    const gallery = brands[slideIdx]?.gallery || [];
+    const gallery = catalogPhotosFor(brands[slideIdx]);
     gallery.forEach(src => {
       if (!src || preloadedHeroImages.current.has(src)) return;
       const img = new Image();
@@ -123,7 +128,7 @@ export default function HomeView({
 
   // Prefetch the next gallery frame before it appears
   useEffect(() => {
-    const gallery = brands[slideIdx]?.gallery || [];
+    const gallery = catalogPhotosFor(brands[slideIdx]);
     if (gallery.length <= 1) return;
     const nextSrc = gallery[(galleryIdx + 1) % gallery.length];
     if (nextSrc && !preloadedHeroImages.current.has(nextSrc)) {
@@ -486,10 +491,10 @@ export default function HomeView({
           touchAction: isMobile ? 'pan-y' : 'auto',
         }}
       >
-        {brands.map((brand, i) => (
-          <div
-            key={brand.id}
-            style={{
+        {brands.map((brand, i) => {
+          const heroPhotos = catalogPhotosFor(brand);
+          return (
+          <div key={brand.id} style={{
               position: 'absolute',
               inset: 0,
               zIndex: i === slideIdx ? 2 : 0,
@@ -500,7 +505,7 @@ export default function HomeView({
             }}
           >
             <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 60%, ${brand.color}65 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, ${brand.color}30 0%, transparent 50%), ${heroBg}` }} />
-            {brand.gallery && brand.gallery.length > 0 && (
+            {heroPhotos.length > 0 && (
               <div
                 style={{
                   position: 'absolute',
@@ -513,7 +518,7 @@ export default function HomeView({
                 }}
               >
                 <div className={i === slideIdx && !isNight && !isMobile ? 'hero-gallery-stack hero-gallery-stack--float' : 'hero-gallery-stack'} style={{ position: 'absolute', inset: 0 }}>
-                  {brand.gallery.map((img, gi) => {
+                  {heroPhotos.map((img, gi) => {
                     const isActiveBrand = i === slideIdx;
                     const isVisible = isActiveBrand && gi === galleryIdx;
                     return (
@@ -544,7 +549,8 @@ export default function HomeView({
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
         {brands.map((brand, i) => {
           const isActive = i === slideIdx;
           const slideHeadline = heroConfig.headline || brand.name;
@@ -795,15 +801,20 @@ export default function HomeView({
 
                 {/* Image area */}
                 <div style={{ height: isMobile ? 90 : 130, overflow: 'hidden', position: 'relative', background: `linear-gradient(135deg, ${brand.color}20, ${brand.color}06)`, borderRadius: '18px 18px 0 0' }}>
-                  {brand.gallery && brand.gallery[0] ? (
-                    <img src={brand.gallery[0]} alt={brand.name}
+                  {(() => {
+                    const cardPhoto = catalogPhotosFor(brand)[0];
+                    return cardPhoto ? (
+                    <img src={cardPhoto} alt={brand.name}
+                      loading="lazy"
+                      decoding="async"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease', transform: `scale(${tilt.x !== 0 || tilt.y !== 0 ? 1.06 : 1})` }}
                       onError={e => { e.target.style.display = 'none'; }} />
                   ) : (
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 44, color: brand.color + '33', letterSpacing: '0.05em', transform: 'translateZ(20px)' }}>{brand.name[0]}</div>
                     </div>
-                  )}
+                  );
+                  })()}
                   {/* Gradient overlay */}
                   <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(to bottom, transparent 40%, rgba(255,255,255,0.15))` }} />
                   {/* Color bar */}

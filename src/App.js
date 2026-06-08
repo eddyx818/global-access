@@ -45,6 +45,7 @@ export default function App() {
   const { t, isNight } = useTheme();
   const canResumeNavRef = useRef(isSessionResumable());
   const homeScrollRef = useRef(0);
+  const brandScrollRef = useRef({});
   const mainContentRef = useRef(null);
   const [authState, setAuthState] = useState('loading');
   const [adminMode, setAdminMode] = useState('dashboard');
@@ -152,21 +153,48 @@ export default function App() {
     }
   };
 
+  const saveBrandScroll = () => {
+    const scrollEl = mainContentRef.current;
+    if (scrollEl && activeBrand) {
+      brandScrollRef.current[activeBrand] = scrollEl.scrollTop;
+    }
+  };
+
+  const restoreScroll = (top) => {
+    requestAnimationFrame(() => {
+      const scrollEl = mainContentRef.current;
+      if (scrollEl) scrollEl.scrollTo({ top, behavior: 'auto' });
+    });
+  };
+
   const navigateHome = () => {
     setShowProfile(false);
     setProfileGate(null);
-    setActiveBrand(null);
+    const scrollEl = mainContentRef.current;
+    if (view === 'brand' && activeBrand && scrollEl) {
+      brandScrollRef.current[activeBrand] = scrollEl.scrollTop;
+    }
+    const wasAlreadyHome = view === 'home';
+    if (!showMobileNav || view !== 'brand') {
+      setActiveBrand(null);
+    }
     setView('home');
     window.history.replaceState({ view: 'home' }, '', window.location.pathname);
     requestAnimationFrame(() => {
       const el = mainContentRef.current;
-      if (el) el.scrollTo({ top: 0, behavior: 'smooth' });
+      if (!el) return;
+      if (wasAlreadyHome) {
+        el.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        el.scrollTo({ top: homeScrollRef.current, behavior: 'auto' });
+      }
     });
   };
 
   const navigateList = () => {
     setShowProfile(false);
     setProfileGate(null);
+    if (view === 'brand') saveBrandScroll();
     if (isProfileComplete(form)) {
       setForm(f => ({ ...f, notes: '' }));
     }
@@ -602,16 +630,15 @@ export default function App() {
     window.history.pushState({ view: 'brand', brandId }, '', `#${brandId}`);
     setActiveBrand(brandId);
     setView('brand');
+    restoreScroll(brandScrollRef.current[brandId] || 0);
   };
 
   const goHome = () => {
+    saveBrandScroll();
     window.history.pushState({ view: 'home' }, '', window.location.pathname);
     setView('home');
     setActiveBrand(null);
-    requestAnimationFrame(() => {
-      const scrollEl = mainContentRef.current;
-      if (scrollEl) scrollEl.scrollTo({ top: homeScrollRef.current, behavior: 'auto' });
-    });
+    restoreScroll(homeScrollRef.current);
   };
 
   const handleNavClick = (item) => {
@@ -991,7 +1018,12 @@ export default function App() {
           />
         </div>
       )}
-      {view === 'brand' && activeBrand && (
+      {activeBrand && (showMobileNav || view === 'brand') && (
+        <div
+          className={`portal-brand-view${view === 'brand' ? ' portal-brand-view--active' : ''}`}
+          style={showMobileNav ? { display: view === 'brand' ? 'block' : 'none' } : undefined}
+          aria-hidden={view !== 'brand'}
+        >
         <BrandView
           brand={getMergedBrands().find(b => b.id === activeBrand)}
           userType={userType}
@@ -1013,6 +1045,7 @@ export default function App() {
           onRequestAccess={authState === 'browse' ? openAccessRequest : null}
           chatLabel={chatLabel}
         />
+        </div>
       )}
       {view === 'interest' && showCustomerList && (
         <InterestView
@@ -1021,7 +1054,14 @@ export default function App() {
           form={form}
           setForm={setForm}
           onSubmit={handleSubmitAttempt}
-          onBack={() => setView(activeBrand ? 'brand' : 'home')}
+          onBack={() => {
+            if (activeBrand) {
+              setView('brand');
+              restoreScroll(brandScrollRef.current[activeBrand] || 0);
+            } else {
+              setView('home');
+            }
+          }}
           isMobile={isMobile}
           profileSaved={isProfileComplete(form)}
           chatLabel={chatLabel}

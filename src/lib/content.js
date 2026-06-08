@@ -192,6 +192,14 @@ function useBrandContentState() {
         ...resolvedBuiltInGallery.filter(url => !supersededGalleryPaths.has(url)),
       ])].filter(Boolean);
 
+      const featuredUrls = galleryRecords
+        .filter(g => g.catalog_featured && isHttpsImageUrl(g.image_url))
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+        .map(g => g.image_url);
+      const catalogGallery = featuredUrls.length
+        ? pickRotatingCatalogPhotos(featuredUrls, brand.id)
+        : finalGallery;
+
       return {
         ...brand,
         tagline: override.tagline || brand.tagline,
@@ -202,6 +210,7 @@ function useBrandContentState() {
         masterPricingMode: override.master_pricing_mode || brand.masterPricingMode || 'auto',
         layout: parseJsonField(override.layout_config, {}),
         gallery: finalGallery,
+        catalogGallery,
         products: products.map(product => {
           const po = productOverrides[product.sku] || {};
           const mergedImage = resolveProductImageUrl(
@@ -332,6 +341,34 @@ export async function deleteGalleryImage(id) {
   notifyContentUpdated();
 }
 
+export async function setGalleryCatalogFeatured(id, featured) {
+  const { error } = await supabase
+    .from('brand_gallery')
+    .update({ catalog_featured: !!featured })
+    .eq('id', id);
+  if (!error) notifyContentUpdated();
+  return { ok: !error, error: error?.message };
+}
+
+/** Stable shuffle for catalog hero/card photos — rotates every 12 hours per brand. */
+export function pickRotatingCatalogPhotos(urls, brandId, bucketHours = 12) {
+  const unique = [...new Set((urls || []).filter(isHttpsImageUrl))];
+  if (unique.length <= 1) return unique;
+  const bucket = Math.floor(Date.now() / (bucketHours * 60 * 60 * 1000));
+  let seed = 0;
+  const key = `${brandId}:${bucket}`;
+  for (let i = 0; i < key.length; i += 1) {
+    seed = ((seed << 5) - seed + key.charCodeAt(i)) | 0;
+  }
+  const arr = [...unique];
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    seed = (seed * 1103515245 + 12345) | 0;
+    const j = Math.abs(seed) % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 /** Resolve /images/... paths for admin preview on the same origin. */
 export function resolveBrandImageUrl(url) {
   if (!url) return '';
@@ -438,11 +475,6 @@ export function imageBasename(url) {
 export function buildVisibleBrandPhotos(brand, { galleryRecords = [], productImageBySku = {}, pendingBySku = {}, productForms = {} } = {}) {
   if (!brand) return { uploadStrip: [], defaultStrip: [], skuCards: [] };
 
-  const galleryUrls = (galleryRecords || [])
-    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-    .map(g => g.image_url)
-    .filter(url => url && /^https?:\/\//.test(url));
-
   const builtInGallery = (brand.gallery || []).filter(Boolean);
   const httpsPool = buildHttpsImagePool(galleryRecords, productImageBySku);
 
@@ -471,21 +503,20 @@ export function buildVisibleBrandPhotos(brand, { galleryRecords = [], productIma
     (brand.products || []).map(p => p.image).filter(Boolean)
   );
 
-  const galleryIdByUrl = {};
-  (galleryRecords || []).forEach(g => {
-    if (g?.image_url) galleryIdByUrl[g.image_url] = g.id;
-  });
-
   const uploadStrip = [];
-  galleryUrls.forEach((url, index) => {
-    uploadStrip.push({
-      id: `placard-${index}-${url}`,
-      url: resolveBrandImageUrl(url),
-      galleryId: galleryIdByUrl[url] || null,
-      source: 'placard',
-      label: 'Placard upload',
+  (galleryRecords || [])
+    .filter(g => g?.image_url && /^https?:\/\//.test(g.image_url))
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    .forEach((g) => {
+      uploadStrip.push({
+        id: `placard-${g.id}`,
+        url: resolveBrandImageUrl(g.image_url),
+        galleryId: g.id,
+        catalogFeatured: !!g.catalog_featured,
+        source: 'placard',
+        label: 'Placard upload',
+      });
     });
-  });
 
   (brand.products || []).forEach(p => {
     const url = resolveProductImageUrl(p.image, p.sku, productImageBySku, httpsPool);

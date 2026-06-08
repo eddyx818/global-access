@@ -19,6 +19,8 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
   const [notifyBusy, setNotifyBusy] = useState(null);
   const [notifyMsg, setNotifyMsg] = useState('');
   const galleryRef = useRef(null);
+  const touchStartX = useRef(null);
+  const preloadedGallery = useRef(new Set());
   const isDistributor = userType === 'distributor';
 
   useEffect(() => {
@@ -44,13 +46,68 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
 
   const galleryImages = (brand?.gallery || []).filter(img => img && !brokenImages[`gallery:${img}`]);
 
+  const heroPhoto = brand?.catalogGallery?.[0] || brand?.gallery?.[0];
+
+  useEffect(() => {
+    galleryImages.forEach(src => {
+      if (!src || preloadedGallery.current.has(src)) return;
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = src;
+      preloadedGallery.current.add(src);
+    });
+  }, [galleryImages]);
+
+  const goLightbox = (dir) => {
+    if (galleryImages.length <= 1) return;
+    setLightboxIdx(i => (i + dir + galleryImages.length) % galleryImages.length);
+  };
+
+  const handleLightboxTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleLightboxTouchEnd = (e) => {
+    if (touchStartX.current == null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) < 48) return;
+    goLightbox(dx < 0 ? 1 : -1);
+  };
+
+  const downloadPhoto = async (url) => {
+    const safeName = (brand?.name || 'photo').replace(/[^\w.-]+/g, '-');
+    const filename = `${safeName}-${lightboxIdx + 1}.jpg`;
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+  };
+
   // Keyboard navigation for lightbox
   React.useEffect(() => {
     const handleKey = (e) => {
       if (lightbox === null) return;
-      const gallery = brand?.gallery || [];
-      if (e.key === 'ArrowRight') setLightboxIdx(i => (i + 1) % galleryImages.length);
-      if (e.key === 'ArrowLeft') setLightboxIdx(i => (i - 1 + galleryImages.length) % galleryImages.length);
+      if (e.key === 'ArrowRight') goLightbox(1);
+      if (e.key === 'ArrowLeft') goLightbox(-1);
       if (e.key === 'Escape') setLightbox(null);
     };
     window.addEventListener('keydown', handleKey);
@@ -253,8 +310,8 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
       {/* Hero */}
       <div style={{ background: '#0D0D0D', borderRadius: headerStyle === 'minimal' ? 12 : 20, overflow: 'hidden', marginBottom: '1.5rem', position: 'relative', minHeight: headerMinHeight }}>
         <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 50%, ${brand.color}55 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, ${brand.color}33 0%, transparent 60%)` }} />
-        {headerStyle !== 'minimal' && brand.gallery && brand.gallery[0] && (
-          <img src={brand.gallery[0]} alt={brand.name} className="brand-hero-bg" style={{ position: 'absolute', right: 0, top: 0, height: '100%', width: headerStyle === 'compact' ? '40%' : '50%', objectFit: 'cover', opacity: 0.25, WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)', maskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)' }} onError={e => { e.target.style.display = 'none'; }} />
+        {headerStyle !== 'minimal' && heroPhoto && (
+          <img src={heroPhoto} alt={brand.name} className="brand-hero-bg" loading="eager" decoding="async" style={{ position: 'absolute', right: 0, top: 0, height: '100%', width: headerStyle === 'compact' ? '40%' : '50%', objectFit: 'cover', opacity: 0.25, WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)', maskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)' }} onError={e => { e.target.style.display = 'none'; }} />
         )}
         <div style={{ position: 'relative', zIndex: 2, padding: isMobile ? '1.5rem' : '2rem' }}>
           {brand.logoUrl && (
@@ -286,131 +343,6 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
           lineHeight: 1.55,
         }}>
           {isDistributor ? brand.distributorOrderNote : brand.retailerOrderNote}
-        </div>
-      )}
-
-      {/* Gallery — only show slots with valid photos */}
-      {galleryImages.length > 0 && (
-        <div style={{ marginBottom: '1.5rem', maxWidth: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: 10, letterSpacing: '0.2em', color: t.textFaint, textTransform: 'uppercase' }}>Photos</div>
-            {!isMobile && galleryImages.length > 1 && (
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button type="button" onClick={() => scrollGallery(-1)} style={{ width: 28, height: 28, background: t.bgElevated, border: t.borderHairline, borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', color: t.text }}>‹</button>
-                <button type="button" onClick={() => scrollGallery(1)} style={{ width: 28, height: 28, background: t.bgElevated, border: t.borderHairline, borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', color: t.text }}>›</button>
-              </div>
-            )}
-          </div>
-          {isMobile ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }} className="brand-gallery-grid">
-              {galleryImages.map((img, i) => (
-                <button
-                  key={img}
-                  type="button"
-                  onClick={() => { setLightboxIdx(i); setLightbox(img); }}
-                  style={{
-                    border: t.borderHairlineLight,
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                    padding: 0,
-                    cursor: 'pointer',
-                    background: t.bgMuted,
-                    aspectRatio: '4/3',
-                  }}
-                >
-                  <img
-                    src={img}
-                    alt={`${brand.name} ${i + 1}`}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                    onError={() => markImageBroken(`gallery:${img}`)}
-                  />
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div
-              ref={galleryRef}
-              className="brand-gallery-scroll"
-              style={{
-                display: 'flex',
-                gap: 10,
-                overflowX: 'auto',
-                scrollSnapType: 'x mandatory',
-                paddingBottom: 8,
-                scrollbarWidth: 'none',
-                maxWidth: '100%',
-              }}
-            >
-              {galleryImages.map((img, i) => (
-                <button
-                  key={img}
-                  type="button"
-                  onClick={() => { setLightboxIdx(i); setLightbox(img); }}
-                  style={{
-                    flexShrink: 0,
-                    width: 200,
-                    height: 150,
-                    borderRadius: 12,
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                    scrollSnapAlign: 'start',
-                    border: t.borderHairlineLight,
-                    padding: 0,
-                    background: t.bgMuted,
-                  }}
-                >
-                  <img
-                    src={img}
-                    alt={`${brand.name} ${i + 1}`}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                    onError={() => markImageBroken(`gallery:${img}`)}
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Lightbox with navigation */}
-      {lightbox && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          {/* Main image */}
-          <img src={lightbox} alt="Full size" style={{ maxWidth: 'calc(100% - 120px)', maxHeight: '90vh', objectFit: 'contain', borderRadius: 12 }} />
-
-          {/* Close */}
-          <button onClick={() => setLightbox(null)} style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: 'none', borderRadius: '50%', width: 44, height: 44, color: '#FFF', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>×</button>
-
-          {/* Left arrow */}
-          {brand.gallery && galleryImages.length > 1 && (
-            <button onClick={(e) => { e.stopPropagation(); setLightboxIdx(i => (i - 1 + galleryImages.length) % galleryImages.length); }}
-              style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: 'none', borderRadius: '50%', width: 48, height: 48, color: '#FFF', fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>‹</button>
-          )}
-
-          {/* Right arrow */}
-          {brand.gallery && galleryImages.length > 1 && (
-            <button onClick={(e) => { e.stopPropagation(); setLightboxIdx(i => (i + 1) % galleryImages.length); }}
-              style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: 'none', borderRadius: '50%', width: 48, height: 48, color: '#FFF', fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>›</button>
-          )}
-
-          {/* Counter */}
-          {galleryImages.length > 1 && (
-            <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', borderRadius: 20, padding: '5px 14px', fontSize: 12, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.06em' }}>
-              {lightboxIdx + 1} / {galleryImages.length}
-            </div>
-          )}
-
-          {/* Dot strip */}
-          {galleryImages.length > 1 && (
-            <div style={{ position: 'absolute', bottom: 52, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
-              {galleryImages.map((_, i) => (
-                <div key={i} onClick={() => setLightboxIdx(i)} style={{ width: i === lightboxIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === lightboxIdx ? '#FFF' : 'rgba(255,255,255,0.3)', cursor: 'pointer', transition: 'all 0.2s' }} />
-              ))}
-            </div>
-          )}
-
-          {/* Tap outside to close */}
-          <div onClick={() => setLightbox(null)} style={{ position: 'absolute', inset: 0, zIndex: -1 }} />
         </div>
       )}
 
@@ -579,6 +511,134 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
           );
         })}
       </div>
+
+      {/* Gallery below SKUs — swipe in lightbox, save to device */}
+      {galleryImages.length > 0 && (
+        <div style={{ marginTop: '1.75rem', maxWidth: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ fontSize: 10, letterSpacing: '0.2em', color: t.textFaint, textTransform: 'uppercase' }}>Photos</div>
+            {!isMobile && galleryImages.length > 1 && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button type="button" onClick={() => scrollGallery(-1)} style={{ width: 28, height: 28, background: t.bgElevated, border: t.borderHairline, borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', color: t.text }}>‹</button>
+                <button type="button" onClick={() => scrollGallery(1)} style={{ width: 28, height: 28, background: t.bgElevated, border: t.borderHairline, borderRadius: '50%', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', color: t.text }}>›</button>
+              </div>
+            )}
+          </div>
+          {isMobile ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }} className="brand-gallery-grid">
+              {galleryImages.map((img, i) => (
+                <button
+                  key={img}
+                  type="button"
+                  onClick={() => { setLightboxIdx(i); setLightbox(img); }}
+                  style={{
+                    border: t.borderHairlineLight,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    padding: 0,
+                    cursor: 'pointer',
+                    background: t.bgMuted,
+                    aspectRatio: '4/3',
+                  }}
+                >
+                  <img
+                    src={img}
+                    alt={`${brand.name} ${i + 1}`}
+                    loading={i < 4 ? 'eager' : 'lazy'}
+                    decoding="async"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    onError={() => markImageBroken(`gallery:${img}`)}
+                  />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div
+              ref={galleryRef}
+              className="brand-gallery-scroll"
+              style={{
+                display: 'flex',
+                gap: 10,
+                overflowX: 'auto',
+                scrollSnapType: 'x mandatory',
+                paddingBottom: 8,
+                scrollbarWidth: 'none',
+                maxWidth: '100%',
+              }}
+            >
+              {galleryImages.map((img, i) => (
+                <button
+                  key={img}
+                  type="button"
+                  onClick={() => { setLightboxIdx(i); setLightbox(img); }}
+                  style={{
+                    flexShrink: 0,
+                    width: 200,
+                    height: 150,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    scrollSnapAlign: 'start',
+                    border: t.borderHairlineLight,
+                    padding: 0,
+                    background: t.bgMuted,
+                  }}
+                >
+                  <img
+                    src={img}
+                    alt={`${brand.name} ${i + 1}`}
+                    loading={i < 4 ? 'eager' : 'lazy'}
+                    decoding="async"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    onError={() => markImageBroken(`gallery:${img}`)}
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {lightbox && (
+        <div
+          className="brand-lightbox"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', touchAction: 'pan-y' }}
+          onTouchStart={handleLightboxTouchStart}
+          onTouchEnd={handleLightboxTouchEnd}
+        >
+          <img src={lightbox} alt="Full size" decoding="async" style={{ maxWidth: 'calc(100% - 120px)', maxHeight: '90vh', objectFit: 'contain', borderRadius: 12, userSelect: 'none', WebkitUserSelect: 'none' }} draggable={false} />
+
+          <button type="button" onClick={() => setLightbox(null)} aria-label="Close" style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: 'none', borderRadius: '50%', width: 44, height: 44, color: '#FFF', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>×</button>
+
+          <button type="button" onClick={() => downloadPhoto(lightbox)} aria-label="Save photo" style={{ position: 'absolute', top: 16, right: 68, background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: 'none', borderRadius: 20, height: 44, padding: '0 14px', color: '#FFF', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', letterSpacing: '0.04em' }}>
+            Save
+          </button>
+
+          {galleryImages.length > 1 && (
+            <>
+              <button type="button" onClick={(e) => { e.stopPropagation(); goLightbox(-1); }} aria-label="Previous photo" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: 'none', borderRadius: '50%', width: 48, height: 48, color: '#FFF', fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>‹</button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); goLightbox(1); }} aria-label="Next photo" style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: 'none', borderRadius: '50%', width: 48, height: 48, color: '#FFF', fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>›</button>
+            </>
+          )}
+
+          {galleryImages.length > 1 && (
+            <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', borderRadius: 20, padding: '5px 14px', fontSize: 12, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.06em' }}>
+              {lightboxIdx + 1} / {galleryImages.length}
+              {isMobile && <span style={{ marginLeft: 8, opacity: 0.75 }}>· swipe</span>}
+            </div>
+          )}
+
+          {galleryImages.length > 1 && (
+            <div style={{ position: 'absolute', bottom: 52, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
+              {galleryImages.map((_, i) => (
+                <button key={i} type="button" aria-label={`Photo ${i + 1}`} onClick={() => setLightboxIdx(i)} style={{ width: i === lightboxIdx ? 20 : 6, height: 6, borderRadius: 3, background: i === lightboxIdx ? '#FFF' : 'rgba(255,255,255,0.3)', cursor: 'pointer', transition: 'all 0.2s', border: 'none', padding: 0 }} />
+              ))}
+            </div>
+          )}
+
+          <div onClick={() => setLightbox(null)} style={{ position: 'absolute', inset: 0, zIndex: -1 }} aria-hidden="true" />
+        </div>
+      )}
 
       {/* Sticky submit */}
       {enableQuoteFlow && interests.length > 0 && (

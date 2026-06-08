@@ -28,15 +28,32 @@ function SourceBadge({ source, label }) {
   );
 }
 
-function PreviewTile({ item, onDeletePlacard, brandColor }) {
+const overlayBtn = {
+  width: 28,
+  height: 28,
+  borderRadius: '50%',
+  border: 'none',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontFamily: 'inherit',
+  fontSize: 14,
+  lineHeight: 1,
+  boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+};
+
+function PreviewTile({ item, onDeletePlacard, onToggleFeatured }) {
   const { t } = useTheme();
   const [failed, setFailed] = useState(false);
 
   useEffect(() => { setFailed(false); }, [item.url]);
 
+  const canManage = item.galleryId && !item.uploading && !failed;
+
   return (
-    <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: t.borderHairlineLight, background: t.bgElevated }}>
-      <div style={{ aspectRatio: '4/3', background: failed ? t.bgSubtle : '#111', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: item.catalogFeatured ? `2px solid ${t.gold}` : t.borderHairlineLight, background: t.bgElevated }}>
+      <div style={{ aspectRatio: '4/3', background: failed ? t.bgSubtle : '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
         {!failed ? (
           <img
             src={item.url}
@@ -50,27 +67,58 @@ function PreviewTile({ item, onDeletePlacard, brandColor }) {
             <div style={{ fontSize: 10, color: t.textDisabled, marginTop: 4 }}>Upload a replacement below</div>
           </div>
         )}
+        {canManage && (
+          <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', gap: 6 }}>
+            {onToggleFeatured && (
+              <button
+                type="button"
+                title={item.catalogFeatured ? 'Remove from catalog rotation' : 'Star for catalog home / cards'}
+                onClick={() => onToggleFeatured(item.galleryId, !item.catalogFeatured)}
+                style={{
+                  ...overlayBtn,
+                  background: item.catalogFeatured ? t.gold : 'rgba(0,0,0,0.55)',
+                  color: item.catalogFeatured ? '#1A1A1A' : '#FFF',
+                  fontSize: 15,
+                }}
+              >
+                {item.catalogFeatured ? '★' : '☆'}
+              </button>
+            )}
+            {onDeletePlacard && (
+              <button
+                type="button"
+                title="Remove photo"
+                onClick={() => onDeletePlacard(item.galleryId)}
+                style={{
+                  ...overlayBtn,
+                  background: 'rgba(0,0,0,0.55)',
+                  color: '#FFF',
+                  fontSize: 18,
+                  fontWeight: 400,
+                }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+        )}
+        {item.catalogFeatured && !failed && (
+          <div style={{ position: 'absolute', left: 6, bottom: 6, background: 'rgba(0,0,0,0.55)', color: t.gold, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 6 }}>
+            Catalog
+          </div>
+        )}
       </div>
-      <div style={{ padding: '6px 8px', display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ padding: '6px 8px', display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
         <SourceBadge
           source={item.uploading ? 'pending' : failed ? 'missing' : item.source}
           label={item.uploading ? 'Uploading…' : failed ? 'Missing' : item.label}
         />
-        {item.galleryId && onDeletePlacard && !item.uploading && !failed && (
-          <button
-            type="button"
-            onClick={() => onDeletePlacard(item.galleryId)}
-            style={{ background: 'none', border: 'none', color: t.errorText, fontSize: 10, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
-          >
-            Remove
-          </button>
-        )}
       </div>
     </div>
   );
 }
 
-function PhotoGrid({ items, onDeletePlacard, emptyMessage }) {
+function PhotoGrid({ items, onDeletePlacard, onToggleFeatured, emptyMessage }) {
   const { t } = useTheme();
   if (!items.length) {
     return (
@@ -87,7 +135,12 @@ function PhotoGrid({ items, onDeletePlacard, emptyMessage }) {
       marginBottom: 12,
     }}>
       {items.map(item => (
-        <PreviewTile key={item.id} item={item} onDeletePlacard={onDeletePlacard} />
+        <PreviewTile
+          key={item.id}
+          item={item}
+          onDeletePlacard={onDeletePlacard}
+          onToggleFeatured={onToggleFeatured}
+        />
       ))}
     </div>
   );
@@ -100,12 +153,14 @@ export default function BrandPhotoPreviewGrid({
   skuCards = [],
   pendingStrip = [],
   onDeletePlacard,
+  onToggleFeatured,
   brandColor = '#C9A84C',
 }) {
   const { t } = useTheme();
   const allUploads = [...pendingStrip, ...uploadStrip];
   const defaultCount = defaultStrip.length;
   const skuDefaultCount = skuCards.filter(c => c.isDefault).length;
+  const starredCount = allUploads.filter(i => i.catalogFeatured).length;
 
   return (
     <div style={{
@@ -119,9 +174,9 @@ export default function BrandPhotoPreviewGrid({
         Customer preview — {brand?.name}
       </div>
       <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.5, marginBottom: 14 }}>
-        Placard uploads appear first on the live gallery strip. Product photos show on each SKU card.
-        {defaultCount > 0 && ` ${defaultCount} extra site photo${defaultCount !== 1 ? 's' : ''} in the gallery.`}
-        {skuDefaultCount > 0 && ` ${skuDefaultCount} SKU${skuDefaultCount !== 1 ? 's' : ''} use default images until you upload replacements.`}
+        Tap ★ on a placard photo to use it on the home catalog and brand cards.
+        {starredCount > 1 ? ' Multiple stars rotate every 12 hours.' : starredCount === 1 ? ' One starred photo is always shown.' : ' No stars yet — the first gallery photo is used.'}
+        {' '}Use × to remove uploads. Product photos show on each SKU card.
       </div>
 
       <div style={{ fontSize: 10, color: t.textFaint, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>
@@ -130,6 +185,7 @@ export default function BrandPhotoPreviewGrid({
       <PhotoGrid
         items={allUploads}
         onDeletePlacard={onDeletePlacard}
+        onToggleFeatured={onToggleFeatured}
         emptyMessage="No uploads yet — add placard photos below or upload SKU images in each product section."
       />
 
@@ -139,11 +195,12 @@ export default function BrandPhotoPreviewGrid({
             Extra site gallery photos ({defaultCount})
           </div>
           <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 8, lineHeight: 1.45 }}>
-            These ship with the brand and scroll in the gallery — they are not tied to a single SKU card.
+            Built-in brand photos from the site bundle — shown in the customer gallery until replaced by uploads.
           </div>
           <PhotoGrid
             items={defaultStrip}
             onDeletePlacard={null}
+            onToggleFeatured={null}
             emptyMessage=""
           />
         </>

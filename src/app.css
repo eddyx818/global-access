@@ -434,6 +434,12 @@ html.app-mobile {
   touch-action: pan-x;
 }
 
+.brand-lightbox img {
+  -webkit-user-drag: none;
+  user-select: none;
+  touch-action: pan-y pinch-zoom;
+}
+
 .brand-name-pattern {
   position: fixed;
   inset: 0;
