@@ -13,7 +13,6 @@ import ReferralTracker from './ReferralTracker';
 import QuoteStatusBadge from './QuoteStatusBadge';
 import QuoteBuilderPanel from './QuoteBuilderPanel';
 import AdminTabBar from './AdminTabBar';
-import SiteLogo from './SiteLogo';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
 import { approveAccessRequestAndCreateAccount, denyAccessRequest, deleteAccessRequest, setAccessRequestDismissed } from '../lib/accessApproval';
@@ -321,14 +320,16 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
         } : {}),
       }}>
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: narrowHeader ? 'center' : 'flex-start',
-          gap: 10,
+          fontFamily: "'Bebas Neue', sans-serif",
+          fontSize: narrowHeader ? 28 : 22,
+          letterSpacing: '0.1em',
+          color: t.text,
           flexShrink: 0,
+          lineHeight: 1,
+          textAlign: narrowHeader ? 'center' : 'left',
         }}>
-          <SiteLogo height={narrowHeader ? 34 : 30} />
-          <span style={{ fontSize: narrowHeader ? 15 : 13, color: t.gold, letterSpacing: '0.14em', fontWeight: 700 }}>Admin</span>
+          Global Access{' '}
+          <span style={{ fontSize: narrowHeader ? 15 : 13, color: t.gold, letterSpacing: '0.14em' }}>Admin</span>
         </div>
         {narrowHeader ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%' }}>

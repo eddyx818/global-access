@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { getButtonRadius } from '../lib/design';
-import SiteLogo from './SiteLogo';
 
 export default function Nav({
   interests,
@@ -35,6 +34,7 @@ export default function Nav({
   onPreviewUserTypeChange = null,
 }) {
   const { t, isNight } = useTheme();
+  const primary = isNight ? t.text : (globalStyles.primary_color || t.text);
   const btnRadius = getButtonRadius(globalStyles.button_style);
 
   const handleNavItem = (item) => {
@@ -141,8 +141,8 @@ export default function Nav({
   const navBody = showAdminPreview ? (
     <>
       <div className="app-portal-nav__left">
-        <button type="button" onClick={() => (onHome ? onHome() : setView('home'))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-          <SiteLogo height={isMobile ? 30 : 36} />
+        <button type="button" onClick={() => (onHome ? onHome() : setView('home'))} style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 17 : 22, letterSpacing: '0.06em', color: primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, whiteSpace: 'nowrap' }}>
+          Global Access
         </button>
         {previewToggle}
       </div>
@@ -167,8 +167,8 @@ export default function Nav({
   ) : (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16, minWidth: 0 }}>
-        <button type="button" onClick={() => (onHome ? onHome() : setView('home'))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-          <SiteLogo height={isMobile ? 32 : 38} />
+        <button type="button" onClick={() => (onHome ? onHome() : setView('home'))} style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: isMobile ? 18 : 22, letterSpacing: '0.08em', color: primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, whiteSpace: 'nowrap' }}>
+          Global Access
         </button>
         {!isMobile && navigation.map(item => (
           <button key={item.id} type="button" onClick={() => handleNavItem(item)}
