@@ -38,7 +38,10 @@ if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
     let reloaded = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (reloaded) return;
+      const lastReload = Number(sessionStorage.getItem('ga-sw-reload-ts') || 0);
+      if (Date.now() - lastReload < 5000) return;
       reloaded = true;
+      sessionStorage.setItem('ga-sw-reload-ts', String(Date.now()));
       window.location.reload();
     });
   });
