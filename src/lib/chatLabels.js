@@ -11,3 +11,11 @@ export function resolveCustomerChatLabel(siteSetting) {
 export function staffChatLabel() {
   return 'Messages';
 }
+
+/** CTA button text — avoids awkward doubles like "Message Messages". */
+export function customerChatActionLabel(chatLabel) {
+  const label = (chatLabel || DEFAULT_CUSTOMER_CHAT_LABEL).trim() || DEFAULT_CUSTOMER_CHAT_LABEL;
+  if (/^messages$/i.test(label)) return 'Open Messages';
+  if (/^message[s]?\b/i.test(label)) return label;
+  return `Message ${label}`;
+}

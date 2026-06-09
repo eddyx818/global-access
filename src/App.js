@@ -1043,8 +1043,11 @@ export default function App() {
             userId={user?.id}
             userType={userType}
             masterPricingQualified={masterPricingQualified}
-            isStaff={showStaffTools}
+            isStaff={isStaffPortalUser}
             chatLabel={chatLabel}
+            onMessageUs={authState === 'portal' && user && !isStaffPortalUser ? openChat : null}
+            onBrowseSignUp={authState === 'browse' ? openAccessRequest : null}
+            onBrowseSignIn={authState === 'browse' ? () => setAuthState('login') : null}
           />
         </div>
       )}

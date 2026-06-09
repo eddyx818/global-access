@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useBrandContent, pickRotatingCatalogPhotos } from '../lib/content';
+import { customerChatActionLabel } from '../lib/chatLabels';
 import { applyBrandOrder, saveUserBrandOrder } from '../lib/userBrandOrder';
 
 import MasterPricingNotice from './MasterPricingNotice';
@@ -26,6 +27,9 @@ export default function HomeView({
   masterPricingQualified,
   isStaff = false,
   chatLabel = 'Trade Desk',
+  onMessageUs = null,
+  onBrowseSignUp = null,
+  onBrowseSignIn = null,
   visible = true,
 }) {
   const { t, isNight } = useTheme();
@@ -882,6 +886,93 @@ export default function HomeView({
         <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: t.textDisabled }}>
           {isMobile ? 'Swipe the hero to change brands · Tap a card to open' : 'Drag cards to reorder · Order saves automatically'}
         </div>
+
+        {!isStaff && (
+          <div style={{
+            marginTop: isMobile ? '1.75rem' : '2.25rem',
+            padding: isMobile ? '1.25rem 1rem' : '1.5rem 1.75rem',
+            background: t.bgElevated,
+            border: t.borderHairlineLight,
+            borderRadius: 16,
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: t.textFaint, fontWeight: 600, marginBottom: 8 }}>
+              Can&apos;t find what you need?
+            </div>
+            <div style={{ fontSize: isMobile ? 15 : 17, fontWeight: 600, color: t.text, lineHeight: 1.35, marginBottom: 8, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto' }}>
+              Looking for a brand that isn&apos;t listed here?
+            </div>
+            <div style={{ fontSize: isMobile ? 13 : 14, color: t.textMuted, lineHeight: 1.6, maxWidth: 520, margin: '0 auto 1.25rem' }}>
+              {onBrowseSignUp
+                ? 'Create an account or sign in to tell us what you\u2019re looking for — we\u2019ll help source brands not listed here.'
+                : 'Tell us what you\u2019re looking for — we\u2019ll help you source it and get it to you.'}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', alignItems: 'center' }}>
+              {onMessageUs ? (
+                <button
+                  type="button"
+                  onClick={onMessageUs}
+                  style={{
+                    background: t.btnPrimaryBg,
+                    color: t.btnPrimaryText,
+                    border: 'none',
+                    borderRadius: 10,
+                    padding: isMobile ? '11px 18px' : '12px 22px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {customerChatActionLabel(chatLabel)}
+                </button>
+              ) : onBrowseSignUp ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={onBrowseSignUp}
+                    style={{
+                      background: t.btnPrimaryBg,
+                      color: t.btnPrimaryText,
+                      border: 'none',
+                      borderRadius: 10,
+                      padding: isMobile ? '11px 18px' : '12px 22px',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    Create account
+                  </button>
+                  {onBrowseSignIn && (
+                    <button
+                      type="button"
+                      onClick={onBrowseSignIn}
+                      style={{
+                        background: 'none',
+                        border: t.borderHairline,
+                        borderRadius: 10,
+                        padding: isMobile ? '11px 18px' : '12px 22px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: t.textMuted,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      Sign in
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div style={{ fontSize: 13, color: t.textFaint }}>
+                  Contact us via {chatLabel} or your quote request.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
