@@ -5,8 +5,6 @@ import { DEFAULT_GLOBAL_STYLES, parseJsonField } from './design';
 import { mergeProductCommerce, commercePayloadFromForm, packPayloadFromForm } from './pricing';
 import { compressImageFile } from './imageOptimize';
 
-const CATALOG_HOME_MAX_PHOTOS = 6;
-
 const BrandContentContext = createContext(null);
 
 const CONTENT_SYNC_CHANNEL = 'ga-content-sync';
@@ -211,10 +209,9 @@ function useBrandContentState() {
         .filter(g => g.catalog_featured && isHttpsImageUrl(g.image_url))
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
         .map(g => g.image_url);
-      const catalogGallery = (featuredUrls.length
+      const catalogGallery = featuredUrls.length
         ? pickRotatingCatalogPhotos(featuredUrls, brand.id)
-        : finalGallery
-      ).slice(0, CATALOG_HOME_MAX_PHOTOS);
+        : finalGallery;
 
       return {
         ...brand,

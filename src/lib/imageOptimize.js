@@ -75,10 +75,10 @@ function canvasToBlob(canvas, type, quality) {
  * Returns the original file when compression would not help.
  */
 export async function compressImageFile(file, {
-  maxWidth = 1920,
-  maxHeight = 1920,
-  quality = 0.82,
-  skipBelowBytes = 280 * 1024,
+  maxWidth = 2400,
+  maxHeight = 2400,
+  quality = 0.88,
+  skipBelowBytes = 400 * 1024,
 } = {}) {
   if (!file?.type?.startsWith('image/')) return file;
   if (file.type === 'image/gif') return file;

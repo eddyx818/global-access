@@ -279,7 +279,7 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
         <div>
           <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Photo storage</div>
           <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.45, maxWidth: 520 }}>
-            New uploads are auto-compressed. Run once to shrink existing Supabase photos (same URLs, smaller files).
+            New uploads are lightly compressed to save space. Avoid “Compress all” unless you need smaller files — it can soften hero and gallery quality.
           </div>
           {optimizeStatus && (
             <div style={{ fontSize: 12, color: t.textSecondary, marginTop: 8 }}>{optimizeStatus}</div>
@@ -302,7 +302,7 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
             whiteSpace: 'nowrap',
           }}
         >
-          {optimizingPhotos ? 'Compressing…' : 'Compress all stored photos'}
+          {optimizingPhotos ? 'Compressing…' : 'Compress stored photos (optional)'}
         </button>
       </div>
 
