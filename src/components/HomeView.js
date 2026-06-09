@@ -6,6 +6,8 @@ import MasterPricingNotice from './MasterPricingNotice';
 import { useTheme } from '../context/ThemeContext';
 
 const heroSlideKey = (userId) => `ga-hero-slide-${userId || 'guest'}`;
+/** Brand-to-brand hero fade — keep in sync with .hero-slide-copy transition. */
+const HERO_BRAND_FADE_MS = 850;
 
 function readStoredHeroSlide(userId, len) {
   if (!len) return 0;
@@ -29,6 +31,7 @@ export default function HomeView({
   const { t, isNight } = useTheme();
   const [slideIdx, setSlideIdx] = useState(0);
   const [galleryIdx, setGalleryIdx] = useState(0);
+  const [skipGalleryFade, setSkipGalleryFade] = useState(false);
   const [animating, setAnimating] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [cardTilts, setCardTilts] = useState({});
@@ -132,10 +135,19 @@ export default function HomeView({
       return undefined;
     }
     setGalleryIdx(0);
+    setSkipGalleryFade(true);
+    const fadeUnlockId = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setSkipGalleryFade(false));
+    });
     const gallery = heroPhotosFor(brands[slideIdx]);
-    if (gallery.length <= 1) return undefined;
+    if (gallery.length <= 1) {
+      return () => cancelAnimationFrame(fadeUnlockId);
+    }
     galleryTimer.current = setInterval(() => setGalleryIdx(i => (i + 1) % gallery.length), 2500);
-    return () => clearInterval(galleryTimer.current);
+    return () => {
+      cancelAnimationFrame(fadeUnlockId);
+      clearInterval(galleryTimer.current);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slideIdx, visible, heroGallerySeed]);
 
@@ -143,6 +155,14 @@ export default function HomeView({
   useEffect(() => {
     const gallery = heroPhotosFor(brands[slideIdx]);
     gallery.forEach(src => {
+      if (!src || preloadedHeroImages.current.has(src)) return;
+      const img = new Image();
+      img.src = src;
+      preloadedHeroImages.current.add(src);
+    });
+    if (!brands.length) return;
+    const nextIdx = (slideIdx + 1) % brands.length;
+    heroPhotosFor(brands[nextIdx]).forEach(src => {
       if (!src || preloadedHeroImages.current.has(src)) return;
       const img = new Image();
       img.src = src;
@@ -477,21 +497,25 @@ export default function HomeView({
           backface-visibility: hidden;
           -webkit-backface-visibility: hidden;
         }
+        .hero-gallery-photo--instant {
+          transition: none !important;
+        }
         .hero-gallery-stack--float {
           animation: heroImgFloat 10s ease-in-out infinite;
         }
         @keyframes heroImgFloat { 0%,100%{transform:translate3d(0,0,0)} 50%{transform:translate3d(0,-6px,0)} }
         .hero-slide-copy {
-          transition: opacity 0.85s ease-in-out;
+          transition: opacity ${HERO_BRAND_FADE_MS}ms ease-in-out;
         }
         .hero-slide-copy--active {
           opacity: 1;
-          visibility: visible;
         }
         .hero-slide-copy--inactive {
           opacity: 0;
-          visibility: hidden;
           pointer-events: none;
+        }
+        .hero-brand-slide {
+          transition: opacity ${HERO_BRAND_FADE_MS}ms ease-in-out;
         }
       `}</style>
 
@@ -518,13 +542,12 @@ export default function HomeView({
         {brands.map((brand, i) => {
           const heroPhotos = heroPhotosFor(brand);
           return (
-          <div key={brand.id} style={{
+          <div key={brand.id} className="hero-brand-slide" style={{
               position: 'absolute',
               inset: 0,
-              zIndex: i === slideIdx ? 2 : 0,
-              transition: heroTransitions ? 'opacity 0.7s ease' : 'none',
+              zIndex: i === slideIdx ? 2 : 1,
+              transition: heroTransitions ? undefined : 'none',
               opacity: i === slideIdx ? 1 : 0,
-              visibility: i === slideIdx ? 'visible' : 'hidden',
               pointerEvents: 'none',
             }}
           >
@@ -553,7 +576,7 @@ export default function HomeView({
                         aria-hidden="true"
                         loading={isActiveBrand && gi < 2 ? 'eager' : 'lazy'}
                         decoding="async"
-                        className="hero-gallery-photo"
+                        className={`hero-gallery-photo${skipGalleryFade && isVisible ? ' hero-gallery-photo--instant' : ''}`}
                         style={{
                           position: 'absolute',
                           inset: 0,
@@ -615,7 +638,7 @@ export default function HomeView({
                 pointerEvents: isActive ? (isMobile ? 'none' : 'auto') : 'none',
                 transform: isActive ? `perspective(800px) rotateY(${mousePos.x * 0.03}deg) rotateX(${-mousePos.y * 0.03}deg)` : 'none',
                 transition: heroTransitions
-                  ? 'opacity 0.85s ease-in-out, transform 0.35s ease-out'
+                  ? `opacity ${HERO_BRAND_FADE_MS}ms ease-in-out, transform 0.35s ease-out`
                   : 'transform 0.35s ease-out',
               }}
             >
