@@ -967,8 +967,8 @@ export default function HomeView({
                   )}
                 </>
               ) : (
-                <div style={{ fontSize: 13, color: t.textFaint }}>
-                  Contact us via {chatLabel} or your quote request.
+                <div style={{ fontSize: 13, color: t.textFaint, lineHeight: 1.55 }}>
+                  Sign in to message {chatLabel}, or send a quote request from any brand.
                 </div>
               )}
             </div>
@@ -978,8 +978,40 @@ export default function HomeView({
 
       {/* Footer */}
       <div style={{ borderTop: t.borderHairline, padding: '2rem 1.5rem', textAlign: 'center' }}>
-        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.12em', color: t.text, marginBottom: 6 }}>Global Access</div>
-        <div style={{ fontSize: 12, color: t.textDisabled }}>Trade portal · Invite only · Contact us via {chatLabel} or your quote request</div>
+        <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.12em', color: t.text, marginBottom: 8 }}>Global Access</div>
+        <div style={{ fontSize: 12, color: t.textDisabled, lineHeight: 1.65, maxWidth: 440, margin: '0 auto' }}>
+          Trade portal · Invite only
+          {onMessageUs ? (
+            <>
+              <br />
+              Drop a message anytime in{' '}
+              <button
+                type="button"
+                onClick={onMessageUs}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  color: t.gold,
+                  fontWeight: 600,
+                  fontSize: 'inherit',
+                  fontFamily: 'inherit',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: 3,
+                }}
+              >
+                {chatLabel}
+              </button>
+              {' '}— questions, sourcing, anything — or request pricing from your quote list.
+            </>
+          ) : (
+            <>
+              <br />
+              Sign in to message {chatLabel}, or request a quote from any brand page.
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

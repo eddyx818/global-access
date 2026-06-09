@@ -117,7 +117,7 @@ export default function MessageThread({
           <img
             src={msg.attachment_url}
             alt={name}
-            style={{ maxWidth: '100%', maxHeight: 220, borderRadius: 10, display: 'block' }}
+            style={{ maxWidth: '100%', maxHeight: 220, borderRadius: 14, display: 'block' }}
           />
         </a>
       );
@@ -134,7 +134,7 @@ export default function MessageThread({
           gap: 6,
           marginBottom: 6,
           padding: '8px 10px',
-          borderRadius: 8,
+          borderRadius: 12,
           background: mine ? 'rgba(255,255,255,0.12)' : t.bgMuted,
           color: mine ? '#FFF' : t.text,
           textDecoration: 'none',
@@ -162,8 +162,8 @@ export default function MessageThread({
         if (msg.is_system) {
           return (
             <div key={msg.id} style={{ display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
-              <div style={{
-                maxWidth: '92%', padding: '10px 14px', borderRadius: 12,
+              <div className="chat-bubble chat-bubble--system" style={{
+                maxWidth: '92%', padding: '10px 14px',
                 background: t.bgMuted, border: t.borderHairlineLight,
                 fontSize: 13, lineHeight: 1.5, color: t.textSecondary, textAlign: 'center',
               }}>
@@ -191,9 +191,9 @@ export default function MessageThread({
               </div>
             )}
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: mine ? 'row-reverse' : 'row', maxWidth: '100%' }}>
-              <div style={{
+              <div className={`chat-bubble${mine ? ' chat-bubble--mine' : ' chat-bubble--other'}`} style={{
                 position: 'relative',
-                maxWidth: '85%', padding: '10px 14px', borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                maxWidth: '85%', padding: '10px 14px',
                 background: mine ? t.bubbleMineBg : t.bubbleOtherBg, color: mine ? t.bubbleMineText : t.bubbleOtherText,
                 fontSize: 15, lineHeight: 1.45, border: hiddenFromCustomer ? `1px dashed ${t.warningBorder}` : (mine ? 'none' : t.borderHairlineLight),
                 boxShadow: mine ? 'none' : `0 1px 4px ${t.shadow}`,

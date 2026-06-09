@@ -675,3 +675,20 @@ html.app-native .brand-card--selected {
 .app-dashboard-btn {
   transition: transform 0.12s ease, opacity 0.12s ease;
 }
+
+/* Chat message bubbles — fully rounded corners */
+.chat-bubble {
+  border-radius: 18px;
+}
+
+.chat-bubble--mine {
+  border-bottom-right-radius: 18px;
+}
+
+.chat-bubble--other {
+  border-bottom-left-radius: 18px;
+}
+
+.chat-bubble--system {
+  border-radius: 18px;
+}
