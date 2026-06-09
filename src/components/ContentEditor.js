@@ -6,7 +6,9 @@ import {
   saveBrandContent, saveProductContent, uploadBrandImage,
   uploadGalleryImage, deleteGalleryImage, setGalleryCatalogFeatured, buildVisibleBrandPhotos,
   buildHttpsImagePool, resolveProductImageUrl, buildResolvedProductImages, resolveBrandImageUrl,
+  notifyContentUpdated,
 } from '../lib/content';
+import { optimizeAllBrandImages } from '../lib/imageOptimize';
 import { parseCommerceFields, parsePackFields } from '../lib/pricing';
 import BrandPhotoPreviewGrid from './BrandPhotoPreviewGrid';
 import { useTheme } from '../context/ThemeContext';
@@ -37,6 +39,8 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
   const [pendingStrip, setPendingStrip] = useState([]);
   const [pendingSkuPreview, setPendingSkuPreview] = useState({});
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [optimizingPhotos, setOptimizingPhotos] = useState(false);
+  const [optimizeStatus, setOptimizeStatus] = useState('');
   const [activeProductTab, setActiveProductTab] = useState('details'); // 'details' | 'flavors' | 'pricing'
   const fileRefs = React.useRef({});
   const galleryFileRef = React.useRef(null);
@@ -238,6 +242,31 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
     onSaved && onSaved();
   };
 
+  const handleCompressAllPhotos = async () => {
+    if (optimizingPhotos) return;
+    if (!window.confirm('Compress all stored brand photos in Supabase? This keeps the same URLs but makes files smaller. It may take a few minutes.')) return;
+    setOptimizingPhotos(true);
+    setOptimizeStatus('Starting…');
+    try {
+      await optimizeAllBrandImages({
+        onProgress: (progress) => {
+          if (progress.phase === 'running') {
+            setOptimizeStatus(`Compressing ${progress.current}/${progress.total}…`);
+          }
+          if (progress.phase === 'done') {
+            setOptimizeStatus(`Done — ${progress.optimized} compressed, ${progress.skipped} already small, ${progress.failed} skipped.`);
+          }
+        },
+      });
+      notifyContentUpdated();
+      onSaved && onSaved();
+    } catch (err) {
+      setOptimizeStatus(err.message || 'Could not compress photos.');
+    } finally {
+      setOptimizingPhotos(false);
+    }
+  };
+
   const inputStyle = { ...ui.input, fontSize: 13 };
   const labelStyle = { fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' };
   const card = { ...ui.card, marginBottom: '1rem' };
@@ -245,6 +274,37 @@ export default function ContentEditor({ brandOverrides, productOverrides, onSave
   return (
     <div>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Pacifico&display=swap" rel="stylesheet" />
+
+      <div style={{ ...card, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Photo storage</div>
+          <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.45, maxWidth: 520 }}>
+            New uploads are auto-compressed. Run once to shrink existing Supabase photos (same URLs, smaller files).
+          </div>
+          {optimizeStatus && (
+            <div style={{ fontSize: 12, color: t.textSecondary, marginTop: 8 }}>{optimizeStatus}</div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleCompressAllPhotos}
+          disabled={optimizingPhotos}
+          style={{
+            background: optimizingPhotos ? t.bgMuted : t.goldBg,
+            color: optimizingPhotos ? t.textFaint : t.gold,
+            border: `0.5px solid ${t.gold}`,
+            borderRadius: 8,
+            padding: '8px 14px',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: optimizingPhotos ? 'wait' : 'pointer',
+            fontFamily: 'inherit',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {optimizingPhotos ? 'Compressing…' : 'Compress all stored photos'}
+        </button>
+      </div>
 
       {/* Brand selector */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '1.5rem' }}>

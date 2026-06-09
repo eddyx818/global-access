@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
 import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, getPortalReferral } from './lib/session';
 import { getRememberLogin, getSavedLogin } from './lib/loginPrefs';
-import { updateUserPresence, resolveAuthRole, ensurePortalAdminFlag, submitInterestToSupport, isProfileComplete } from './lib/community';
+import { updateUserPresence, ensurePortalAdminFlag, submitInterestToSupport, isProfileComplete, isLegacyAdminEmail } from './lib/community';
 import { resolveCustomerChatLabel, staffChatLabel } from './lib/chatLabels';
 import { useBrandContent } from './lib/content';
 import { getFontFamily } from './lib/design';
@@ -23,7 +23,7 @@ import { useMessageAlerts } from './hooks/useMessageAlerts';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import { getNotificationPermission } from './lib/notificationPrefs';
 import { subscribeToPushNotifications } from './lib/pushNotifications';
-import { canAccessPortal, fetchProfileAccess } from './lib/authGate';
+import { canAccessPortal } from './lib/authGate';
 import { isHoneypotClean, isValidPhone, getPhoneValidationError } from './lib/accessRequestGate';
 import { validatePersonName, validateCompanyName } from './lib/nameValidation';
 import { hasCallablePhone } from './lib/whatsapp';
@@ -41,9 +41,31 @@ import { fetchRecentInquiries } from './lib/inquiries';
 import { fetchRecentPriceChecks, countNewPriceChecks } from './lib/priceChecks';
 import { isSessionResumable, clearAppSession } from './lib/appSession';
 
+const AUTH_INIT_TIMEOUT_MS = 10000;
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('auth_timeout')), ms);
+    }),
+  ]);
+}
+
+function resolveAuthFromProfile(sessionUser, profile) {
+  const isAdmin = isLegacyAdminEmail(sessionUser.email)
+    || !!(profile?.is_portal_admin || profile?.role === 'admin');
+  const isSalesRep = !isAdmin && !!(profile?.is_sales_rep || profile?.role === 'sales_rep');
+  let authState = 'portal';
+  if (isAdmin) authState = 'admin';
+  else if (isSalesRep) authState = 'sales_rep';
+  return { isAdmin, isSalesRep, authState };
+}
+
 export default function App() {
   const { t, isNight } = useTheme();
   const canResumeNavRef = useRef(isSessionResumable());
+  const sessionApplyRef = useRef(null);
   const homeScrollRef = useRef(0);
   const brandScrollRef = useRef({});
   const mainContentRef = useRef(null);
@@ -403,64 +425,72 @@ export default function App() {
   };
 
   const applySessionUser = async (sessionUser, { restoreNav = canResumeNavRef.current } = {}) => {
-    const accessProfile = await fetchProfileAccess(sessionUser.id);
-    if (!canAccessPortal(sessionUser, accessProfile)) {
-      await supabase.auth.signOut();
-      setAuthState('login');
-      return;
-    }
-    const { isAdmin, isSalesRep: salesRep, authState: nextAuth } = await resolveAuthRole(sessionUser);
-    const savedNav = restoreNav ? readSavedPortalNav(sessionUser.id) : null;
+    if (sessionApplyRef.current === sessionUser.id) return;
+    sessionApplyRef.current = sessionUser.id;
 
-    setUser(sessionUser);
-    setIsPortalAdmin(isAdmin);
-    setIsSalesRep(salesRep);
-    setAuthState(nextAuth);
-
-    if (isAdmin) {
-      setAdminMode(savedNav?.adminMode || 'dashboard');
-      setForm(f => ({
-        ...f,
-        name: f.name || 'Global Access',
-        company: f.company || 'Global Access',
-        email: sessionUser.email,
-      }));
-      await ensurePortalAdminFlag(sessionUser.id, sessionUser.email);
-    }
-
-    if (salesRep) {
-      setRepMode(savedNav?.repMode === 'portal' ? 'portal' : 'dashboard');
-    } else {
-      setRepMode('dashboard');
-    }
-
-    const inPortalShell = nextAuth === 'portal' || nextAuth === 'browse'
-      || (isAdmin && (savedNav?.adminMode === 'portal'))
-      || (salesRep && (savedNav?.repMode === 'portal'));
-
-    if (savedNav && inPortalShell) {
-      const nextView = normalizePortalView(savedNav.view);
-      setView(nextView);
-      if (savedNav.activeBrand && (nextView === 'brand' || savedNav.activeBrand)) {
-        setActiveBrand(savedNav.activeBrand);
-        if (nextView === 'brand') {
-          window.history.replaceState(
-            { view: 'brand', brandId: savedNav.activeBrand },
-            '',
-            `#${savedNav.activeBrand}`,
-          );
-        }
-      } else if (nextView === 'home') {
-        setActiveBrand(null);
-      }
-    } else if (!restoreNav) {
-      resetEntryNavigation();
-    }
     try {
-      const { data: profile } = await supabase.from('user_profiles')
-        .select('user_type, name, company, phone, username, bio, profile_avatar_url, master_pricing_qualified, master_pricing_interest, rep_code, is_sales_rep')
-        .eq('user_id', sessionUser.id)
-        .maybeSingle();
+      let profile = null;
+      try {
+        const { data } = await supabase.from('user_profiles')
+          .select('admin_authorized, admin_authorized_at, is_portal_admin, is_sales_rep, role, user_type, name, company, phone, username, bio, profile_avatar_url, master_pricing_qualified, master_pricing_interest, rep_code')
+          .eq('user_id', sessionUser.id)
+          .maybeSingle();
+        profile = data;
+      } catch (_) {}
+
+      if (!canAccessPortal(sessionUser, profile)) {
+        await supabase.auth.signOut();
+        setAuthState('login');
+        return;
+      }
+
+      const { isAdmin, isSalesRep: salesRep, authState: nextAuth } = resolveAuthFromProfile(sessionUser, profile);
+      const savedNav = restoreNav ? readSavedPortalNav(sessionUser.id) : null;
+
+      setUser(sessionUser);
+      setIsPortalAdmin(isAdmin);
+      setIsSalesRep(salesRep);
+      setAuthState(nextAuth);
+
+      if (isAdmin) {
+        setAdminMode(savedNav?.adminMode || 'dashboard');
+        setForm(f => ({
+          ...f,
+          name: f.name || 'Global Access',
+          company: f.company || 'Global Access',
+          email: sessionUser.email,
+        }));
+      }
+
+      if (salesRep) {
+        setRepMode(savedNav?.repMode === 'portal' ? 'portal' : 'dashboard');
+      } else {
+        setRepMode('dashboard');
+      }
+
+      const inPortalShell = nextAuth === 'portal' || nextAuth === 'browse'
+        || (isAdmin && (savedNav?.adminMode === 'portal'))
+        || (salesRep && (savedNav?.repMode === 'portal'));
+
+      if (savedNav && inPortalShell) {
+        const nextView = normalizePortalView(savedNav.view);
+        setView(nextView);
+        if (savedNav.activeBrand && (nextView === 'brand' || savedNav.activeBrand)) {
+          setActiveBrand(savedNav.activeBrand);
+          if (nextView === 'brand') {
+            window.history.replaceState(
+              { view: 'brand', brandId: savedNav.activeBrand },
+              '',
+              `#${savedNav.activeBrand}`,
+            );
+          }
+        } else if (nextView === 'home') {
+          setActiveBrand(null);
+        }
+      } else if (!restoreNav) {
+        resetEntryNavigation();
+      }
+
       if (profile?.user_type) setUserType(profile.user_type);
       if (salesRep) setStaffProfile(profile);
       else setStaffProfile(null);
@@ -475,66 +505,113 @@ export default function App() {
       }
       setMasterPricingQualified(!!profile?.master_pricing_qualified);
       setMasterPricingInterest(!!profile?.master_pricing_interest);
-    } catch (_) {}
-    await linkPortalSessionToUser(sessionUser.id);
-    await updateUserPresence(sessionUser.id, 'online');
+
+      if (isLegacyAdminEmail(sessionUser.email)) {
+        ensurePortalAdminFlag(sessionUser.id, sessionUser.email).catch(() => {});
+      }
+      linkPortalSessionToUser(sessionUser.id).catch(() => {});
+      updateUserPresence(sessionUser.id, 'online').catch(() => {});
+    } finally {
+      if (sessionApplyRef.current === sessionUser.id) {
+        sessionApplyRef.current = null;
+      }
+    }
   };
 
   useEffect(() => {
-    const init = async () => {
-      const resumeNav = canResumeNavRef.current;
-      const rememberLogin = getRememberLogin();
+    let cancelled = false;
 
-      if (!resumeNav) {
-        clearAppNavigation();
-        resetEntryNavigation();
-      }
-
-      if (!resumeNav && !rememberLogin) {
-        await supabase.auth.signOut();
-        setUser(null);
-        setIsPortalAdmin(false);
-        setIsSalesRep(false);
-        setStaffProfile(null);
-        const verified = await isPortalCodeVerified();
-        const wantsAdmin = new URLSearchParams(window.location.search).get('admin') === '1'
-          || window.location.hash === '#admin';
-        setAuthState(wantsAdmin ? 'login' : (verified ? 'browse' : 'gate'));
-        return;
-      }
-
-      let { data: { session } } = await supabase.auth.getSession();
-
-      if (!session?.user && rememberLogin) {
-        const saved = getSavedLogin();
-        if (saved) {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email: saved.email,
-            password: saved.password,
-          });
-          if (!error && data?.user) {
-            session = { user: data.user };
-          }
-        }
-      }
-
-      if (session?.user) {
-        await applySessionUser(session.user, { restoreNav: resumeNav });
-        return;
-      }
-
+    const resolveGuestAuthState = async () => {
       const verified = await isPortalCodeVerified();
       const wantsAdmin = new URLSearchParams(window.location.search).get('admin') === '1'
         || window.location.hash === '#admin';
-      setAuthState(wantsAdmin ? 'login' : (verified ? 'browse' : 'gate'));
+      return wantsAdmin ? 'login' : (verified ? 'browse' : 'gate');
     };
+
+    const finishIfStillLoading = async () => {
+      if (cancelled) return;
+      const guestState = await resolveGuestAuthState();
+      setAuthState((prev) => (prev === 'loading' ? guestState : prev));
+    };
+
+    const timeoutId = setTimeout(() => {
+      finishIfStillLoading();
+    }, AUTH_INIT_TIMEOUT_MS);
+
+    const init = async () => {
+      try {
+        const resumeNav = canResumeNavRef.current;
+        const rememberLogin = getRememberLogin();
+
+        if (!resumeNav) {
+          clearAppNavigation();
+          resetEntryNavigation();
+        }
+
+        if (!resumeNav && !rememberLogin) {
+          await supabase.auth.signOut();
+          setUser(null);
+          setIsPortalAdmin(false);
+          setIsSalesRep(false);
+          setStaffProfile(null);
+          if (!cancelled) setAuthState(await resolveGuestAuthState());
+          return;
+        }
+
+        let session = null;
+        try {
+          const { data: { session: activeSession } } = await withTimeout(
+            supabase.auth.getSession(),
+            AUTH_INIT_TIMEOUT_MS,
+          );
+          session = activeSession;
+        } catch (_) {}
+
+        if (!session?.user && rememberLogin) {
+          const saved = getSavedLogin();
+          if (saved) {
+            try {
+              const { data, error } = await withTimeout(
+                supabase.auth.signInWithPassword({
+                  email: saved.email,
+                  password: saved.password,
+                }),
+                AUTH_INIT_TIMEOUT_MS,
+              );
+              if (!error && data?.user) {
+                session = { user: data.user };
+              }
+            } catch (_) {}
+          }
+        }
+
+        if (session?.user) {
+          await applySessionUser(session.user, { restoreNav: resumeNav });
+          return;
+        }
+
+        if (!cancelled) setAuthState(await resolveGuestAuthState());
+      } catch (_) {
+        if (!cancelled) setAuthState(await resolveGuestAuthState());
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
+
     init();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_e, session) => {
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'INITIAL_SESSION') return;
       if (session?.user) {
         await applySessionUser(session.user, { restoreNav: canResumeNavRef.current });
       }
     });
-    return () => subscription.unsubscribe();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

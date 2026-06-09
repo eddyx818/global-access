@@ -3,10 +3,23 @@ import { supabase } from './supabase';
 import { BRANDS } from './data';
 import { DEFAULT_GLOBAL_STYLES, parseJsonField } from './design';
 import { mergeProductCommerce, commercePayloadFromForm, packPayloadFromForm } from './pricing';
+import { compressImageFile } from './imageOptimize';
+
+const CATALOG_HOME_MAX_PHOTOS = 6;
 
 const BrandContentContext = createContext(null);
 
 const CONTENT_SYNC_CHANNEL = 'ga-content-sync';
+const CONTENT_LOAD_TIMEOUT_MS = 12000;
+
+function withContentTimeout(promise) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('content_load_timeout')), CONTENT_LOAD_TIMEOUT_MS);
+    }),
+  ]);
+}
 
 function safeJsonArray(value, fallback = []) {
   if (!value) return fallback;
@@ -104,7 +117,9 @@ function useBrandContentState() {
 
   const refreshAll = useCallback(async () => {
     try {
-      await Promise.all([loadContentData(), loadSettingsData()]);
+      await withContentTimeout(Promise.all([loadContentData(), loadSettingsData()]));
+    } catch (_) {
+      // Fall back to bundled catalog if Supabase is slow or offline.
     } finally {
       if (!initialLoadDone.current) {
         initialLoadDone.current = true;
@@ -196,9 +211,10 @@ function useBrandContentState() {
         .filter(g => g.catalog_featured && isHttpsImageUrl(g.image_url))
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
         .map(g => g.image_url);
-      const catalogGallery = featuredUrls.length
+      const catalogGallery = (featuredUrls.length
         ? pickRotatingCatalogPhotos(featuredUrls, brand.id)
-        : finalGallery;
+        : finalGallery
+      ).slice(0, CATALOG_HOME_MAX_PHOTOS);
 
       return {
         ...brand,
@@ -289,21 +305,23 @@ export async function saveProductContent(brandId, sku, data) {
 }
 
 export async function uploadBrandImage(brandId, sku, file) {
-  const ext = file.name.split('.').pop().toLowerCase();
+  const compressed = await compressImageFile(file);
+  const ext = (compressed.name.split('.').pop() || 'webp').toLowerCase();
   const path = `${brandId}/${sku}-${Date.now()}.${ext}`;
-  const { error } = await supabase.storage.from('brand-images').upload(path, file, { upsert: true, contentType: file.type });
+  const { error } = await supabase.storage.from('brand-images').upload(path, compressed, { upsert: true, contentType: compressed.type });
   if (error) { console.error('Upload error:', error); return null; }
   const { data } = supabase.storage.from('brand-images').getPublicUrl(path);
   return data.publicUrl;
 }
 
 export async function uploadGalleryImage(brandId, file, { products = [] } = {}) {
-  const ext = file.name.split('.').pop().toLowerCase();
+  const compressed = await compressImageFile(file);
+  const ext = (compressed.name.split('.').pop() || 'webp').toLowerCase();
   const stem = (file.name.replace(/\.[^.]+$/, '') || 'photo')
     .replace(/[^a-zA-Z0-9._-]+/g, '-')
     .slice(0, 64);
   const path = `${brandId}/gallery-${stem}-${Date.now()}.${ext}`;
-  const { error } = await supabase.storage.from('brand-images').upload(path, file, { upsert: true, contentType: file.type });
+  const { error } = await supabase.storage.from('brand-images').upload(path, compressed, { upsert: true, contentType: compressed.type });
   if (error) return null;
   const { data } = supabase.storage.from('brand-images').getPublicUrl(path);
   const url = data.publicUrl;

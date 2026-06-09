@@ -365,8 +365,21 @@ html.app-mobile .app-portal-nav--admin .app-portal-nav__preview-toggle {
   flex-shrink: 0;
 }
 
-.app-portal-nav--admin .app-portal-nav__preview-toggle {
-  margin-left: auto;
+/* Desktop: keep retailer/distributor toggle away from Dashboard */
+@media (min-width: 769px) {
+  nav.app-portal-nav--admin {
+    gap: 20px;
+  }
+
+  .app-portal-nav--admin .app-portal-nav__preview-toggle {
+    margin-left: 16px;
+    margin-right: 0;
+  }
+
+  .app-portal-nav--admin .app-portal-nav__right {
+    gap: 12px;
+    margin-left: 4px;
+  }
 }
 
 html.app-mobile .app-portal-nav.app-portal-nav--safe-top {

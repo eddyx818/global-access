@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useBrandContent } from '../lib/content';
 import { applyBrandOrder, saveUserBrandOrder } from '../lib/userBrandOrder';
+import { DISPLAY_WIDTHS, getDisplayImageUrl, handleDisplayImageError } from '../lib/imageOptimize';
 
 import MasterPricingNotice from './MasterPricingNotice';
 import { useTheme } from '../context/ThemeContext';
@@ -56,6 +57,71 @@ export default function HomeView({
   const catalogPhotosFor = (brand) => {
     if (!brand) return [];
     return (brand.catalogGallery?.length ? brand.catalogGallery : brand.gallery) || [];
+  };
+
+  const activeHeroBrand = brands[slideIdx];
+  const activeHeroPhotos = catalogPhotosFor(activeHeroBrand);
+  const heroRightPhoto = activeHeroPhotos.length
+    ? activeHeroPhotos[galleryIdx % activeHeroPhotos.length]
+    : undefined;
+  const heroLeftPhoto = activeHeroPhotos.length > 1
+    ? activeHeroPhotos[(galleryIdx + 1) % activeHeroPhotos.length]
+    : heroRightPhoto;
+  const heroLeftMirrored = activeHeroPhotos.length <= 1;
+  const heroPhotoFloat = !isNight && !isMobile;
+
+  const renderHeroPhotoPanel = (side, photoUrl, { mirror = false } = {}) => {
+    if (!photoUrl) return null;
+    const isLeft = side === 'left';
+    const parallaxX = (isLeft ? -1 : 1) * mousePos.x * 0.35;
+    const parallaxY = mousePos.y * 0.35;
+    const displaySrc = getDisplayImageUrl(photoUrl, { width: DISPLAY_WIDTHS.hero });
+    return (
+      <div
+        key={`${side}-${photoUrl}`}
+        style={{
+          position: 'absolute',
+          ...(isLeft ? { left: '-2%' } : { right: '-2%' }),
+          top: 0,
+          width: isMobile ? '58%' : '48%',
+          height: '100%',
+          transform: `translate3d(${parallaxX}px, ${parallaxY}px, 0)${mirror ? ' scaleX(-1)' : ''}`,
+          transition: 'transform 0.4s ease-out',
+          pointerEvents: 'none',
+          zIndex: 2,
+        }}
+      >
+        <div
+          className={heroPhotoFloat ? 'hero-gallery-stack hero-gallery-stack--float' : 'hero-gallery-stack'}
+          style={{ position: 'absolute', inset: 0 }}
+        >
+          <img
+            src={displaySrc}
+            alt=""
+            aria-hidden="true"
+            loading="eager"
+            decoding="async"
+            className="hero-gallery-photo"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              opacity: 0.34,
+              WebkitMaskImage: isLeft
+                ? 'linear-gradient(to right, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)'
+                : 'linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)',
+              maskImage: isLeft
+                ? 'linear-gradient(to right, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)'
+                : 'linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)',
+              transition: 'opacity 0.55s ease',
+            }}
+            onError={(e) => handleDisplayImageError(e, photoUrl)}
+          />
+        </div>
+      </div>
+    );
   };
 
   const heroBg = heroConfig.background_color || '#0D0D0D';
@@ -115,28 +181,26 @@ export default function HomeView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slideIdx, visible]);
 
-  // Preload hero gallery images for the active brand (avoids pop-in on 2nd+ photo)
+  // Preload the two hero frames shown on left + right
   useEffect(() => {
-    const gallery = catalogPhotosFor(brands[slideIdx]);
-    gallery.forEach(src => {
+    [heroRightPhoto, heroLeftPhoto].forEach((src) => {
       if (!src || preloadedHeroImages.current.has(src)) return;
       const img = new Image();
-      img.src = src;
+      img.src = getDisplayImageUrl(src, { width: DISPLAY_WIDTHS.hero });
       preloadedHeroImages.current.add(src);
     });
-  }, [slideIdx, brands]);
+  }, [heroRightPhoto, heroLeftPhoto]);
 
-  // Prefetch the next gallery frame before it appears
+  // Prefetch the next gallery frame before the right side advances
   useEffect(() => {
-    const gallery = catalogPhotosFor(brands[slideIdx]);
-    if (gallery.length <= 1) return;
-    const nextSrc = gallery[(galleryIdx + 1) % gallery.length];
+    if (activeHeroPhotos.length <= 1) return;
+    const nextSrc = activeHeroPhotos[(galleryIdx + 2) % activeHeroPhotos.length];
     if (nextSrc && !preloadedHeroImages.current.has(nextSrc)) {
       const img = new Image();
-      img.src = nextSrc;
+      img.src = getDisplayImageUrl(nextSrc, { width: DISPLAY_WIDTHS.hero });
       preloadedHeroImages.current.add(nextSrc);
     }
-  }, [slideIdx, galleryIdx, brands]);
+  }, [slideIdx, galleryIdx, activeHeroPhotos]);
 
   const changeSlide = (newIdx) => {
     if (animating || newIdx === slideIdx) return;
@@ -491,13 +555,11 @@ export default function HomeView({
           touchAction: isMobile ? 'pan-y' : 'auto',
         }}
       >
-        {brands.map((brand, i) => {
-          const heroPhotos = catalogPhotosFor(brand);
-          return (
+        {brands.map((brand, i) => (
           <div key={brand.id} style={{
               position: 'absolute',
               inset: 0,
-              zIndex: i === slideIdx ? 2 : 0,
+              zIndex: i === slideIdx ? 1 : 0,
               transition: heroTransitions ? 'opacity 0.7s ease' : 'none',
               opacity: i === slideIdx ? 1 : 0,
               visibility: i === slideIdx ? 'visible' : 'hidden',
@@ -505,52 +567,14 @@ export default function HomeView({
             }}
           >
             <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 60%, ${brand.color}65 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, ${brand.color}30 0%, transparent 50%), ${heroBg}` }} />
-            {heroPhotos.length > 0 && (
-              <div
-                style={{
-                  position: 'absolute',
-                  right: '-2%',
-                  top: 0,
-                  width: isMobile ? '70%' : '55%',
-                  height: '100%',
-                  transform: `translate(${mousePos.x * 0.4}px, ${mousePos.y * 0.4}px)`,
-                  transition: 'transform 0.4s ease-out',
-                }}
-              >
-                <div className={i === slideIdx && !isNight && !isMobile ? 'hero-gallery-stack hero-gallery-stack--float' : 'hero-gallery-stack'} style={{ position: 'absolute', inset: 0 }}>
-                  {heroPhotos.map((img, gi) => {
-                    const isActiveBrand = i === slideIdx;
-                    const isVisible = isActiveBrand && gi === galleryIdx;
-                    return (
-                      <img
-                        key={img}
-                        src={img}
-                        alt=""
-                        aria-hidden="true"
-                        loading={isActiveBrand && gi < 2 ? 'eager' : 'lazy'}
-                        decoding="async"
-                        className="hero-gallery-photo"
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          opacity: isVisible ? 0.38 : 0,
-                          zIndex: isVisible ? 2 : 1,
-                          WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)',
-                          maskImage: 'linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)',
-                        }}
-                        onError={e => { e.target.style.opacity = 0; }}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
-          );
-        })}
+        ))}
+        {activeHeroPhotos.length > 0 && (
+          <>
+            {renderHeroPhotoPanel('left', heroLeftPhoto, { mirror: heroLeftMirrored })}
+            {renderHeroPhotoPanel('right', heroRightPhoto)}
+          </>
+        )}
         {brands.map((brand, i) => {
           const isActive = i === slideIdx;
           const slideHeadline = heroConfig.headline || brand.name;
@@ -804,11 +828,11 @@ export default function HomeView({
                   {(() => {
                     const cardPhoto = catalogPhotosFor(brand)[0];
                     return cardPhoto ? (
-                    <img src={cardPhoto} alt={brand.name}
+                    <img src={getDisplayImageUrl(cardPhoto, { width: DISPLAY_WIDTHS.card })} alt={brand.name}
                       loading="lazy"
                       decoding="async"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease', transform: `scale(${tilt.x !== 0 || tilt.y !== 0 ? 1.06 : 1})` }}
-                      onError={e => { e.target.style.display = 'none'; }} />
+                      onError={(e) => handleDisplayImageError(e, cardPhoto)} />
                   ) : (
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 44, color: brand.color + '33', letterSpacing: '0.05em', transform: 'translateZ(20px)' }}>{brand.name[0]}</div>

@@ -5,6 +5,7 @@ import { minQtyForProduct, formatOrderUnitLabel, getOrderUnitHeading, getProduct
 import { subscribeStockNotify, fetchMyStockAlerts, stockAlertKey } from '../lib/stockNotify';
 import { useTheme } from '../context/ThemeContext';
 import { useBrandContent } from '../lib/content';
+import { DISPLAY_WIDTHS, getDisplayImageUrl, handleDisplayImageError } from '../lib/imageOptimize';
 
 export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, updateInterestLine, isInterested, interests, onSubmit, isMobile, hasBottomNav = false, enableQuoteFlow = true, staffPriceCheck = false, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess, chatLabel = 'Trade Desk' }) {
   const { t, isNight } = useTheme();
@@ -53,7 +54,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
       if (!src || preloadedGallery.current.has(src)) return;
       const img = new Image();
       img.decoding = 'async';
-      img.src = src;
+      img.src = getDisplayImageUrl(src, { width: DISPLAY_WIDTHS.galleryThumb });
       preloadedGallery.current.add(src);
     });
   }, [galleryImages]);
@@ -311,11 +312,11 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
       <div style={{ background: '#0D0D0D', borderRadius: headerStyle === 'minimal' ? 12 : 20, overflow: 'hidden', marginBottom: '1.5rem', position: 'relative', minHeight: headerMinHeight }}>
         <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 50%, ${brand.color}55 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, ${brand.color}33 0%, transparent 60%)` }} />
         {headerStyle !== 'minimal' && heroPhoto && (
-          <img src={heroPhoto} alt={brand.name} className="brand-hero-bg" loading="eager" decoding="async" style={{ position: 'absolute', right: 0, top: 0, height: '100%', width: headerStyle === 'compact' ? '40%' : '50%', objectFit: 'cover', opacity: 0.25, WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)', maskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)' }} onError={e => { e.target.style.display = 'none'; }} />
+          <img src={getDisplayImageUrl(heroPhoto, { width: DISPLAY_WIDTHS.hero })} alt={brand.name} className="brand-hero-bg" loading="eager" decoding="async" style={{ position: 'absolute', right: 0, top: 0, height: '100%', width: headerStyle === 'compact' ? '40%' : '50%', objectFit: 'cover', opacity: 0.25, WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)', maskImage: 'linear-gradient(to left, rgba(0,0,0,0.8), transparent)' }} onError={(e) => handleDisplayImageError(e, heroPhoto)} />
         )}
         <div style={{ position: 'relative', zIndex: 2, padding: isMobile ? '1.5rem' : '2rem' }}>
           {brand.logoUrl && (
-            <img src={brand.logoUrl} alt={`${brand.name} logo`} style={{ height: headerStyle === 'compact' ? 32 : 44, maxWidth: '100%', marginBottom: 10, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
+            <img src={getDisplayImageUrl(brand.logoUrl, { width: 320 })} alt={`${brand.name} logo`} style={{ height: headerStyle === 'compact' ? 32 : 44, maxWidth: '100%', marginBottom: 10, objectFit: 'contain' }} onError={(e) => handleDisplayImageError(e, brand.logoUrl)} />
           )}
           <div style={{ display: 'inline-block', background: brand.color + '22', border: `0.5px solid ${brand.color}55`, borderRadius: 20, padding: '4px 12px', fontSize: 10, color: brand.color, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 600 }}>{brand.category}</div>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: headerStyle === 'compact' ? (isMobile ? 30 : 40) : (isMobile ? 38 : 52), color: '#FFF', lineHeight: 0.95, marginBottom: 10 }}>{brand.name}</div>
@@ -370,10 +371,13 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
               {showProductImage && (
                 <div className="brand-product-image" style={{ position: 'relative', height: 160, overflow: 'hidden', maxWidth: '100%' }}>
                   <img
-                    src={product.image}
+                    src={getDisplayImageUrl(product.image, { width: DISPLAY_WIDTHS.product })}
                     alt={product.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={() => markImageBroken(imageKey)}
+                    onError={(e) => {
+                      handleDisplayImageError(e, product.image);
+                      if (e.target.dataset.fallbackApplied === '1') markImageBroken(imageKey);
+                    }}
                   />
                   <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.65), transparent)' }} />
                   <div style={{ position: 'absolute', bottom: 14, left: 16, right: 16 }}>
@@ -542,12 +546,15 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
                   }}
                 >
                   <img
-                    src={img}
+                    src={getDisplayImageUrl(img, { width: DISPLAY_WIDTHS.galleryThumb })}
                     alt={`${brand.name} ${i + 1}`}
                     loading={i < 4 ? 'eager' : 'lazy'}
                     decoding="async"
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                    onError={() => markImageBroken(`gallery:${img}`)}
+                    onError={(e) => {
+                      handleDisplayImageError(e, img);
+                      if (e.target.dataset.fallbackApplied === '1') markImageBroken(`gallery:${img}`);
+                    }}
                   />
                 </button>
               ))}
@@ -585,12 +592,15 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
                   }}
                 >
                   <img
-                    src={img}
+                    src={getDisplayImageUrl(img, { width: DISPLAY_WIDTHS.galleryThumb })}
                     alt={`${brand.name} ${i + 1}`}
                     loading={i < 4 ? 'eager' : 'lazy'}
                     decoding="async"
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                    onError={() => markImageBroken(`gallery:${img}`)}
+                    onError={(e) => {
+                      handleDisplayImageError(e, img);
+                      if (e.target.dataset.fallbackApplied === '1') markImageBroken(`gallery:${img}`);
+                    }}
                   />
                 </button>
               ))}
@@ -606,7 +616,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
           onTouchStart={handleLightboxTouchStart}
           onTouchEnd={handleLightboxTouchEnd}
         >
-          <img src={lightbox} alt="Full size" decoding="async" style={{ maxWidth: 'calc(100% - 120px)', maxHeight: '90vh', objectFit: 'contain', borderRadius: 12, userSelect: 'none', WebkitUserSelect: 'none' }} draggable={false} />
+          <img src={getDisplayImageUrl(lightbox, { width: DISPLAY_WIDTHS.lightbox })} alt="Full size" decoding="async" style={{ maxWidth: 'calc(100% - 120px)', maxHeight: '90vh', objectFit: 'contain', borderRadius: 12, userSelect: 'none', WebkitUserSelect: 'none' }} draggable={false} onError={(e) => handleDisplayImageError(e, lightbox)} />
 
           <button type="button" onClick={() => setLightbox(null)} aria-label="Close" style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: 'none', borderRadius: '50%', width: 44, height: 44, color: '#FFF', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>×</button>
 
