@@ -7,6 +7,13 @@ import { useTheme } from '../context/ThemeContext';
 
 const heroSlideKey = (userId) => `ga-hero-slide-${userId || 'guest'}`;
 
+/** How long each hero photo stays before crossfading to the next (same brand). */
+const HERO_GALLERY_ROTATE_MS = 6800;
+/** Opacity crossfade duration — should be shorter than rotate interval. */
+const HERO_GALLERY_FADE_MS = 2600;
+/** Max photos in the home hero rotation (brand pages still show all). */
+const HERO_GALLERY_ROTATE_MAX = 10;
+
 function readStoredHeroSlide(userId, len) {
   if (!len) return 0;
   try {
@@ -53,9 +60,13 @@ export default function HomeView({
     return customOrder ?? applyBrandOrder(allBrands, userId);
   }, [loading, customOrder, allBrands, userId]);
 
-  const catalogPhotosFor = (brand) => {
+  const catalogPhotosFor = (brand, { forHero = false } = {}) => {
     if (!brand) return [];
-    return (brand.catalogGallery?.length ? brand.catalogGallery : brand.gallery) || [];
+    const photos = (brand.catalogGallery?.length ? brand.catalogGallery : brand.gallery) || [];
+    if (forHero && photos.length > HERO_GALLERY_ROTATE_MAX) {
+      return photos.slice(0, HERO_GALLERY_ROTATE_MAX);
+    }
+    return photos;
   };
 
   const heroBg = heroConfig.background_color || '#0D0D0D';
@@ -108,19 +119,23 @@ export default function HomeView({
       return undefined;
     }
     setGalleryIdx(0);
-    const gallery = catalogPhotosFor(brands[slideIdx]);
+    const gallery = catalogPhotosFor(brands[slideIdx], { forHero: true });
     if (gallery.length <= 1) return undefined;
-    galleryTimer.current = setInterval(() => setGalleryIdx(i => (i + 1) % gallery.length), 2500);
+    galleryTimer.current = setInterval(
+      () => setGalleryIdx(i => (i + 1) % gallery.length),
+      HERO_GALLERY_ROTATE_MS,
+    );
     return () => clearInterval(galleryTimer.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slideIdx, visible]);
 
   // Preload hero gallery images for the active brand (avoids pop-in on 2nd+ photo)
   useEffect(() => {
-    const gallery = catalogPhotosFor(brands[slideIdx]);
+    const gallery = catalogPhotosFor(brands[slideIdx], { forHero: true });
     gallery.forEach(src => {
       if (!src || preloadedHeroImages.current.has(src)) return;
       const img = new Image();
+      img.decoding = 'async';
       img.src = src;
       preloadedHeroImages.current.add(src);
     });
@@ -128,7 +143,7 @@ export default function HomeView({
 
   // Prefetch the next gallery frame before it appears
   useEffect(() => {
-    const gallery = catalogPhotosFor(brands[slideIdx]);
+    const gallery = catalogPhotosFor(brands[slideIdx], { forHero: true });
     if (gallery.length <= 1) return;
     const nextSrc = gallery[(galleryIdx + 1) % gallery.length];
     if (nextSrc && !preloadedHeroImages.current.has(nextSrc)) {
@@ -449,9 +464,10 @@ export default function HomeView({
           touch-action: none;
         }
         .hero-gallery-photo {
-          transition: opacity 1.6s ease-in-out;
+          transition: opacity ${HERO_GALLERY_FADE_MS}ms ease-in-out;
           backface-visibility: hidden;
           -webkit-backface-visibility: hidden;
+          will-change: opacity;
         }
         .hero-gallery-stack--float {
           animation: heroImgFloat 10s ease-in-out infinite;
@@ -492,7 +508,7 @@ export default function HomeView({
         }}
       >
         {brands.map((brand, i) => {
-          const heroPhotos = catalogPhotosFor(brand);
+          const heroPhotos = catalogPhotosFor(brand, { forHero: true });
           const isActiveBrand = i === slideIdx;
           return (
           <div key={brand.id} style={{
@@ -527,7 +543,7 @@ export default function HomeView({
                         src={img}
                         alt=""
                         aria-hidden="true"
-                        loading={gi < 2 ? 'eager' : 'lazy'}
+                        loading="eager"
                         decoding="async"
                         className="hero-gallery-photo"
                         style={{
@@ -538,6 +554,7 @@ export default function HomeView({
                           objectFit: 'cover',
                           opacity: isVisible ? 0.38 : 0,
                           zIndex: isVisible ? 2 : 1,
+                          pointerEvents: 'none',
                           WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)',
                           maskImage: 'linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)',
                         }}

@@ -347,7 +347,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
       )}
 
       <div style={{ background: brand.color + '12', border: `0.5px solid ${brand.color}33`, borderRadius: 10, padding: '10px 14px', marginBottom: '1.25rem', fontSize: 13, color: '#666' }}>
-        👆 Tap options to build your quote list — we will follow up in {chatLabel} with pricing and availability.
+        👇 Tap options below to build your quote list — we will follow up in {chatLabel} with pricing and availability.
       </div>
       {notifyMsg && (
         <div style={{ background: t.successBg, border: `0.5px solid ${t.successBorder}`, borderRadius: 10, padding: '10px 14px', marginBottom: '1rem', fontSize: 12, color: t.successText }}>
