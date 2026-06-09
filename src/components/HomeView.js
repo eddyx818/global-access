@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useBrandContent, pickRotatingCatalogPhotos } from '../lib/content';
 import { customerChatActionLabel } from '../lib/chatLabels';
 import { applyBrandOrder, saveUserBrandOrder } from '../lib/userBrandOrder';
@@ -6,17 +6,15 @@ import { applyBrandOrder, saveUserBrandOrder } from '../lib/userBrandOrder';
 import MasterPricingNotice from './MasterPricingNotice';
 import { useTheme } from '../context/ThemeContext';
 
-const heroSlideKey = (userId) => `ga-hero-slide-${userId || 'guest'}`;
+/** Always lead the hero with this brand, then rotate in catalog card order. */
+const HERO_LEAD_BRAND_ID = 'churros-locos';
 /** Brand-to-brand hero fade — keep in sync with .hero-slide-copy transition. */
 const HERO_BRAND_FADE_MS = 850;
 
-function readStoredHeroSlide(userId, len) {
-  if (!len) return 0;
-  try {
-    const n = parseInt(sessionStorage.getItem(heroSlideKey(userId)), 10);
-    if (Number.isFinite(n) && n >= 0 && n < len) return n;
-  } catch (_) {}
-  return 0;
+function heroLeadIndex(brands) {
+  if (!brands?.length) return 0;
+  const i = brands.findIndex(b => b.id === HERO_LEAD_BRAND_ID);
+  return i >= 0 ? i : 0;
 }
 
 export default function HomeView({
@@ -33,7 +31,7 @@ export default function HomeView({
   visible = true,
 }) {
   const { t, isNight } = useTheme();
-  const [slideIdx, setSlideIdx] = useState(0);
+  const [slideIdx, setSlideIdx] = useState(null);
   const [galleryIdx, setGalleryIdx] = useState(0);
   const [skipGalleryFade, setSkipGalleryFade] = useState(false);
   const [animating, setAnimating] = useState(false);
@@ -50,7 +48,7 @@ export default function HomeView({
   const heroTouchRef = useRef({ startX: 0, startY: 0, startTime: 0, moved: false, suppressTap: false });
   const brandPressRef = useRef({ startTime: 0, longPressFired: false, idx: null });
   const longPressTimer = useRef(null);
-  const slideHydratedRef = useRef(false);
+  const prevVisibleRef = useRef(false);
   const preloadedHeroImages = useRef(new Set());
   const { getMergedBrands, loading, heroConfig } = useBrandContent();
   const allBrands = getMergedBrands();
@@ -59,6 +57,9 @@ export default function HomeView({
     if (loading || !allBrands.length) return [];
     return customOrder ?? applyBrandOrder(allBrands, userId);
   }, [loading, customOrder, allBrands, userId]);
+
+  const leadIdx = useMemo(() => heroLeadIndex(brands), [brands]);
+  const activeSlideIdx = slideIdx ?? leadIdx;
 
   const catalogPhotosFor = (brand) => {
     if (!brand) return [];
@@ -93,21 +94,21 @@ export default function HomeView({
 
   useEffect(() => {
     setCustomOrder(null);
-    slideHydratedRef.current = false;
   }, [userId]);
 
-  useEffect(() => {
-    if (!brands.length || slideHydratedRef.current) return;
-    slideHydratedRef.current = true;
-    setSlideIdx(readStoredHeroSlide(userId, brands.length));
-  }, [brands.length, userId]);
-
-  useEffect(() => {
+  // Start on Churros Locos whenever home becomes visible (avoids flash from stale index 0).
+  useLayoutEffect(() => {
     if (!brands.length) return;
-    try {
-      sessionStorage.setItem(heroSlideKey(userId), String(slideIdx));
-    } catch (_) {}
-  }, [slideIdx, brands.length, userId]);
+    const wasVisible = prevVisibleRef.current;
+    prevVisibleRef.current = visible;
+    if (!visible) return;
+    if (!wasVisible) {
+      setSlideIdx(heroLeadIndex(brands));
+      setGalleryIdx(0);
+      return;
+    }
+    setSlideIdx(prev => (prev == null || prev >= brands.length ? heroLeadIndex(brands) : prev));
+  }, [visible, brands.length, leadIdx, brands]);
 
   useEffect(() => {
     if (!visible) {
@@ -143,7 +144,7 @@ export default function HomeView({
     const fadeUnlockId = requestAnimationFrame(() => {
       requestAnimationFrame(() => setSkipGalleryFade(false));
     });
-    const gallery = heroPhotosFor(brands[slideIdx]);
+    const gallery = heroPhotosFor(brands[activeSlideIdx]);
     if (gallery.length <= 1) {
       return () => cancelAnimationFrame(fadeUnlockId);
     }
@@ -153,30 +154,30 @@ export default function HomeView({
       clearInterval(galleryTimer.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slideIdx, visible, heroGallerySeed]);
+  }, [activeSlideIdx, visible, heroGallerySeed]);
 
   // Preload hero gallery images for the active brand (avoids pop-in on 2nd+ photo)
   useEffect(() => {
-    const gallery = heroPhotosFor(brands[slideIdx]);
+    if (!brands.length) return;
+    const gallery = heroPhotosFor(brands[activeSlideIdx]);
     gallery.forEach(src => {
       if (!src || preloadedHeroImages.current.has(src)) return;
       const img = new Image();
       img.src = src;
       preloadedHeroImages.current.add(src);
     });
-    if (!brands.length) return;
-    const nextIdx = (slideIdx + 1) % brands.length;
+    const nextIdx = (activeSlideIdx + 1) % brands.length;
     heroPhotosFor(brands[nextIdx]).forEach(src => {
       if (!src || preloadedHeroImages.current.has(src)) return;
       const img = new Image();
       img.src = src;
       preloadedHeroImages.current.add(src);
     });
-  }, [slideIdx, brands, heroGallerySeed]);
+  }, [activeSlideIdx, brands, heroGallerySeed]);
 
   // Prefetch the next gallery frame before it appears
   useEffect(() => {
-    const gallery = heroPhotosFor(brands[slideIdx]);
+    const gallery = heroPhotosFor(brands[activeSlideIdx]);
     if (gallery.length <= 1) return;
     const nextSrc = gallery[(galleryIdx + 1) % gallery.length];
     if (nextSrc && !preloadedHeroImages.current.has(nextSrc)) {
@@ -184,10 +185,10 @@ export default function HomeView({
       img.src = nextSrc;
       preloadedHeroImages.current.add(nextSrc);
     }
-  }, [slideIdx, galleryIdx, brands, heroGallerySeed]);
+  }, [activeSlideIdx, galleryIdx, brands, heroGallerySeed]);
 
   const changeSlide = (newIdx) => {
-    if (animating || newIdx === slideIdx) return;
+    if (animating || newIdx === activeSlideIdx) return;
     clearInterval(autoTimer.current);
     setAnimating(true);
     setSlideIdx(newIdx);
@@ -304,8 +305,8 @@ export default function HomeView({
     const elapsed = Date.now() - st.startTime;
 
     if (Math.abs(dx) >= SWIPE_MIN_PX && Math.abs(dx) > Math.abs(dy)) {
-      if (dx < 0) changeSlide((slideIdx + 1) % brands.length);
-      else changeSlide((slideIdx - 1 + brands.length) % brands.length);
+      if (dx < 0) changeSlide((activeSlideIdx + 1) % brands.length);
+      else changeSlide((activeSlideIdx - 1 + brands.length) % brands.length);
       st.suppressTap = true;
       window.setTimeout(() => { st.suppressTap = false; }, 350);
       return;
@@ -315,7 +316,7 @@ export default function HomeView({
     if (Math.abs(dy) > TAP_MAX_MOVE_PX && Math.abs(dy) >= Math.abs(dx)) return;
     if (st.moved || st.suppressTap) return;
     if (isDeliberateTap(st)) {
-      onBrandClick(brands[slideIdx]?.id);
+      onBrandClick(brands[activeSlideIdx]?.id);
     }
   };
 
@@ -324,7 +325,7 @@ export default function HomeView({
     if (!el || !isMobile) return undefined;
     el.addEventListener('touchmove', handleHeroTouchMove, { passive: false });
     return () => el.removeEventListener('touchmove', handleHeroTouchMove);
-  }, [isMobile, slideIdx, brands.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isMobile, activeSlideIdx, brands.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleHeroMouseMove = (e) => {
     if (isMobile || !heroRef.current) return;
@@ -549,9 +550,9 @@ export default function HomeView({
           <div key={brand.id} className="hero-brand-slide" style={{
               position: 'absolute',
               inset: 0,
-              zIndex: i === slideIdx ? 2 : 1,
+              zIndex: i === activeSlideIdx ? 2 : 1,
               transition: heroTransitions ? undefined : 'none',
-              opacity: i === slideIdx ? 1 : 0,
+              opacity: i === activeSlideIdx ? 1 : 0,
               pointerEvents: 'none',
             }}
           >
@@ -568,9 +569,9 @@ export default function HomeView({
                   transition: 'transform 0.4s ease-out',
                 }}
               >
-                <div className={i === slideIdx && !isNight && !isMobile ? 'hero-gallery-stack hero-gallery-stack--float' : 'hero-gallery-stack'} style={{ position: 'absolute', inset: 0 }}>
+                <div className={i === activeSlideIdx && !isNight && !isMobile ? 'hero-gallery-stack hero-gallery-stack--float' : 'hero-gallery-stack'} style={{ position: 'absolute', inset: 0 }}>
                   {heroPhotos.map((img, gi) => {
-                    const isActiveBrand = i === slideIdx;
+                    const isActiveBrand = i === activeSlideIdx;
                     const isVisible = isActiveBrand && gi === galleryIdx;
                     return (
                       <img
@@ -603,7 +604,7 @@ export default function HomeView({
           );
         })}
         {brands.map((brand, i) => {
-          const isActive = i === slideIdx;
+          const isActive = i === activeSlideIdx;
           const slideHeadline = heroConfig.headline || brand.name;
           const slideSubheadline = heroConfig.subheadline || brand.tagline;
           const heroPillStyle = {
@@ -688,7 +689,7 @@ export default function HomeView({
           aria-label="Previous brand"
           onClick={(e) => {
             e.stopPropagation();
-            changeSlide((slideIdx - 1 + brands.length) % brands.length);
+            changeSlide((activeSlideIdx - 1 + brands.length) % brands.length);
           }}
           onPointerDown={() => setArrowPressed('prev')}
           onPointerUp={() => releaseArrowPress('prev')}
@@ -721,7 +722,7 @@ export default function HomeView({
           aria-label="Next brand"
           onClick={(e) => {
             e.stopPropagation();
-            changeSlide((slideIdx + 1) % brands.length);
+            changeSlide((activeSlideIdx + 1) % brands.length);
           }}
           onPointerDown={() => setArrowPressed('next')}
           onPointerUp={() => releaseArrowPress('next')}
@@ -749,7 +750,7 @@ export default function HomeView({
           <div className="arrow-inner" style={{ width: 38, height: 38, background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: 18 }}>›</div>
         </button>
         <div style={{ position: 'absolute', top: 14, right: 14, zIndex: 10, background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)', borderRadius: 20, padding: '3px 10px', fontSize: 10, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.08em' }}>
-          {slideIdx + 1} / {brands.length}
+          {activeSlideIdx + 1} / {brands.length}
         </div>
       </div>
 
