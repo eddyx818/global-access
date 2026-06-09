@@ -1,18 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useBrandContent } from '../lib/content';
+import { useBrandContent, pickRotatingCatalogPhotos } from '../lib/content';
 import { applyBrandOrder, saveUserBrandOrder } from '../lib/userBrandOrder';
 
 import MasterPricingNotice from './MasterPricingNotice';
 import { useTheme } from '../context/ThemeContext';
 
 const heroSlideKey = (userId) => `ga-hero-slide-${userId || 'guest'}`;
-
-/** How long each hero photo stays before crossfading to the next (same brand). */
-const HERO_GALLERY_ROTATE_MS = 6800;
-/** Opacity crossfade duration — should be shorter than rotate interval. */
-const HERO_GALLERY_FADE_MS = 2600;
-/** Max photos in the home hero rotation (brand pages still show all). */
-const HERO_GALLERY_ROTATE_MAX = 10;
 
 function readStoredHeroSlide(userId, len) {
   if (!len) return 0;
@@ -60,13 +53,33 @@ export default function HomeView({
     return customOrder ?? applyBrandOrder(allBrands, userId);
   }, [loading, customOrder, allBrands, userId]);
 
-  const catalogPhotosFor = (brand, { forHero = false } = {}) => {
+  const catalogPhotosFor = (brand) => {
     if (!brand) return [];
-    const photos = (brand.catalogGallery?.length ? brand.catalogGallery : brand.gallery) || [];
-    if (forHero && photos.length > HERO_GALLERY_ROTATE_MAX) {
-      return photos.slice(0, HERO_GALLERY_ROTATE_MAX);
+    return (brand.catalogGallery?.length ? brand.catalogGallery : brand.gallery) || [];
+  };
+
+  const heroGallerySeed = useMemo(() => {
+    try {
+      let seed = sessionStorage.getItem('ga-hero-gallery-seed');
+      if (!seed) {
+        seed = String(Date.now());
+        sessionStorage.setItem('ga-hero-gallery-seed', seed);
+      }
+      return seed;
+    } catch (_) {
+      return '0';
     }
-    return photos;
+  }, []);
+
+  const heroPhotosFor = (brand) => {
+    if (!brand) return [];
+    if (brand.featuredCatalogPhotos?.length) {
+      return pickRotatingCatalogPhotos(
+        brand.featuredCatalogPhotos,
+        `${brand.id}:hero:${heroGallerySeed}`,
+      );
+    }
+    return catalogPhotosFor(brand);
   };
 
   const heroBg = heroConfig.background_color || '#0D0D0D';
@@ -119,31 +132,27 @@ export default function HomeView({
       return undefined;
     }
     setGalleryIdx(0);
-    const gallery = catalogPhotosFor(brands[slideIdx], { forHero: true });
+    const gallery = heroPhotosFor(brands[slideIdx]);
     if (gallery.length <= 1) return undefined;
-    galleryTimer.current = setInterval(
-      () => setGalleryIdx(i => (i + 1) % gallery.length),
-      HERO_GALLERY_ROTATE_MS,
-    );
+    galleryTimer.current = setInterval(() => setGalleryIdx(i => (i + 1) % gallery.length), 2500);
     return () => clearInterval(galleryTimer.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slideIdx, visible]);
+  }, [slideIdx, visible, heroGallerySeed]);
 
   // Preload hero gallery images for the active brand (avoids pop-in on 2nd+ photo)
   useEffect(() => {
-    const gallery = catalogPhotosFor(brands[slideIdx], { forHero: true });
+    const gallery = heroPhotosFor(brands[slideIdx]);
     gallery.forEach(src => {
       if (!src || preloadedHeroImages.current.has(src)) return;
       const img = new Image();
-      img.decoding = 'async';
       img.src = src;
       preloadedHeroImages.current.add(src);
     });
-  }, [slideIdx, brands]);
+  }, [slideIdx, brands, heroGallerySeed]);
 
   // Prefetch the next gallery frame before it appears
   useEffect(() => {
-    const gallery = catalogPhotosFor(brands[slideIdx], { forHero: true });
+    const gallery = heroPhotosFor(brands[slideIdx]);
     if (gallery.length <= 1) return;
     const nextSrc = gallery[(galleryIdx + 1) % gallery.length];
     if (nextSrc && !preloadedHeroImages.current.has(nextSrc)) {
@@ -151,7 +160,7 @@ export default function HomeView({
       img.src = nextSrc;
       preloadedHeroImages.current.add(nextSrc);
     }
-  }, [slideIdx, galleryIdx, brands]);
+  }, [slideIdx, galleryIdx, brands, heroGallerySeed]);
 
   const changeSlide = (newIdx) => {
     if (animating || newIdx === slideIdx) return;
@@ -464,10 +473,9 @@ export default function HomeView({
           touch-action: none;
         }
         .hero-gallery-photo {
-          transition: opacity ${HERO_GALLERY_FADE_MS}ms ease-in-out;
+          transition: opacity 1.6s ease-in-out;
           backface-visibility: hidden;
           -webkit-backface-visibility: hidden;
-          will-change: opacity;
         }
         .hero-gallery-stack--float {
           animation: heroImgFloat 10s ease-in-out infinite;
@@ -508,21 +516,20 @@ export default function HomeView({
         }}
       >
         {brands.map((brand, i) => {
-          const heroPhotos = catalogPhotosFor(brand, { forHero: true });
-          const isActiveBrand = i === slideIdx;
+          const heroPhotos = heroPhotosFor(brand);
           return (
           <div key={brand.id} style={{
               position: 'absolute',
               inset: 0,
-              zIndex: isActiveBrand ? 2 : 0,
+              zIndex: i === slideIdx ? 2 : 0,
               transition: heroTransitions ? 'opacity 0.7s ease' : 'none',
-              opacity: isActiveBrand ? 1 : 0,
-              visibility: isActiveBrand ? 'visible' : 'hidden',
+              opacity: i === slideIdx ? 1 : 0,
+              visibility: i === slideIdx ? 'visible' : 'hidden',
               pointerEvents: 'none',
             }}
           >
             <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 20% 60%, ${brand.color}65 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, ${brand.color}30 0%, transparent 50%), ${heroBg}` }} />
-            {isActiveBrand && heroPhotos.length > 0 && (
+            {heroPhotos.length > 0 && (
               <div
                 style={{
                   position: 'absolute',
@@ -534,16 +541,17 @@ export default function HomeView({
                   transition: 'transform 0.4s ease-out',
                 }}
               >
-                <div className={!isNight && !isMobile ? 'hero-gallery-stack hero-gallery-stack--float' : 'hero-gallery-stack'} style={{ position: 'absolute', inset: 0 }}>
+                <div className={i === slideIdx && !isNight && !isMobile ? 'hero-gallery-stack hero-gallery-stack--float' : 'hero-gallery-stack'} style={{ position: 'absolute', inset: 0 }}>
                   {heroPhotos.map((img, gi) => {
-                    const isVisible = gi === galleryIdx;
+                    const isActiveBrand = i === slideIdx;
+                    const isVisible = isActiveBrand && gi === galleryIdx;
                     return (
                       <img
                         key={img}
                         src={img}
                         alt=""
                         aria-hidden="true"
-                        loading="eager"
+                        loading={isActiveBrand && gi < 2 ? 'eager' : 'lazy'}
                         decoding="async"
                         className="hero-gallery-photo"
                         style={{
@@ -554,7 +562,6 @@ export default function HomeView({
                           objectFit: 'cover',
                           opacity: isVisible ? 0.38 : 0,
                           zIndex: isVisible ? 2 : 1,
-                          pointerEvents: 'none',
                           WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)',
                           maskImage: 'linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 45%, transparent 90%)',
                         }}

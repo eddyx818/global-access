@@ -215,6 +215,7 @@ function useBrandContentState() {
 
       return {
         ...brand,
+        featuredCatalogPhotos: featuredUrls.length ? featuredUrls : null,
         tagline: override.tagline || brand.tagline,
         description: override.description || brand.description,
         color: override.color || brand.color,
