@@ -1,4 +1,4 @@
-const CACHE = 'global-access-v15';
+const CACHE = 'global-access-v16';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
