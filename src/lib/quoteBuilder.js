@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
-import { getOrCreateSupportConversation, sendMessage } from './community';
 import { getOrderPrice, getMasterOrderPrice } from './pricing';
 import { parseInquiryInterests } from './inquiries';
+import { quoteOfferWhatsAppUrl } from './inquiryWhatsApp';
 
 export function lineUnitLabel(line) {
   if (line.orderUnitLabel) return line.orderUnitLabel;
@@ -83,7 +83,7 @@ export function quoteSubtotal(lines) {
 
 export function canSendQuote(inquiry, lines) {
   if (!inquiry?.user_id) {
-    return { ok: false, reason: 'Customer needs a portal account to receive quotes in Messages.' };
+    return { ok: false, reason: 'Customer needs a portal account to receive quotes in My Quotes.' };
   }
   if (!lines.length) {
     return { ok: false, reason: 'Add at least one line item.' };
@@ -209,41 +209,31 @@ export async function updateInquiryQuoteLines(inquiryId, lines) {
   return { ok: !!data, lines: payload };
 }
 
-export async function sendQuoteToCustomer(inquiry, lines, staffUserId, { revision = 1, previousSubtotal = null } = {}) {
+export async function respondToQuote(historyId, response, { counterLines = null, counterNotes = null } = {}) {
+  const { data, error } = await supabase.rpc('customer_respond_to_quote', {
+    p_history_id: historyId,
+    p_response: response,
+    p_counter_lines: counterLines,
+    p_counter_notes: counterNotes,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: !!data };
+}
+
+export async function sendQuoteToCustomer(inquiry, lines, staffUserId, { revision = 1, previousSubtotal = null, staff = null } = {}) {
   const check = canSendQuote(inquiry, lines);
   if (!check.ok) return { ok: false, error: check.reason };
 
   const saveResult = await updateInquiryQuoteLines(inquiry.id, lines);
   if (!saveResult.ok) return saveResult;
 
-  const customerId = inquiry.user_id;
-  let convo;
-  try {
-    convo = await getOrCreateSupportConversation(customerId);
-  } catch (err) {
-    return { ok: false, error: err.message || 'Could not open customer conversation.' };
-  }
-
-  const content = formatQuoteMessage(inquiry, lines, { revision, previousSubtotal });
-  let msg;
-  try {
-    msg = await sendMessage({
-      conversationId: convo.id,
-      fromUserId: staffUserId,
-      toUserId: customerId,
-      content,
-    });
-  } catch (err) {
-    return { ok: false, error: err.message || 'Could not send quote message.' };
-  }
-
   const subtotal = quoteSubtotal(lines);
   const { data: historyId, error } = await supabase.rpc('record_inquiry_quote_send', {
     p_inquiry_id: inquiry.id,
     p_line_items: saveResult.lines,
     p_subtotal: subtotal,
-    p_conversation_id: convo.id,
-    p_message_id: msg?.id || null,
+    p_conversation_id: null,
+    p_message_id: null,
   });
   if (error) {
     const { data: marked, error: markErr } = await supabase.rpc('mark_inquiry_quoted', {
@@ -252,21 +242,21 @@ export async function sendQuoteToCustomer(inquiry, lines, staffUserId, { revisio
     if (markErr) {
       return {
         ok: false,
-        error: `${error.message} (quote message was sent — run SQL migration 41 to enable history)`,
+        error: `${error.message} (run SQL migration 41 to enable quote history)`,
       };
     }
     return {
       ok: !!marked,
-      conversationId: convo.id,
       revision,
       historySkipped: true,
+      whatsAppUrl: quoteOfferWhatsAppUrl(inquiry, saveResult.lines, staff, { revision, subtotal }),
     };
   }
 
   return {
     ok: !!historyId,
-    conversationId: convo.id,
     historyId,
     revision,
+    whatsAppUrl: quoteOfferWhatsAppUrl(inquiry, saveResult.lines, staff, { revision, subtotal }),
   };
 }

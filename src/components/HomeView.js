@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useBrandContent, pickRotatingCatalogPhotos } from '../lib/content';
-import { customerChatActionLabel, customerChatSignInHint } from '../lib/chatLabels';
 import { applyBrandOrder, saveUserBrandOrder } from '../lib/userBrandOrder';
+import { COPY } from '../lib/portalCopy';
 
 import MasterPricingNotice from './MasterPricingNotice';
 import { useTheme } from '../context/ThemeContext';
@@ -29,7 +29,6 @@ export default function HomeView({
   isStaff = false,
   isPortalUser = false,
   companyName = '',
-  chatLabel = 'Trade Desk',
   onMessageUs = null,
   onBrowseSignUp = null,
   onBrowseSignIn = null,
@@ -750,7 +749,7 @@ export default function HomeView({
               Need a brand not listed?
             </div>
             <div style={{ fontSize: isMobile ? 15 : 17, fontWeight: 600, color: t.text, lineHeight: 1.35, marginBottom: 8, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto' }}>
-              Tell us what you&apos;re sourcing — our team responds via {chatLabel}.
+              Tell us what you&apos;re sourcing — we follow up on WhatsApp and post quotes in {COPY.myQuotes}.
             </div>
             <div style={{ fontSize: isMobile ? 13 : 14, color: t.textMuted, lineHeight: 1.6, maxWidth: 520, margin: '0 auto 1.25rem' }}>
               {onBrowseSignUp
@@ -774,7 +773,7 @@ export default function HomeView({
                     fontFamily: 'inherit',
                   }}
                 >
-                  {customerChatActionLabel(chatLabel)}
+                  {COPY.myQuotes}
                 </button>
               ) : onBrowseSignUp ? (
                 <>
@@ -817,7 +816,7 @@ export default function HomeView({
                 </>
               ) : (
                 <div style={{ fontSize: 13, color: t.textFaint, lineHeight: 1.55 }}>
-                  {customerChatSignInHint(chatLabel, { short: true })}
+                  Sign in to track quotes in {COPY.myQuotes}, or submit from any brand page.
                 </div>
               )}
             </div>
@@ -833,7 +832,7 @@ export default function HomeView({
           {!isStaff && onMessageUs ? (
             <>
               <br />
-              Drop a message anytime in{' '}
+              Drop a note in{' '}
               <button
                 type="button"
                 onClick={onMessageUs}
@@ -850,14 +849,14 @@ export default function HomeView({
                   textUnderlineOffset: 3,
                 }}
               >
-                {chatLabel}
+                {COPY.myQuotes}
               </button>
-              {' '}— questions, sourcing, anything — or request pricing from your quote list.
+              {' '}— or request pricing from your quote list.
             </>
           ) : !isStaff ? (
             <>
               <br />
-              {customerChatSignInHint(chatLabel)}
+              Sign in to track quotes in {COPY.myQuotes}, or request pricing from any brand page.
             </>
           ) : null}
         </div>

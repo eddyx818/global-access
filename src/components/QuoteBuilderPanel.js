@@ -34,6 +34,7 @@ function formatWhen(iso) {
 export default function QuoteBuilderPanel({
   inquiry,
   staffUserId,
+  staffProfile = null,
   customerUserId = null,
   onUpdated,
   onSent,
@@ -49,6 +50,7 @@ export default function QuoteBuilderPanel({
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState('');
+  const [whatsAppUrlAfterSend, setWhatsAppUrlAfterSend] = useState('');
   const [error, setError] = useState('');
 
   const wasQuoted = inquiry?.quote_status === 'quoted' || inquiry?.quote_status === 'closed';
@@ -120,32 +122,34 @@ export default function QuoteBuilderPanel({
       return;
     }
     const confirmText = wasQuoted || history.length
-      ? `Send revised quote (#${nextRevision}) to the customer's Messages inbox?`
-      : 'Send this quote to the customer\'s Messages inbox?';
+      ? `Publish revised quote (#${nextRevision}) to the customer's My Quotes?`
+      : 'Publish this quote to the customer\'s My Quotes?';
     if (!window.confirm(confirmText)) return;
     setSending(true);
     setError('');
     setMessage('');
+    setWhatsAppUrlAfterSend('');
     const result = await sendQuoteToCustomer(inquiry, lines, staffUserId, {
       revision: nextRevision,
       previousSubtotal: lastSent?.subtotal ?? null,
+      staff: staffProfile,
     });
     setSending(false);
     if (!result.ok) {
       setError(result.error || 'Could not send quote.');
       return;
     }
+    if (result.whatsAppUrl) setWhatsAppUrlAfterSend(result.whatsAppUrl);
     setMessage(
       result.historySkipped
-        ? 'Quote sent to customer. Run SQL migration 41 to enable quote history tracking.'
-        : (wasQuoted || history.length ? `Revised quote #${result.revision} sent.` : 'Quote sent to customer.')
+        ? 'Quote saved for customer. Run SQL migration 41 to enable quote history tracking.'
+        : (wasQuoted || history.length ? `Quote #${result.revision} published to My Quotes.` : 'Quote published to My Quotes.')
     );
     await loadAll();
     onSent?.({
       ...inquiry,
       interests: lines,
       quote_status: 'quoted',
-      conversationId: result.conversationId,
     });
   };
 
@@ -321,7 +325,7 @@ export default function QuoteBuilderPanel({
 
               {!inquiry.user_id && (
                 <div style={{ fontSize: 11, color: t.warningText, marginTop: 10, lineHeight: 1.45 }}>
-                  Guest request — customer must have a portal account before you can send a quote to Messages.
+                  Guest request — customer must have a portal account before you can publish a quote to My Quotes.
                 </div>
               )}
 
@@ -330,6 +334,13 @@ export default function QuoteBuilderPanel({
               )}
               {message && (
                 <div style={{ fontSize: 11, color: t.successText, marginTop: 10, lineHeight: 1.45 }}>{message}</div>
+              )}
+              {whatsAppUrlAfterSend && (
+                <div style={{ marginTop: 10 }}>
+                  <a href={whatsAppUrlAfterSend} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#25D366', color: '#fff', textDecoration: 'none', borderRadius: 10, padding: '12px 14px', fontSize: 13, fontWeight: 700, fontFamily: 'inherit' }}>
+                    Open WhatsApp · Quote Message
+                  </a>
+                </div>
               )}
 
               <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>

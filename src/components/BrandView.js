@@ -5,8 +5,11 @@ import { minQtyForProduct, formatOrderUnitLabel, getOrderUnitHeading, getProduct
 import { subscribeStockNotify, fetchMyStockAlerts, stockAlertKey } from '../lib/stockNotify';
 import { useTheme } from '../context/ThemeContext';
 import { useBrandContent } from '../lib/content';
+import { DROP_SHIP_NOTICE } from '../lib/catalogPricing';
+import { COPY } from '../lib/portalCopy';
+import { PortalCallout } from './PortalChrome';
 
-export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, updateInterestLine, isInterested, interests, onSubmit, isMobile, hasBottomNav = false, enableQuoteFlow = true, staffPriceCheck = false, masterPricingQualified = false, pricingVisible = true, onSignIn, onRequestAccess, chatLabel = 'Trade Desk' }) {
+export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, updateInterestLine, isInterested, interests, onSubmit, isMobile, hasBottomNav = false, enableQuoteFlow = true, staffPriceCheck = false, masterPricingQualified = false, pricingVisible = true, showCatalogPrices = true, onSignIn, onRequestAccess }) {
   const { t, isNight } = useTheme();
   const { bgColor } = useBrandContent();
   const [lightbox, setLightbox] = useState(null);
@@ -346,9 +349,17 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
         </div>
       )}
 
-      <div style={{ background: brand.color + '12', border: `0.5px solid ${brand.color}33`, borderRadius: 10, padding: '10px 14px', marginBottom: '1.25rem', fontSize: 13, color: '#666' }}>
-        👇 Tap options below to build your quote list — we will follow up in {chatLabel} with pricing and availability.
-      </div>
+      <PortalCallout style={{ marginBottom: '1rem', fontSize: 12 }}>
+        <strong style={{ color: t.textSecondary, letterSpacing: '0.04em' }}>{COPY.dropShip} · </strong>
+        {DROP_SHIP_NOTICE}
+      </PortalCallout>
+
+      <PortalCallout accentColor={brand.color} style={{ marginBottom: '1.25rem' }}>
+        Select flavors and quantities below, then submit from <strong style={{ color: t.text }}>{COPY.myList}</strong>.
+        {showCatalogPrices && pricingVisible
+          ? ' List rates shown where available — final quote confirmed in My Quotes.'
+          : ` Pricing confirmed in ${COPY.myQuotes} or on WhatsApp.`}
+      </PortalCallout>
       {notifyMsg && (
         <div style={{ background: t.successBg, border: `0.5px solid ${t.successBorder}`, borderRadius: 10, padding: '10px 14px', marginBottom: '1rem', fontSize: 12, color: t.successText }}>
           {notifyMsg}
@@ -396,6 +407,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
                   orderMode={currentMode}
                   masterPricingQualified={masterPricingQualified}
                   pricingVisible={pricingVisible}
+                  showCatalogPrices={staffPriceCheck ? true : showCatalogPrices}
                   onSignIn={onSignIn}
                   onRequestAccess={onRequestAccess}
                 />
@@ -656,10 +668,10 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
           zIndex: 50,
           boxSizing: 'border-box',
         }}>
-          <button onClick={onSubmit} style={{ width: '100%', maxWidth: 760, margin: '0 auto', display: 'block', background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em', fontFamily: 'inherit' }}>
+          <button onClick={onSubmit} style={{ width: '100%', maxWidth: 760, margin: '0 auto', display: 'block', background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.05em', fontFamily: 'inherit' }}>
             {staffPriceCheck
-              ? `Price check (${interests.length} item${interests.length !== 1 ? 's' : ''}) →`
-              : `Request quote (${interests.length} item${interests.length !== 1 ? 's' : ''}) →`}
+              ? `${COPY.priceCheck} · ${interests.length} ${interests.length === 1 ? 'Item' : 'Items'} →`
+              : `${COPY.requestQuote} · ${interests.length} ${interests.length === 1 ? 'Item' : 'Items'} →`}
           </button>
         </div>
       )}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { COPY, portalType } from '../lib/portalCopy';
 
 export default function MobileBottomNav({
   activeView,
@@ -16,12 +17,15 @@ export default function MobileBottomNav({
   unread = 0,
   chatLabel = 'Support',
   showList = true,
-  listLabel = 'My List',
+  listLabel = COPY.myList,
   showQuotes = false,
   showPriceChecks = false,
-  showChat = true,
+  onMyQuotes = null,
+  myQuotesCount = 0,
+  showMyQuotes = false,
+  showChat = false,
   showProfile = true,
-  homeLabel = 'Home',
+  homeLabel = COPY.home,
 }) {
   const { t } = useTheme();
 
@@ -30,8 +34,9 @@ export default function MobileBottomNav({
   const items = [
     { id: 'home', label: homeLabel, icon: '⌂', onClick: onHome, active: activeView === 'home' || activeView === 'brand' },
     showList && { id: 'list', label: listLabel, icon: '☰', onClick: onList, active: activeView === 'interest', badge: listCount || null },
-    showQuotes && { id: 'quotes', label: 'Quotes', icon: '📋', onClick: onQuotes, active: activeView === 'quotes', badge: quotesCount || null },
-    showPriceChecks && { id: 'price_checks', label: 'Price Check', icon: '💰', onClick: onPriceChecks, active: activeView === 'price_checks', badge: priceCheckBadge || null },
+    showQuotes && { id: 'quotes', label: COPY.quotes, icon: '📋', onClick: onQuotes, active: activeView === 'quotes', badge: quotesCount || null },
+    showPriceChecks && { id: 'price_checks', label: COPY.priceCheck, icon: '◇', onClick: onPriceChecks, active: activeView === 'price_checks', badge: priceCheckBadge || null },
+    showMyQuotes && { id: 'my_quotes', label: COPY.myQuotes, icon: '✦', onClick: onMyQuotes, active: activeView === 'my_quotes', badge: myQuotesCount || null },
     showChat && { id: 'chat', label: chatLabel, icon: '💬', onClick: onChat, active: activeView === 'chat', badge: unread || null, accent: true },
     showProfile && { id: 'profile', label: 'Profile', icon: '👤', onClick: onProfile, active: activeView === 'profile' },
   ].filter(Boolean);
@@ -85,9 +90,7 @@ export default function MobileBottomNav({
               {item.icon}
             </span>
             <span style={{
-              fontSize: 10,
-              fontWeight: item.active ? 700 : 500,
-              letterSpacing: '0.02em',
+              ...(item.active ? portalType.navLabelActive : portalType.navLabel),
               color: item.active ? (item.accent ? t.accentDark : t.text) : t.textFaint,
             }}>
               {item.label}

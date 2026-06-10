@@ -1,4 +1,3 @@
-export const WHATSAPP_NUMBER = "18183199888";
 export const ACCESS_CODE = "globalaccess777";
 
 // orderUnit: what distributors order by — 'pallet' | 'master_case' | 'both'

@@ -12,6 +12,7 @@ import {
 import { playMessageSound, vibrateDevice } from '../lib/messageAlerts';
 import { subscribeToPushNotifications, isPushSupported } from '../lib/pushNotifications';
 import { useTheme } from '../context/ThemeContext';
+import { PHONE_PLACEHOLDER } from '../lib/catalogPricing';
 import { APP_SESSION_HINT } from '../lib/appSession';
 import { validateAppointmentSlot, minAppointmentDateStr, SUPPORT_AVAILABILITY } from '../lib/appointments';
 import ThemeToggle from './ThemeToggle';
@@ -346,7 +347,7 @@ export default function ProfileModal({
             style={{ ...inputStyle, opacity: field === 'email' ? 0.5 : 1 }}
             autoCapitalize={field === 'email' ? 'none' : 'words'}
             inputMode={field === 'phone' ? 'tel' : field === 'email' ? 'email' : 'text'}
-            placeholder={field === 'phone' ? '+1 (818) 319-9888 or +44 7911 123456' : undefined}
+            placeholder={field === 'phone' ? PHONE_PLACEHOLDER : undefined}
           />
         </div>
       ))}

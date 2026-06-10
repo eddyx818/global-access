@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import ChatSidebar from './messaging/ChatSidebar';
 import CustomerDirectory from './CustomerDirectory';
 import ContactImportPanel from './ContactImportPanel';
 import ReferralTracker from './ReferralTracker';
 import DashboardProfilePanel from './DashboardProfilePanel';
-import { useUnreadCount } from '../hooks/useUnreadCount';
 import { useTheme } from '../context/ThemeContext';
+import { COPY } from '../lib/portalCopy';
 
 const tabBtn = (active, theme) => ({
   background: active ? theme.btnPrimaryBg : theme.bgElevated,
@@ -19,13 +18,9 @@ const tabBtn = (active, theme) => ({
   fontWeight: active ? 600 : 400,
 });
 
-export default function StaffDashboard({ user, profile, onLogout, onViewCatalog, initialTab = 'messages' }) {
+export default function StaffDashboard({ user, profile, onLogout, onViewCatalog, initialTab = 'profile' }) {
   const { t } = useTheme();
   const [tab, setTab] = useState(initialTab);
-  const { unread, refresh: refreshUnread } = useUnreadCount(user?.id, {
-    isSalesRep: true,
-    enabled: !!user?.id,
-  });
 
   return (
     <div className="app-no-select app-dashboard-shell" style={{ minHeight: '100vh', background: t.bg, fontFamily: "'DM Sans', sans-serif", color: t.text, transition: 'background 0.35s ease' }}>
@@ -46,7 +41,7 @@ export default function StaffDashboard({ user, profile, onLogout, onViewCatalog,
               onClick={onViewCatalog}
               style={{ background: t.gold, color: '#1A1A1A', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
             >
-              Price check catalog
+              {COPY.priceCheck} Catalog
             </button>
           )}
           <button onClick={onLogout} style={{ background: 'transparent', border: `0.5px solid ${t.border}`, color: t.headerMuted, borderRadius: 8, padding: '8px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -59,7 +54,6 @@ export default function StaffDashboard({ user, profile, onLogout, onViewCatalog,
         <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', flexWrap: 'wrap' }}>
           {[
             ['profile', 'Profile'],
-            ['messages', unread > 0 ? `Messages (${unread})` : 'Messages'],
             ['signups', 'Sign-up progress'],
             ['customers', 'My customers'],
             ['contacts', 'Contact list'],
@@ -70,19 +64,6 @@ export default function StaffDashboard({ user, profile, onLogout, onViewCatalog,
 
         {tab === 'profile' && (
           <DashboardProfilePanel user={user} isStaff />
-        )}
-
-        {tab === 'messages' && (
-          <div style={{ background: t.bgElevated, border: t.borderHairlineLight, borderRadius: 12, minHeight: 480, overflow: 'hidden' }}>
-            <ChatSidebar
-              user={user}
-              open
-              variant="page"
-              isSalesRep
-              onUnreadChange={refreshUnread}
-              profileComplete
-            />
-          </div>
         )}
 
         {tab === 'signups' && (

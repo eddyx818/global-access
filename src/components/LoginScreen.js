@@ -9,6 +9,7 @@ import { isValidRequestEmail, isValidPhone, getPhoneValidationError, isHoneypotC
 import { validatePersonName, validateCompanyName } from '../lib/nameValidation';
 import AccessWaitingRoom from './AccessWaitingRoom';
 import { useTheme } from '../context/ThemeContext';
+import { PHONE_PLACEHOLDER } from '../lib/catalogPricing';
 import AddressFields, { EMPTY_ADDRESS } from './AddressFields';
 import { formatFullAddress } from '../lib/addressFormat';
  
@@ -469,7 +470,7 @@ export default function LoginScreen({ onCodeVerified, onLoggedIn, onRequestAcces
                 {[['email', 'Email *'], ['phone', 'Phone / WhatsApp *']].map(([field, label]) => (
                   <div key={field}>
                     <label style={labelStyle}>{label}</label>
-                    <input value={reqForm[field]} onChange={e => setReq(field, e.target.value)} style={inputStyle} autoCapitalize={field === 'email' ? 'none' : 'words'} inputMode={field === 'email' ? 'email' : 'tel'} placeholder={field === 'phone' ? '+1 (818) 319-9888 or +44 7911 123456' : undefined} />
+                    <input value={reqForm[field]} onChange={e => setReq(field, e.target.value)} style={inputStyle} autoCapitalize={field === 'email' ? 'none' : 'words'} inputMode={field === 'email' ? 'email' : 'tel'} placeholder={field === 'phone' ? PHONE_PLACEHOLDER : undefined} />
                   </div>
                 ))}
               </div>

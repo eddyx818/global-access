@@ -13,6 +13,8 @@ import {
   countNewPriceChecks,
 } from '../lib/priceChecks';
 import { useTheme } from '../context/ThemeContext';
+import { COPY } from '../lib/portalCopy';
+import { PortalPageHeader, PortalSectionLabel } from './PortalChrome';
 
 function formatWhen(iso) {
   if (!iso) return '';
@@ -162,15 +164,14 @@ export default function StaffPriceCheckView({
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: t.bg, overflow: 'hidden' }}>
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: isMobile ? '10px 1rem calc(1rem + var(--ga-inset-bottom))' : '1rem 1.25rem' }}>
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: '0.04em', color: t.text }}>Price check</div>
-          <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4, lineHeight: 1.45 }}>
-            Internal pricing requests for the whole team — add SKUs from the catalog, name the store, and paste customer target rates.
-          </div>
-        </div>
+        <PortalPageHeader
+          title={COPY.priceCheck}
+          subtitle="Internal pricing requests — add SKUs from the catalog and share target rates with the team."
+          style={{ marginBottom: 16 }}
+        />
 
         <div style={{ ...cardStyle, marginBottom: 20 }}>
-          <div style={{ fontSize: 11, color: t.textFaint, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>New price check</div>
+          <PortalSectionLabel>New {COPY.priceCheck}</PortalSectionLabel>
           <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6 }}>Store / account name</label>
           <input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder="e.g. Joe's Market · ABC Distributors" style={{ ...inputStyle, marginBottom: 12 }} />
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>

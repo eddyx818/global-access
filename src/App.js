@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
 import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, getPortalReferral } from './lib/session';
 import { getRememberLogin, getSavedLogin } from './lib/loginPrefs';
-import { updateUserPresence, ensurePortalAdminFlag, submitInterestToSupport, isProfileComplete, isLegacyAdminEmail } from './lib/community';
-import { resolveCustomerChatLabel, staffChatLabel } from './lib/chatLabels';
+import { updateUserPresence, ensurePortalAdminFlag, isProfileComplete, isLegacyAdminEmail } from './lib/community';
 import { useBrandContent } from './lib/content';
 import { getFontFamily } from './lib/design';
 import LoginScreen from './components/LoginScreen';
@@ -14,21 +13,19 @@ import { InterestView, ThanksView } from './components/InterestView';
 import AdminDashboard from './components/AdminDashboard';
 import StaffDashboard from './components/StaffDashboard';
 import ProfileModal from './components/ProfileModal';
-import ChatSidebar from './components/messaging/ChatSidebar';
-import ChatErrorBoundary from './components/ChatErrorBoundary';
 import MobileBottomNav from './components/MobileBottomNav';
 import InstallAppBanner from './components/InstallAppBanner';
-import { useUnreadCount } from './hooks/useUnreadCount';
-import { useMessageAlerts } from './hooks/useMessageAlerts';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import useVisualViewportInset from './hooks/useVisualViewportInset';
-import useMobileChatComposeLock from './hooks/useMobileChatComposeLock';
 import { getNotificationPermission } from './lib/notificationPrefs';
 import { subscribeToPushNotifications } from './lib/pushNotifications';
 import { canAccessPortal } from './lib/authGate';
 import { isHoneypotClean, isValidPhone, getPhoneValidationError } from './lib/accessRequestGate';
 import { validatePersonName, validateCompanyName } from './lib/nameValidation';
 import { hasCallablePhone, normalizePhoneE164 } from './lib/whatsapp';
+import { getSupportWhatsAppLink, hasSupportWhatsApp } from './lib/supportContact';
+import { shouldShowCatalogPrices, PHONE_PLACEHOLDER } from './lib/catalogPricing';
+import { COPY } from './lib/portalCopy';
 import { useTheme } from './context/ThemeContext';
 import {
   clearAppNavigation,
@@ -37,6 +34,7 @@ import {
   saveAppNavigation,
 } from './lib/appNavigation';
 import StaffQuotesView from './components/StaffQuotesView';
+import CustomerQuotesView from './components/CustomerQuotesView';
 import StaffPriceCheckView from './components/StaffPriceCheckView';
 import { fetchRecentInquiries } from './lib/inquiries';
 import { fetchRecentPriceChecks, countNewPriceChecks } from './lib/priceChecks';
@@ -83,7 +81,11 @@ export default function App() {
   const [interests, setInterests] = useState([]);
   const [masterPricingQualified, setMasterPricingQualified] = useState(false);
   const [masterPricingInterest, setMasterPricingInterest] = useState(false);
-  const [form, setForm] = useState({ name: '', company: '', phone: '', email: '', notes: '' });
+  const [form, setForm] = useState({
+    name: '', company: '', phone: '', email: '', notes: '',
+    contactRequested: true, readyToOrder: false, pricingQuestions: false,
+  });
+  const [lastSubmittedReadyToOrder, setLastSubmittedReadyToOrder] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [loginInitialMode, setLoginInitialMode] = useState(null);
@@ -91,14 +93,10 @@ export default function App() {
   const [submitError, setSubmitError] = useState('');
   const [showProfile, setShowProfile] = useState(false);
   const [profileGate, setProfileGate] = useState(null);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatInThread, setChatInThread] = useState(false);
-  const [chatComposeActive, setChatComposeActive] = useState(false);
-  const [openSupportOnLoad, setOpenSupportOnLoad] = useState(0);
   const [isPortalAdmin, setIsPortalAdmin] = useState(false);
   const [isSalesRep, setIsSalesRep] = useState(false);
   const [staffProfile, setStaffProfile] = useState(null);
-  const { getMergedBrands, loadContent, bgColor, globalStyles, navigation, customerChatLabel } = useBrandContent();
+  const { getMergedBrands, loadContent, bgColor, globalStyles, navigation } = useBrandContent();
   useEffect(() => {
     if (authState === 'admin' && adminMode === 'portal') {
       loadContent();
@@ -108,11 +106,6 @@ export default function App() {
     }
   }, [authState, adminMode, repMode, loadContent]);
 
-  const { unread: chatUnread, refresh: refreshUnread } = useUnreadCount(user?.id, {
-    isAdmin: isPortalAdmin,
-    isSalesRep,
-    enabled: !!user?.id,
-  });
   const { canInstall, showIosHint, isInstalled, install } = usePwaInstall();
   const [quotesNewCount, setQuotesNewCount] = useState(0);
   const [priceCheckNewCount, setPriceCheckNewCount] = useState(0);
@@ -125,10 +118,12 @@ export default function App() {
   const showCustomerList = showCustomerShopping && !isStaffCatalogPortal;
   const showStaffTools = isStaffPortalUser && !isStaffCatalogPortal;
 
-  /** Legacy saved `inbox` has no screen — map to quotes/home for render until state recovers. */
+  /** Legacy saved `inbox` / `chat` routes — map to quotes or my_quotes. */
   const resolvedView = view === 'inbox'
-    ? (isStaffPortalUser ? 'quotes' : 'home')
-    : view;
+    ? (isStaffPortalUser ? 'quotes' : 'my_quotes')
+    : view === 'chat'
+      ? (isStaffPortalUser ? 'quotes' : 'my_quotes')
+      : view;
 
   const inPortalView = authState === 'portal' || authState === 'browse'
     || (authState === 'admin' && adminMode === 'portal')
@@ -141,49 +136,10 @@ export default function App() {
   const showMobileNav = mobileShell && !!user;
   const keyboardInset = useVisualViewportInset(mobileShell);
   const keyboardOpen = keyboardInset > 40;
-  const showMobileBottomNav = showMobileNav
-    && !(view === 'chat' && chatInThread)
-    && !keyboardOpen;
+  const showMobileBottomNav = showMobileNav && !keyboardOpen;
   const portalTopChrome = showInstallBanner || authState === 'browse';
-  const chatLabel = isPortalAdmin || isSalesRep ? staffChatLabel() : resolveCustomerChatLabel(customerChatLabel);
-
-  const openChat = () => {
-    if (user && !isPortalAdmin && !isProfileComplete(form)) {
-      setProfileGate('chat');
-      setShowProfile(false);
-      if (mobileShell) setView('profile');
-      else setShowProfile(true);
-      return;
-    }
-    setShowProfile(false);
-    setProfileGate(null);
-    if (mobileShell) setView('chat');
-    else setChatOpen(true);
-  };
-
-  /** Home/footer CTA — open Trade Desk with a fresh session (does not resurrect archived threads). */
-  const openMessageTradeDesk = () => {
-    if (user && !isPortalAdmin && !isProfileComplete(form)) {
-      setProfileGate('chat');
-      setShowProfile(false);
-      if (mobileShell) setView('profile');
-      else setShowProfile(true);
-      return;
-    }
-    setShowProfile(false);
-    setProfileGate(null);
-    setOpenSupportOnLoad(n => n + 1);
-    if (mobileShell) setView('chat');
-    else setChatOpen(true);
-  };
-
-  const clearOpenSupportOnLoad = () => setOpenSupportOnLoad(0);
-
-  const closeChat = () => {
-    setChatOpen(false);
-    setChatInThread(false);
-    if (view === 'chat') setView(activeBrand ? 'brand' : 'home');
-  };
+  const isPortalCustomer = authState === 'portal' && !!user && !isStaffPortalUser;
+  const showCatalogPrices = shouldShowCatalogPrices();
 
   const closeProfile = () => {
     setProfileGate(null);
@@ -201,11 +157,7 @@ export default function App() {
       const gate = profileGate;
       setProfileGate(null);
       setShowProfile(false);
-      if (gate === 'chat') {
-        setOpenSupportOnLoad(n => n + 1);
-        if (mobileShell) setView('chat');
-        else setChatOpen(true);
-      } else if (gate === 'quote') {
+      if (gate === 'quote') {
         doSubmit();
       }
     }
@@ -254,7 +206,12 @@ export default function App() {
     setProfileGate(null);
     if (view === 'brand') saveBrandScroll();
     if (isProfileComplete(form)) {
-      setForm(f => ({ ...f, notes: '' }));
+      setForm(f => ({
+        ...f,
+        notes: '',
+        readyToOrder: false,
+        pricingQuestions: false,
+      }));
     }
     setView('interest');
   };
@@ -285,21 +242,16 @@ export default function App() {
     setView('price_checks');
   };
 
+  const navigateMyQuotes = () => {
+    setShowProfile(false);
+    setProfileGate(null);
+    setView('my_quotes');
+  };
+
   const navigateProfile = () => {
     setProfileGate(null);
     openProfile();
   };
-
-  const chatActive = (mobileShell && view === 'chat') || chatOpen;
-
-  useMessageAlerts({
-    userId: user?.id,
-    isAdmin: isPortalAdmin,
-    isSalesRep,
-    enabled: !!user?.id && inPortalView,
-    unread: chatUnread,
-    onOpenChat: openChat,
-  });
 
   const mobileContentPad = showMobileBottomNav
     ? { paddingBottom: 'var(--ga-bottom-nav-height)' }
@@ -325,10 +277,7 @@ export default function App() {
     if (!user || !inPortalView) return;
 
     if (view === 'chat') {
-      if (!mobileShell) {
-        setChatOpen(true);
-        setView(activeBrand ? 'brand' : 'home');
-      }
+      setView(isStaffPortalUser ? 'quotes' : (user ? 'my_quotes' : 'home'));
       return;
     }
 
@@ -348,12 +297,16 @@ export default function App() {
       setView('home');
     }
 
+    if (view === 'my_quotes' && (!user || isStaffPortalUser)) {
+      setView('home');
+    }
+
     if (view === 'price_checks' && !isStaffPortalUser) {
       setView('home');
     }
 
     if (view === 'inbox') {
-      setView(isStaffPortalUser ? 'quotes' : 'home');
+      setView(isStaffPortalUser ? 'quotes' : 'my_quotes');
     }
 
     if (view === 'interest' && !showCustomerList) {
@@ -378,45 +331,6 @@ export default function App() {
       ? `calc(100dvh - ${mobileNavHeight}${mobileBottomOffset})`
       : undefined,
   };
-
-  useEffect(() => {
-    if (view !== 'chat') setChatInThread(false);
-  }, [view]);
-
-  useEffect(() => {
-    if (view !== 'chat' || !chatInThread) setChatComposeActive(false);
-  }, [view, chatInThread]);
-
-  useMobileChatComposeLock({
-    enabled: mobileShell,
-    active: chatComposeActive,
-    inThread: view === 'chat' && chatInThread,
-  });
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle('chat-thread-open', mobileShell && view === 'chat' && chatInThread);
-    root.classList.toggle('chat-keyboard-open', mobileShell && keyboardOpen);
-    return () => {
-      root.classList.remove('chat-thread-open', 'chat-keyboard-open');
-    };
-  }, [mobileShell, view, chatInThread, keyboardOpen]);
-
-  const requireProfileForChat = () => {
-    setProfileGate('chat');
-    if (mobileShell) setView('profile');
-    else setShowProfile(true);
-  };
-
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-    const onMessage = (event) => {
-      if (event.data?.type === 'OPEN_CHAT') openChat();
-    };
-    navigator.serviceWorker.addEventListener('message', onMessage);
-    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (!user?.id || !inPortalView || !isMobileDevice) return;
@@ -474,7 +388,6 @@ export default function App() {
     setActiveBrand(null);
     setAdminMode('dashboard');
     setRepMode('dashboard');
-    setChatOpen(false);
     setShowProfile(false);
     setProfileGate(null);
     if (typeof window !== 'undefined') {
@@ -839,7 +752,6 @@ export default function App() {
     setAdminMode('dashboard');
     setView('home');
     setActiveBrand(null);
-    setChatOpen(false);
     setShowProfile(false);
     setProfileGate(null);
     clearAppSession();
@@ -908,6 +820,9 @@ export default function App() {
       notes: form.notes,
       interests,
       master_pricing_interest: masterPricingInterest,
+      contact_requested: form.contactRequested !== false,
+      ready_to_order: !!form.readyToOrder,
+      pricing_questions: !!form.pricingQuestions,
       user_type: userType,
       quote_status: 'new',
       created_at: new Date().toISOString(),
@@ -918,13 +833,8 @@ export default function App() {
       if (showSignupPrompt) setSignupPromptError(msg);
       return;
     }
-    if (user?.id) {
-      try {
-        await submitInterestToSupport(user.id, { form, interests, userType, masterPricingInterest });
-        setOpenSupportOnLoad(n => n + 1);
-      } catch (_) {}
-    }
     setShowSignupPrompt(false);
+    setLastSubmittedReadyToOrder(!!form.readyToOrder);
     setView('thanks');
   };
 
@@ -1018,7 +928,6 @@ export default function App() {
       />
     );
   }
-  const showAdminDesktopChat = user && authState === 'admin' && adminMode === 'portal' && !mobileShell;
 
   return (
     <>
@@ -1027,11 +936,6 @@ export default function App() {
         user={user}
         onLogout={handleLogout}
         onViewPortal={() => setAdminMode('portal')}
-        onOpenMessages={() => {
-          setAdminMode('portal');
-          setView('chat');
-        }}
-        messagesUnread={chatUnread}
       />
     ) : (
     <div className="app-viewport app-no-select" style={{ background: isNight ? t.bg : (bgColor || t.bg), fontFamily: getFontFamily(globalStyles.font_family), color: isNight ? t.text : (globalStyles.primary_color || t.text), transition: 'background 0.35s ease, color 0.35s ease', display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: '100dvh' }}>
@@ -1065,12 +969,9 @@ export default function App() {
         onNavClick={handleNavClick}
         onHome={navigateHome}
         onProfile={user && !showMobileNav && !isStaffCatalogPortal ? openProfile : null}
-        onChat={user && !showMobileNav ? openChat : null}
-        chatLabel={chatLabel}
         isMobile={isMobile || isMobileDevice}
         hideMobileActions={showMobileNav}
         includeSafeAreaTop={isMobileDevice && !portalTopChrome}
-        unread={chatUnread}
         showCustomerList={showCustomerList}
         onQuotes={isStaffPortalUser ? navigateQuotes : null}
         onPriceChecks={isStaffCatalogPortal ? navigatePriceChecks : null}
@@ -1085,28 +986,6 @@ export default function App() {
         onPreviewUserTypeChange={setUserType}
         onStaffHomeClick={isRepCatalog ? openRepDashboard : null}
       />
-      {user && !mobileShell && authState !== 'admin' && (
-        <ChatErrorBoundary onFallback={navigateHome}>
-          <ChatSidebar
-            user={user}
-            open={chatOpen}
-            onClose={() => setChatOpen(false)}
-            isAdmin={isPortalAdmin}
-            isSalesRep={isSalesRep}
-            onUnreadChange={refreshUnread}
-            profileComplete={isProfileComplete(form)}
-            onRequireProfile={requireProfileForChat}
-            openSupportOnLoad={openSupportOnLoad}
-            onSupportOpened={clearOpenSupportOnLoad}
-            customerChatLabel={chatLabel}
-            openSupportFreshSession
-            desktopFloat={!isMobileDevice}
-            onPriceCheckSubmitted={() => {
-              fetchRecentPriceChecks(50).then(rows => setPriceCheckNewCount(countNewPriceChecks(rows)));
-            }}
-          />
-        </ChatErrorBoundary>
-      )}
       {showProfile && !mobileShell && (
         <ProfileModal
           user={user}
@@ -1128,12 +1007,12 @@ export default function App() {
       {showSignupPrompt && (
         <div style={{ position: 'fixed', inset: 0, background: t.overlay, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
           <div style={{ background: t.bgElevated, borderRadius: 20, padding: '2rem', maxWidth: 420, width: '100%', boxShadow: `0 24px 64px ${t.shadow}` }}>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: '0.04em', color: t.text, marginBottom: 6 }}>Ready to connect?</div>
-            <p style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.6, marginBottom: '1.5rem' }}>Request a quote from your list here. Our team will follow up in {chatLabel} with pricing and availability.</p>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, letterSpacing: '0.06em', color: t.text, marginBottom: 6 }}>{COPY.requestQuote}</div>
+            <p style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.65, marginBottom: '1.5rem' }}>Tell us what you need — we follow up on WhatsApp and post pricing in {COPY.myQuotes}.</p>
             {[['name','Your name *'],['company','Company / Store *'],['phone','Phone / WhatsApp *'],['email','Email']].map(([field, label]) => (
               <div key={field} style={{ marginBottom: '0.875rem' }}>
                 <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
-                <input value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} style={{ width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '11px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} autoCapitalize={field === 'email' ? 'none' : 'words'} inputMode={field === 'phone' ? 'tel' : field === 'email' ? 'email' : 'text'} placeholder={field === 'phone' ? '+1 (818) 319-9888 or +44 7911 123456' : undefined} />
+                <input value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} style={{ width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '11px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} autoCapitalize={field === 'email' ? 'none' : 'words'} inputMode={field === 'phone' ? 'tel' : field === 'email' ? 'email' : 'text'} placeholder={field === 'phone' ? PHONE_PLACEHOLDER : undefined} />
               </div>
             ))}
             {signupPromptError && (
@@ -1145,7 +1024,7 @@ export default function App() {
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: '1.25rem' }}>
               <button onClick={() => { setShowSignupPrompt(false); setSignupPromptError(''); }} style={{ flex: 1, background: 'none', border: t.borderHairline, borderRadius: 10, padding: '12px', fontSize: 13, color: t.textFaint, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
-              <button onClick={doSubmit} style={{ flex: 2, background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 10, padding: '12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Request quote</button>
+              <button onClick={doSubmit} style={{ flex: 2, background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 10, padding: '12px', fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', fontFamily: 'inherit' }}>{COPY.requestQuote}</button>
             </div>
           </div>
         </div>
@@ -1167,45 +1046,15 @@ export default function App() {
             isStaff={isStaffPortalUser}
             isPortalUser={authState === 'portal' && !!user && !isStaffPortalUser}
             companyName={authState === 'portal' ? form.company : ''}
-            chatLabel={chatLabel}
-            onMessageUs={authState === 'portal' && user && !isStaffPortalUser ? openMessageTradeDesk : null}
+            onMessageUs={isPortalCustomer ? navigateMyQuotes : null}
             onBrowseSignUp={authState === 'browse' ? openAccessRequest : null}
             onBrowseSignIn={authState === 'browse' ? () => setAuthState('login') : null}
           />
         </div>
       )}
-      {view === 'chat' && mobileShell && user && (
-        <div style={mobilePageShellStyle}>
-          <ChatErrorBoundary onFallback={navigateHome}>
-            <ChatSidebar
-              user={user}
-              open
-              variant="page"
-              onClose={closeChat}
-              onThreadChange={setChatInThread}
-              isAdmin={isPortalAdmin}
-              isSalesRep={isSalesRep}
-              onUnreadChange={refreshUnread}
-              profileComplete={isProfileComplete(form)}
-              onRequireProfile={requireProfileForChat}
-              openSupportOnLoad={openSupportOnLoad}
-              onSupportOpened={clearOpenSupportOnLoad}
-              openSupportFreshSession
-              customerChatLabel={chatLabel}
-              onPriceCheckSubmitted={() => {
-                fetchRecentPriceChecks(50).then(rows => setPriceCheckNewCount(countNewPriceChecks(rows)));
-              }}
-              onComposeActiveChange={setChatComposeActive}
-            />
-          </ChatErrorBoundary>
-        </div>
-      )}
-      {view === 'chat' && mobileShell && !user && (
-        <div style={{ ...mobilePageShellStyle, alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center' }}>
-          <div style={{ fontSize: 14, color: t.textMuted, marginBottom: 12 }}>Sign in to use {chatLabel}.</div>
-          <button type="button" onClick={() => setAuthState('login')} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Sign in
-          </button>
+      {resolvedView === 'my_quotes' && isPortalCustomer && (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <CustomerQuotesView userId={user?.id} isMobile={isMobile || isMobileDevice} />
         </div>
       )}
       {view === 'profile' && mobileShell && user && (
@@ -1248,9 +1097,9 @@ export default function App() {
           staffPriceCheck={isStaffPriceCheck}
           masterPricingQualified={masterPricingQualified}
           pricingVisible={authState !== 'browse'}
+          showCatalogPrices={showCatalogPrices}
           onSignIn={authState === 'browse' ? () => setAuthState('login') : null}
           onRequestAccess={authState === 'browse' ? openAccessRequest : null}
-          chatLabel={chatLabel}
         />
         </div>
       )}
@@ -1272,7 +1121,6 @@ export default function App() {
           }}
           isMobile={isMobile}
           profileSaved={isProfileComplete(form)}
-          chatLabel={chatLabel}
           staffPriceCheck={isStaffPriceCheck}
         />
       )}
@@ -1282,6 +1130,7 @@ export default function App() {
             isMobile={isMobile || isMobileDevice}
             onCountsChange={setQuotesNewCount}
             staffUserId={user?.id}
+            staffProfile={{ name: form.name, company: form.company, phone: form.phone }}
           />
         </div>
       )}
@@ -1306,9 +1155,10 @@ export default function App() {
       {view === 'thanks' && (
         <ThanksView
           onBack={goHome}
-          onOpenSupport={user ? openMessageTradeDesk : null}
-          chatLabel={chatLabel}
+          onViewMyQuotes={user ? navigateMyQuotes : null}
+          onWhatsApp={hasSupportWhatsApp() ? getSupportWhatsAppLink('Hi, I just submitted a quote request.') : null}
           staffPriceCheck={isStaffPriceCheck}
+          readyToOrder={lastSubmittedReadyToOrder}
         />
       )}
       </div>
@@ -1320,41 +1170,23 @@ export default function App() {
           onList={navigateList}
           onQuotes={navigateQuotes}
           onPriceChecks={navigatePriceChecks}
-          onChat={openChat}
+          onMyQuotes={navigateMyQuotes}
           onProfile={navigateProfile}
           listCount={interests.length}
           quotesCount={quotesNewCount}
           priceCheckCount={priceCheckNewCount}
           priceCheckDraftCount={interests.length}
-          unread={chatUnread}
-          chatLabel={chatLabel}
           showList={showCustomerList}
-          listLabel="My List"
+          listLabel={COPY.myList}
           showQuotes={isStaffPortalUser}
+          showMyQuotes={isPortalCustomer}
           showPriceChecks={isStaffCatalogPortal}
           showProfile={!isStaffCatalogPortal}
+          showChat={false}
           homeLabel={isStaffCatalogPortal ? 'Catalog' : 'Home'}
         />
       )}
     </div>
-    )}
-    {showAdminDesktopChat && (
-      <ChatErrorBoundary onFallback={() => setChatOpen(false)}>
-        <ChatSidebar
-          user={user}
-          open={chatOpen}
-          onClose={() => setChatOpen(false)}
-          isAdmin
-          onUnreadChange={refreshUnread}
-          profileComplete
-          desktopFloat
-          onLaunch={() => setChatOpen(true)}
-          customerChatLabel={chatLabel}
-          onPriceCheckSubmitted={() => {
-            fetchRecentPriceChecks(50).then(rows => setPriceCheckNewCount(countNewPriceChecks(rows)));
-          }}
-        />
-      </ChatErrorBoundary>
     )}
     </>
   );

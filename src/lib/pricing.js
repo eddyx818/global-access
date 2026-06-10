@@ -184,6 +184,7 @@ export function parseCommerceFields(po = {}) {
     promo_detail: po.promo_detail || '',
     promo_active: !!po.promo_active,
     promo_audience: po.promo_audience || 'both',
+    shipping_status: po.shipping_status || 'known',
   };
 }
 
@@ -314,6 +315,12 @@ export function getActivePromo(product, userType, { pricingVisible = true } = {}
 }
 
 export function getShippingSummary(product) {
+  if (product.shipping_status === 'unknown') {
+    return 'Shipping: contact for quote';
+  }
+  if (product.shipping_status === 'varies') {
+    return 'Shipping varies — contact for quote';
+  }
   const parts = [];
   if (product.shipping_included) parts.push('Shipping included');
   if (product.shipping_free_after_moq && product.free_shipping_moq_qty) {
