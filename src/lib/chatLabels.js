@@ -19,3 +19,17 @@ export function customerChatActionLabel(chatLabel) {
   if (/^message[s]?\b/i.test(label)) return label;
   return `Message ${label}`;
 }
+
+/** Sign-in / browse hint — avoids "message Messages". */
+export function customerChatSignInHint(chatLabel, { short = false } = {}) {
+  const label = (chatLabel || DEFAULT_CUSTOMER_CHAT_LABEL).trim() || DEFAULT_CUSTOMER_CHAT_LABEL;
+  if (/^messages$/i.test(label)) {
+    return short
+      ? 'Sign in to open Messages, or send a quote request from any brand.'
+      : 'Sign in to open Messages, or request a quote from any brand page.';
+  }
+  const useLabel = short
+    ? `Sign in to use ${label}, or send a quote request from any brand.`
+    : `Sign in to use ${label}, or request a quote from any brand page.`;
+  return useLabel;
+}

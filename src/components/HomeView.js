@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useBrandContent, pickRotatingCatalogPhotos } from '../lib/content';
-import { customerChatActionLabel } from '../lib/chatLabels';
+import { customerChatActionLabel, customerChatSignInHint } from '../lib/chatLabels';
 import { applyBrandOrder, saveUserBrandOrder } from '../lib/userBrandOrder';
 
 import MasterPricingNotice from './MasterPricingNotice';
@@ -968,7 +968,7 @@ export default function HomeView({
                 </>
               ) : (
                 <div style={{ fontSize: 13, color: t.textFaint, lineHeight: 1.55 }}>
-                  Sign in to message {chatLabel}, or send a quote request from any brand.
+                  {customerChatSignInHint(chatLabel, { short: true })}
                 </div>
               )}
             </div>
@@ -981,7 +981,7 @@ export default function HomeView({
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.12em', color: t.text, marginBottom: 8 }}>Global Access</div>
         <div style={{ fontSize: 12, color: t.textDisabled, lineHeight: 1.65, maxWidth: 440, margin: '0 auto' }}>
           Trade portal · Invite only
-          {onMessageUs ? (
+          {!isStaff && onMessageUs ? (
             <>
               <br />
               Drop a message anytime in{' '}
@@ -1005,12 +1005,12 @@ export default function HomeView({
               </button>
               {' '}— questions, sourcing, anything — or request pricing from your quote list.
             </>
-          ) : (
+          ) : !isStaff ? (
             <>
               <br />
-              Sign in to message {chatLabel}, or request a quote from any brand page.
+              {customerChatSignInHint(chatLabel)}
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
