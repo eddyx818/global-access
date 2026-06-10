@@ -69,9 +69,10 @@ export default function MessageInput({
 
   const autoResize = () => {
     const el = inputRef.current;
-    if (!el || !isMobile) return;
+    if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    const max = isMobile ? 120 : 96;
+    el.style.height = `${Math.min(el.scrollHeight, max)}px`;
   };
 
   const handleSend = async () => {
@@ -86,7 +87,7 @@ export default function MessageInput({
       await onSend(text, attachment);
       setText('');
       setPendingFile(null);
-      if (inputRef.current && isMobile) {
+      if (inputRef.current) {
         inputRef.current.style.height = 'auto';
       }
     } catch (err) {
@@ -99,6 +100,8 @@ export default function MessageInput({
 
   const fieldStyle = {
     flex: 1,
+    minWidth: 0,
+    width: '100%',
     background: t.inputBg,
     border: t.borderHairline,
     borderRadius: isMobile ? 12 : 10,
@@ -106,12 +109,15 @@ export default function MessageInput({
     fontSize: 16,
     outline: 'none',
     fontFamily: 'inherit',
-    minHeight: isMobile ? 44 : undefined,
-    maxHeight: isMobile ? 120 : undefined,
+    minHeight: isMobile ? 44 : 40,
+    maxHeight: isMobile ? 120 : 96,
     color: t.text,
     resize: 'none',
     lineHeight: 1.35,
     boxSizing: 'border-box',
+    overflowX: 'hidden',
+    overflowWrap: 'anywhere',
+    wordBreak: 'break-word',
   };
 
   const handleFocus = () => {
@@ -134,6 +140,8 @@ export default function MessageInput({
       borderTop: t.borderHairlineLight,
       background: t.bgElevated,
       flexShrink: 0,
+      minWidth: 0,
+      overflow: 'hidden',
     }}>
       {pendingFile && (
         <div style={{
@@ -156,7 +164,9 @@ export default function MessageInput({
       {(error || aiError) && (
         <div style={{ padding: '6px 14px 0', fontSize: 11, color: t.errorText }}>{error || aiError}</div>
       )}
-      <div style={{
+      <div
+        className="chat-compose-row"
+        style={{
         padding: isMobile
           ? `10px 14px ${keyboardInset > 0 ? 10 : 'max(10px, env(safe-area-inset-bottom, 0px))'}`
           : '10px 12px',
@@ -206,33 +216,22 @@ export default function MessageInput({
             {aiSuggestLoading ? '…' : '✨'}
           </button>
         )}
-        {isMobile ? (
-          <textarea
-            ref={inputRef}
-            rows={1}
-            value={text}
-            onChange={(e) => { setText(e.target.value); autoResize(); }}
-            onKeyDown={handleKeyDown}
-            onFocus={handleFocus}
-            placeholder={placeholder}
-            enterKeyHint="send"
-            autoComplete="off"
-            autoCorrect="on"
-            spellCheck
-            aria-label={placeholder}
-            style={fieldStyle}
-          />
-        ) : (
-          <input
-            ref={inputRef}
-            value={text}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            onFocus={handleFocus}
-            placeholder={placeholder}
-            style={fieldStyle}
-          />
-        )}
+        <textarea
+          ref={inputRef}
+          className="chat-compose-field"
+          rows={1}
+          value={text}
+          onChange={(e) => { setText(e.target.value); autoResize(); }}
+          onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
+          placeholder={placeholder}
+          enterKeyHint="send"
+          autoComplete="off"
+          autoCorrect="on"
+          spellCheck
+          aria-label={placeholder}
+          style={fieldStyle}
+        />
         <button
           type="button"
           onClick={handleSend}

@@ -139,7 +139,7 @@ export default function MessageThread({
   const canDelete = (msg) => !msg.is_system && onDeleteMessage;
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, background: t.bgHover, minHeight: 0 }}>
+    <div className="chat-message-thread" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, background: t.bgHover, minHeight: 0, minWidth: 0 }}>
       {messages.map(msg => {
         if (msg.is_system) {
           return (
@@ -172,9 +172,9 @@ export default function MessageThread({
                 {isCustomerSender && <CustomerBadges profile={fromProfile} size="sm" />}
               </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: 'row', maxWidth: '100%', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: 'row', maxWidth: '100%', minWidth: 0, justifyContent: mine ? 'flex-end' : 'flex-start' }}>
               <div className={`chat-bubble${mine ? ' chat-bubble--mine' : ' chat-bubble--other'}`} style={{
-                maxWidth: '85%', padding: '10px 14px',
+                maxWidth: '85%', minWidth: 0, padding: '10px 14px',
                 background: mine ? t.bubbleMineBg : t.bubbleOtherBg, color: mine ? t.bubbleMineText : t.bubbleOtherText,
                 fontSize: 15, lineHeight: 1.45, border: hiddenFromCustomer ? `1px dashed ${t.warningBorder}` : (mine ? 'none' : t.borderHairlineLight),
                 boxShadow: mine ? 'none' : `0 1px 4px ${t.shadow}`,
@@ -194,7 +194,7 @@ export default function MessageThread({
                 )}
                 {renderAttachment(msg, mine, hiddenFromCustomer)}
                 {body && (
-                  <span className="allow-text-select" style={{ opacity: hiddenFromCustomer ? 0.85 : 1, whiteSpace: 'pre-wrap' }}>
+                  <span className="allow-text-select chat-bubble-text" style={{ opacity: hiddenFromCustomer ? 0.85 : 1, whiteSpace: 'pre-wrap' }}>
                     {body}
                   </span>
                 )}

@@ -679,6 +679,40 @@ html.app-native .brand-card--selected {
 /* Chat message bubbles — fully rounded corners */
 .chat-bubble {
   border-radius: 18px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.chat-bubble-text {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.chat-message-thread {
+  overflow-x: hidden;
+  min-width: 0;
+}
+
+.chat-compose-bar {
+  position: relative;
+  z-index: 5;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.chat-compose-row {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.chat-compose-field {
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .chat-bubble--mine {
@@ -988,11 +1022,6 @@ html[data-theme='night'] .chat-float-minimized {
   font-size: 11px;
   line-height: 1.45;
   color: var(--ga-text-faint);
-}
-
-.chat-compose-bar {
-  position: relative;
-  z-index: 5;
 }
 
 html.chat-thread-open,
