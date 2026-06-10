@@ -420,12 +420,9 @@ export default function ChatSidebar({
       .finally(() => onSupportOpened?.());
   }, [openSupportOnLoad]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleDeleteMessage = async (messageId, scope) => {
-    const label = scope === 'customer'
-      ? 'Hide this message from the customer? Your team and admins can still see it.'
-      : 'Delete this message for you?';
-    if (!window.confirm(label)) return;
-    const result = await softDeleteMessage(messageId, scope);
+  const handleDeleteMessage = async (messageId) => {
+    if (!window.confirm('Delete this message? It will be removed from the conversation.')) return;
+    const result = await softDeleteMessage(messageId, isStaff ? 'all' : 'me');
     if (!result.ok) {
       window.alert(result.error || 'Could not delete message.');
       return;
@@ -856,6 +853,7 @@ export default function ChatSidebar({
               isStaff={isStaff}
               customerUserId={customerUserId}
               onDeleteMessage={isStaff ? handleDeleteMessage : null}
+              isMobile={isPage}
             />
             {!isStaff && activeConvo && (
               <ScheduleCallRequest

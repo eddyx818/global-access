@@ -886,6 +886,17 @@ html[data-theme='night'] .chat-float-panel .chat-staff-actions-bar {
   background: rgba(255, 255, 255, 0.04) !important;
 }
 
+.chat-float-panel .chat-message-delete-menu {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14) !important;
+}
+
+html[data-theme='night'] .chat-float-panel .chat-message-delete-menu {
+  background: rgba(28, 28, 34, 0.98) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
 .chat-float-panel .chat-bubble--other {
   background: rgba(255, 255, 255, 0.88) !important;
   border: 0.5px solid rgba(0, 0, 0, 0.05);

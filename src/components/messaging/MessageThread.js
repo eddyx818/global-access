@@ -4,24 +4,25 @@ import { getChatDisplayName, isMessageHiddenFromCustomer } from '../../lib/commu
 import CustomerBadges from '../CustomerBadges';
 import { useTheme } from '../../context/ThemeContext';
 
-function MessageDeleteMenu({ msg, mine, isStaff, customerUserId, onDelete, onClose }) {
+function MessageDeleteMenu({ onDelete, onClose, openAbove = false }) {
   const { t } = useTheme();
-  const hiddenFromCustomer = isStaff && isMessageHiddenFromCustomer(msg, customerUserId);
 
-  const run = async (scope) => {
+  const run = async () => {
     onClose();
-    await onDelete?.(msg.id, scope);
+    await onDelete?.();
   };
 
   return (
     <div
+      className="chat-message-delete-menu"
       style={{
         position: 'absolute',
-        top: '100%',
-        [mine ? 'right' : 'left']: 0,
-        marginTop: 4,
+        ...(openAbove
+          ? { bottom: '100%', marginBottom: 4 }
+          : { top: '100%', marginTop: 4 }),
+        right: 0,
         zIndex: 20,
-        minWidth: 168,
+        minWidth: 140,
         background: t.bgElevated,
         border: t.borderHairline,
         borderRadius: 10,
@@ -32,7 +33,7 @@ function MessageDeleteMenu({ msg, mine, isStaff, customerUserId, onDelete, onClo
     >
       <button
         type="button"
-        onClick={() => run('me')}
+        onClick={run}
         style={{
           display: 'block',
           width: '100%',
@@ -40,35 +41,15 @@ function MessageDeleteMenu({ msg, mine, isStaff, customerUserId, onDelete, onClo
           padding: '10px 12px',
           border: 'none',
           background: 'transparent',
-          color: t.text,
+          color: t.errorText,
           fontSize: 13,
+          fontWeight: 600,
           cursor: 'pointer',
           fontFamily: 'inherit',
         }}
       >
-        {isStaff ? 'Delete for me' : 'Delete message'}
+        Delete
       </button>
-      {isStaff && customerUserId && !hiddenFromCustomer && (
-        <button
-          type="button"
-          onClick={() => run('customer')}
-          style={{
-            display: 'block',
-            width: '100%',
-            textAlign: 'left',
-            padding: '10px 12px',
-            border: 'none',
-            borderTop: t.borderHairlineLight,
-            background: 'transparent',
-            color: t.errorText,
-            fontSize: 13,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}
-        >
-          Delete for customer
-        </button>
-      )}
     </div>
   );
 }
@@ -83,6 +64,7 @@ export default function MessageThread({
   isStaff = false,
   customerUserId = null,
   onDeleteMessage = null,
+  isMobile = false,
 }) {
   const { t } = useTheme();
   const endRef = useRef(null);
@@ -192,7 +174,6 @@ export default function MessageThread({
             )}
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: mine ? 'row-reverse' : 'row', maxWidth: '100%' }}>
               <div className={`chat-bubble${mine ? ' chat-bubble--mine' : ' chat-bubble--other'}`} style={{
-                position: 'relative',
                 maxWidth: '85%', padding: '10px 14px',
                 background: mine ? t.bubbleMineBg : t.bubbleOtherBg, color: mine ? t.bubbleMineText : t.bubbleOtherText,
                 fontSize: 15, lineHeight: 1.45, border: hiddenFromCustomer ? `1px dashed ${t.warningBorder}` : (mine ? 'none' : t.borderHairlineLight),
@@ -221,42 +202,40 @@ export default function MessageThread({
                   {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   {mine && !isGroup && msg.read_status ? ' · read' : ''}
                 </div>
-                {menuMessageId === msg.id && (
-                  <MessageDeleteMenu
-                    msg={msg}
-                    mine={mine}
-                    isStaff={isStaff}
-                    customerUserId={customerUserId}
-                    onDelete={onDeleteMessage}
-                    onClose={() => setMenuMessageId(null)}
-                  />
-                )}
               </div>
               {showMenu && (
-                <button
-                  type="button"
-                  aria-label="Message options"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMenuMessageId(prev => (prev === msg.id ? null : msg.id));
-                  }}
-                  style={{
-                    flexShrink: 0,
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    border: t.borderHairline,
-                    background: t.bgElevated,
-                    color: t.textMuted,
-                    fontSize: 14,
-                    lineHeight: 1,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    padding: 0,
-                  }}
-                >
-                  ···
-                </button>
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  {menuMessageId === msg.id && (
+                    <MessageDeleteMenu
+                      openAbove={!isMobile}
+                      onDelete={() => onDeleteMessage(msg.id)}
+                      onClose={() => setMenuMessageId(null)}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    aria-label="Message options"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuMessageId(prev => (prev === msg.id ? null : msg.id));
+                    }}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      border: t.borderHairline,
+                      background: t.bgElevated,
+                      color: t.textMuted,
+                      fontSize: 14,
+                      lineHeight: 1,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      padding: 0,
+                    }}
+                  >
+                    ···
+                  </button>
+                </div>
               )}
             </div>
           </div>
