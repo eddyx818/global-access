@@ -9,6 +9,10 @@ import { DROP_SHIP_NOTICE } from '../lib/catalogPricing';
 import { COPY } from '../lib/portalCopy';
 import { PortalCallout } from './PortalChrome';
 
+function isSoldOutFlavor(flavor) {
+  return typeof flavor === 'string' && /\bSOLD\s*OUT\b/i.test(flavor);
+}
+
 export default function BrandView({ brand, userType, user, userEmail, onBack, toggleInterest, updateInterestLine, isInterested, interests, onSubmit, isMobile, hasBottomNav = false, enableQuoteFlow = true, staffPriceCheck = false, masterPricingQualified = false, pricingVisible = true, showCatalogPrices = true, onSignIn, onRequestAccess }) {
   const { t, isNight } = useTheme();
   const { bgColor } = useBrandContent();
@@ -180,8 +184,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
   };
 
   const handleFlavorClick = (product, flavor) => {
-    const isSoldOut = flavor.includes('SOLD OUT');
-    if (isSoldOut) return;
+    if (isSoldOutFlavor(flavor)) return;
     const key = `${product.sku}__${flavor}`;
     const wasSelected = isInterested(product.sku, flavor);
     const mode = getOrderMode(product, key);
@@ -394,7 +397,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
               )}
 
               {!showProductImage && (
-                <div style={{ padding: '1rem 1.25rem 0.5rem', borderBottom: '0.5px solid #F0EDE8' }}>
+                <div style={{ padding: '1rem 1.25rem 0.5rem', borderBottom: t.borderHairline }}>
                   {productHeader(product)}
                 </div>
               )}
@@ -445,7 +448,7 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
                 {/* Flavors/options grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: flavorGridCols, gap: 8, minWidth: 0, width: '100%' }}>
                   {productFlavors.map(flavor => {
-                    const isSoldOut = flavor.includes(' SOLD OUT') || flavor.includes(' — SOLD OUT');
+                    const isSoldOut = isSoldOutFlavor(flavor);
                     const selected = isInterested(product.sku, flavor);
                     const key = `${product.sku}__${flavor}`;
 
@@ -662,9 +665,9 @@ export default function BrandView({ brand, userType, user, userEmail, onBack, to
           padding: '1rem',
           paddingLeft: 'max(1rem, var(--ga-inset-left))',
           paddingRight: 'max(1rem, var(--ga-inset-right))',
-          background: 'rgba(245,242,237,0.95)',
+          background: isNight ? 'rgba(26, 26, 31, 0.94)' : 'rgba(245, 242, 237, 0.95)',
           backdropFilter: 'blur(12px)',
-          borderTop: '0.5px solid #E0DDD8',
+          borderTop: t.borderHairline,
           zIndex: 50,
           boxSizing: 'border-box',
         }}>

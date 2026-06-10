@@ -26,6 +26,7 @@ export default function StaffQuotesView({ onCountsChange, isMobile = true, staff
   const [filter, setFilter] = useState('all');
   const [updatingId, setUpdatingId] = useState(null);
   const [removingId, setRemovingId] = useState(null);
+  const [removeError, setRemoveError] = useState('');
 
   const syncCount = useCallback((rows) => {
     onCountsChange?.(rows.filter(i => (i.quote_status || 'new') === 'new').length);
@@ -85,6 +86,9 @@ export default function StaffQuotesView({ onCountsChange, isMobile = true, staff
         </div>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: isMobile ? '12px 1rem calc(1rem + var(--ga-inset-bottom))' : '1rem 1.25rem' }}>
+        {removeError && (
+          <div style={{ fontSize: 13, color: t.error || '#c44', marginBottom: 12, lineHeight: 1.5 }}>{removeError}</div>
+        )}
         {loading && <div style={{ textAlign: 'center', color: t.textFaint, fontSize: 13, padding: 24 }}>Loading quotes…</div>}
         {!loading && displayRows.length === 0 && (
           <div style={{ textAlign: 'center', color: t.textFaint, fontSize: 13, padding: 32, lineHeight: 1.6 }}>
@@ -98,8 +102,13 @@ export default function StaffQuotesView({ onCountsChange, isMobile = true, staff
               <button type="button" aria-label="Remove quote" disabled={removingId === inq.id} onClick={async () => {
                 if (!window.confirm(`Remove quote for ${inq.company || inq.name || 'this customer'}?`)) return;
                 setRemovingId(inq.id);
+                setRemoveError('');
                 const result = await deleteInquiry(inq.id);
-                if (result.ok) setInquiries(prev => { const next = prev.filter(i => i.id !== inq.id); syncCount(next); return next; });
+                if (result.ok) {
+                  setInquiries(prev => { const next = prev.filter(i => i.id !== inq.id); syncCount(next); return next; });
+                } else {
+                  setRemoveError(result.error || 'Could not remove quote.');
+                }
                 setRemovingId(null);
               }} style={{ position: 'absolute', top: 12, right: 12, width: 28, height: 28, borderRadius: '50%', border: t.borderHairline, background: t.bgMuted, color: t.textMuted, fontSize: 18, cursor: 'pointer', fontFamily: 'inherit' }}>×</button>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 8, paddingRight: 32 }}>

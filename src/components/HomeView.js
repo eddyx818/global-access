@@ -131,9 +131,14 @@ export default function HomeView({
       clearInterval(autoTimer.current);
       return undefined;
     }
-    autoTimer.current = setInterval(() => setSlideIdx(i => (i + 1) % brands.length), 4500);
+    autoTimer.current = setInterval(() => {
+      setSlideIdx(i => {
+        const current = i ?? leadIdx;
+        return (current + 1) % brands.length;
+      });
+    }, 4500);
     return () => clearInterval(autoTimer.current);
-  }, [brands.length, visible]);
+  }, [brands.length, visible, leadIdx]);
 
   const heroImageFor = (brand) => {
     const photos = heroPhotosFor(brand);
@@ -160,7 +165,12 @@ export default function HomeView({
     setSlideIdx(newIdx);
     setTimeout(() => setAnimating(false), 600);
     if (brands.length) {
-      autoTimer.current = setInterval(() => setSlideIdx(i => (i + 1) % brands.length), 4500);
+      autoTimer.current = setInterval(() => {
+        setSlideIdx(i => {
+          const current = i ?? leadIdx;
+          return (current + 1) % brands.length;
+        });
+      }, 4500);
     }
   };
 
@@ -748,7 +758,7 @@ export default function HomeView({
           })}
         </div>
         <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: t.textDisabled }}>
-          {isMobile ? 'Swipe the Hero to Change Brands · Tap a Card to Open' : 'Drag Cards to Reorder · Order Saves Automatically'}
+          {isMobile ? 'Swipe the Hero to Change Brands · Tap a Card to Open' : 'Tap Cards to Reorder · Order Saves Automatically'}
         </div>
 
         {!isStaff && (

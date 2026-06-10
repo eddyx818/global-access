@@ -71,6 +71,7 @@ export default function StaffPriceCheckView({
   const [targetRates, setTargetRates] = useState('');
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState({});
   const [savingId, setSavingId] = useState(null);
@@ -82,9 +83,11 @@ export default function StaffPriceCheckView({
 
   const load = useCallback(async () => {
     setLoading(true);
-    const rows = await fetchRecentPriceChecks(50);
+    setLoadError('');
+    const { rows, error } = await fetchRecentPriceChecks(50);
     setChecks(rows);
     onCountsChange?.(countNewPriceChecks(rows));
+    if (error) setLoadError(error);
     const ids = [...new Set(rows.map(r => r.staff_user_id).filter(Boolean))];
     if (ids.length) setProfiles(await loadProfileMap(ids));
     setLoading(false);
@@ -93,7 +96,10 @@ export default function StaffPriceCheckView({
   useEffect(() => { load(); }, [load]);
 
   const handleSubmit = async () => {
-    if (!staffUserId) return;
+    if (!staffUserId) {
+      setFormError('Your session is still loading — try again in a moment.');
+      return;
+    }
     if (!accountName.trim() && !interests.length && !targetRates.trim()) {
       setFormError('Add a store/account name, SKUs from the catalog, or the customer\'s target rates.');
       return;
@@ -202,7 +208,7 @@ export default function StaffPriceCheckView({
           <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6 }}>Notes for the team</label>
           <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Context, volume, competitor pricing…" style={{ ...inputStyle, height: 72, resize: 'vertical', marginBottom: 12 }} />
           {formError && <div style={{ fontSize: 12, color: t.errorText, marginBottom: 10 }}>{formError}</div>}
-          <button type="button" onClick={handleSubmit} disabled={submitting} style={{
+          <button type="button" onClick={handleSubmit} disabled={submitting || !staffUserId} style={{
             width: '100%', background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 10,
             padding: '14px', fontSize: 14, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', fontFamily: 'inherit',
             opacity: submitting ? 0.7 : 1,
@@ -212,10 +218,16 @@ export default function StaffPriceCheckView({
         </div>
 
         <div style={{ fontSize: 11, color: t.textFaint, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>Team price checks</div>
+        {loadError && (
+          <div style={{ fontSize: 13, color: t.error || '#c44', marginBottom: 12, lineHeight: 1.5 }}>
+            Could not load price checks. Run SQL migration 43–44 in Supabase if this is a new install.
+            <div style={{ color: t.textMuted, fontSize: 12, marginTop: 4 }}>{loadError}</div>
+          </div>
+        )}
         {loading && <div style={{ textAlign: 'center', color: t.textFaint, fontSize: 13, padding: 16 }}>Loading…</div>}
-        {!loading && checks.length === 0 && (
+        {!loading && !loadError && checks.length === 0 && (
           <div style={{ textAlign: 'center', color: t.textFaint, fontSize: 13, padding: 24, lineHeight: 1.6 }}>
-            No price checks yet — submit one above or from a customer chat.
+            No price checks yet — submit one above from the catalog.
           </div>
         )}
         {!loading && checks.map(check => {

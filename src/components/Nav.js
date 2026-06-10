@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { getButtonRadius } from '../lib/design';
+import { COPY } from '../lib/portalCopy';
 
 export default function Nav({
   interests,
@@ -29,6 +30,8 @@ export default function Nav({
   priceCheckDraftCount = 0,
   homeLabel = 'Home',
   onStaffHomeClick = null,
+  onList = null,
+  onMyQuotes = null,
 }) {
   const { t, isNight } = useTheme();
   const primary = isNight ? t.text : (globalStyles.primary_color || t.text);
@@ -92,8 +95,13 @@ export default function Nav({
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 8, flexShrink: 0 }}>
         {showCustomerList && interests.length > 0 && view !== 'interest' && !hideMobileActions && (
-          <button type="button" onClick={() => setView('interest')} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: btnRadius >= 18 ? 20 : btnRadius, padding: isMobile ? '5px 12px' : '6px 16px', fontSize: isMobile ? 11 : 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          <button type="button" onClick={() => (onList ? onList() : setView('interest'))} style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: btnRadius >= 18 ? 20 : btnRadius, padding: isMobile ? '5px 12px' : '6px 16px', fontSize: isMobile ? 11 : 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {isMobile ? `${listLabel} (${interests.length})` : `${listLabel} (${interests.length})`}
+          </button>
+        )}
+        {onMyQuotes && !hideMobileActions && (
+          <button type="button" onClick={onMyQuotes} style={{ background: t.goldBg, color: t.gold, border: `0.5px solid ${t.gold}`, borderRadius: btnRadius >= 18 ? 20 : btnRadius, padding: isMobile ? '5px 12px' : '6px 16px', fontSize: isMobile ? 11 : 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            {COPY.myQuotes}
           </button>
         )}
         {!showCustomerList && onQuotes && !hideMobileActions && (

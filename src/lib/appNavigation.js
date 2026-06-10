@@ -37,6 +37,7 @@ export function clearAppNavigation() {
 /** Map legacy route names to current portal views. */
 export function normalizePortalView(view) {
   if (view === 'inbox') return 'quotes';
+  if (view === 'chat') return 'home';
   return view || 'home';
 }
 

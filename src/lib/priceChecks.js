@@ -50,10 +50,10 @@ export async function fetchRecentPriceChecks(limit = 50) {
       .select('*')
       .order('created_at', { ascending: false })
       .limit(limit);
-    if (error) return [];
-    return data || [];
-  } catch (_) {
-    return [];
+    if (error) return { rows: [], error: error.message };
+    return { rows: data || [], error: null };
+  } catch (err) {
+    return { rows: [], error: err?.message || 'Could not load price checks.' };
   }
 }
 

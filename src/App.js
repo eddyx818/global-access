@@ -185,9 +185,7 @@ export default function App() {
       brandScrollRef.current[activeBrand] = scrollEl.scrollTop;
     }
     const wasAlreadyHome = view === 'home';
-    if (!showMobileNav || view !== 'brand') {
-      setActiveBrand(null);
-    }
+    setActiveBrand(null);
     setView('home');
     window.history.replaceState({ view: 'home' }, '', window.location.pathname);
     requestAnimationFrame(() => {
@@ -220,14 +218,16 @@ export default function App() {
     setShowProfile(false);
     setProfileGate(null);
     setAdminMode('dashboard');
-    if (mobileShell) setView('home');
+    setView('home');
+    setActiveBrand(null);
   };
 
   const openRepDashboard = () => {
     setShowProfile(false);
     setProfileGate(null);
     setRepMode('dashboard');
-    if (mobileShell) setView('home');
+    setView('home');
+    setActiveBrand(null);
   };
 
   const navigateQuotes = () => {
@@ -266,8 +266,9 @@ export default function App() {
 
   useEffect(() => {
     if (!isStaffPortalUser || !inPortalView) return;
-    Promise.all([fetchRecentInquiries(50), fetchRecentPriceChecks(50)]).then(([quotes, priceChecks]) => {
+    Promise.all([fetchRecentInquiries(50), fetchRecentPriceChecks(50)]).then(([quotes, priceChecksResult]) => {
       setQuotesNewCount(quotes.filter(i => (i.quote_status || 'new') === 'new').length);
+      const priceChecks = priceChecksResult?.rows ?? [];
       setPriceCheckNewCount(countNewPriceChecks(priceChecks));
     });
   }, [isStaffPortalUser, inPortalView]);
@@ -281,15 +282,9 @@ export default function App() {
       return;
     }
 
-    if (view === 'profile') {
-      if (isStaffCatalogPortal) {
-        setView('home');
-        return;
-      }
-      if (!mobileShell) {
-        setShowProfile(true);
-        setView(activeBrand ? 'brand' : 'home');
-      }
+    if (view === 'profile' && !mobileShell) {
+      setShowProfile(true);
+      setView(activeBrand ? 'brand' : 'home');
       return;
     }
 
@@ -297,12 +292,20 @@ export default function App() {
       setView('home');
     }
 
+    if (view === 'quotes' && isStaffPortalUser && !isStaffCatalogPortal) {
+      setView('home');
+    }
+
     if (view === 'my_quotes' && (!user || isStaffPortalUser)) {
       setView('home');
     }
 
-    if (view === 'price_checks' && !isStaffPortalUser) {
+    if (view === 'price_checks' && !isStaffCatalogPortal) {
       setView('home');
+    }
+
+    if (view === 'thanks' && isStaffPortalUser) {
+      setView(isStaffPriceCheck ? 'price_checks' : 'home');
     }
 
     if (view === 'inbox') {
@@ -316,7 +319,7 @@ export default function App() {
     if (view === 'brand' && !activeBrand) {
       setView('home');
     }
-  }, [view, mobileShell, user, inPortalView, activeBrand, showCustomerList, isStaffPortalUser]);
+  }, [view, mobileShell, user, inPortalView, activeBrand, showCustomerList, isStaffPortalUser, isStaffCatalogPortal, isStaffPriceCheck]);
 
   const mobileNavHeight = portalTopChrome
     ? 'var(--ga-nav-bar)'
@@ -376,7 +379,11 @@ export default function App() {
         || (isSalesRep && saved.repMode === 'portal');
       if (inPortal && saved.view) {
         setView(saved.view);
-        setActiveBrand(saved.activeBrand || null);
+        if (saved.view === 'brand' && saved.activeBrand) {
+          setActiveBrand(saved.activeBrand);
+        } else {
+          setActiveBrand(null);
+        }
       }
     };
     window.addEventListener('pageshow', onPageShow);
@@ -454,16 +461,14 @@ export default function App() {
         if (savedNav && inPortalShell) {
           const nextView = savedNav.view;
           setView(nextView);
-          if (savedNav.activeBrand && (nextView === 'brand' || savedNav.activeBrand)) {
+          if (nextView === 'brand' && savedNav.activeBrand) {
             setActiveBrand(savedNav.activeBrand);
-            if (nextView === 'brand') {
-              window.history.replaceState(
-                { view: 'brand', brandId: savedNav.activeBrand },
-                '',
-                `#${savedNav.activeBrand}`,
-              );
-            }
-          } else if (nextView === 'home') {
+            window.history.replaceState(
+              { view: 'brand', brandId: savedNav.activeBrand },
+              '',
+              `#${savedNav.activeBrand}`,
+            );
+          } else {
             setActiveBrand(null);
           }
         } else if (!restoreNav) {
@@ -474,6 +479,14 @@ export default function App() {
         if (salesRep) setStaffProfile(profile);
         else setStaffProfile(null);
         if (profile && !salesRep && !isAdmin && !legacyAdmin) {
+          setForm(f => ({
+            ...f,
+            name: profile.name || f.name,
+            company: profile.company || f.company,
+            phone: profile.phone || f.phone,
+            email: sessionUser.email || f.email,
+          }));
+        } else if (profile && salesRep) {
           setForm(f => ({
             ...f,
             name: profile.name || f.name,
@@ -750,6 +763,7 @@ export default function App() {
     setMasterPricingQualified(false);
     setMasterPricingInterest(false);
     setAdminMode('dashboard');
+    setRepMode('dashboard');
     setView('home');
     setActiveBrand(null);
     setShowProfile(false);
@@ -968,7 +982,9 @@ export default function App() {
         globalStyles={globalStyles}
         onNavClick={handleNavClick}
         onHome={navigateHome}
-        onProfile={user && !showMobileNav && !isStaffCatalogPortal ? openProfile : null}
+        onProfile={user && !showMobileNav ? openProfile : null}
+        onList={navigateList}
+        onMyQuotes={isPortalCustomer ? navigateMyQuotes : null}
         isMobile={isMobile || isMobileDevice}
         hideMobileActions={showMobileNav}
         includeSafeAreaTop={isMobileDevice && !portalTopChrome}
@@ -1129,7 +1145,11 @@ export default function App() {
             isMobile={isMobile || isMobileDevice}
             onCountsChange={setQuotesNewCount}
             staffUserId={user?.id}
-            staffProfile={{ name: form.name, company: form.company, phone: form.phone }}
+            staffProfile={{
+              name: staffProfile?.name || form.name,
+              company: staffProfile?.company || form.company,
+              phone: staffProfile?.phone || form.phone,
+            }}
           />
         </div>
       )}
@@ -1158,6 +1178,7 @@ export default function App() {
           onWhatsApp={hasSupportWhatsApp() ? getSupportWhatsAppLink('Hi, I just submitted a quote request.') : null}
           staffPriceCheck={isStaffPriceCheck}
           readyToOrder={lastSubmittedReadyToOrder}
+          backLabel={isStaffCatalogPortal ? COPY.catalog : COPY.home}
         />
       )}
       </div>
@@ -1180,7 +1201,7 @@ export default function App() {
           showQuotes={isStaffPortalUser}
           showMyQuotes={isPortalCustomer}
           showPriceChecks={isStaffCatalogPortal}
-          showProfile={!isStaffCatalogPortal}
+          showProfile={!!user}
           showChat={false}
           homeLabel={isStaffCatalogPortal ? 'Catalog' : 'Home'}
         />

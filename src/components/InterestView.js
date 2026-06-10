@@ -202,7 +202,7 @@ export function InterestView({
   );
 }
 
-export function ThanksView({ onBack, onViewMyQuotes, onWhatsApp, staffPriceCheck = false, readyToOrder = false }) {
+export function ThanksView({ onBack, onViewMyQuotes, onWhatsApp, staffPriceCheck = false, readyToOrder = false, backLabel = 'Home' }) {
   const { t } = useTheme();
 
   return (
@@ -228,7 +228,7 @@ export function ThanksView({ onBack, onViewMyQuotes, onWhatsApp, staffPriceCheck
           <span aria-hidden>💬</span> WhatsApp
         </a>
       )}
-      <button type="button" onClick={onBack} style={{ background: 'none', border: 'none', color: t.textFaint, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>← Back to Catalog</button>
+      <button type="button" onClick={onBack} style={{ background: 'none', border: 'none', color: t.textFaint, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>← Back to {backLabel}</button>
     </div>
   );
 }
