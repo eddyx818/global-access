@@ -642,6 +642,7 @@ export default function ChatSidebar({
   if (!open && !isPage) return null;
 
   const inMobileThread = isPage && !!activeConvo;
+  const isFloatDesktop = desktopFloat && !isPage;
 
   const panelStyle = isPage
     ? {
@@ -664,16 +665,18 @@ export default function ChatSidebar({
   const showPageHeader = !isPage || activeConvo || isPage;
 
   const inner = (
-    <div className={isPage ? `chat-page-panel${inMobileThread ? ' chat-thread-panel' : ''}` : undefined} style={panelStyle}>
+    <div className={isPage ? `chat-page-panel${inMobileThread ? ' chat-thread-panel' : ''}` : (isFloatDesktop ? 'chat-float-panel' : undefined)} style={panelStyle}>
       {showPageHeader && (
-      <div style={{
-        padding: isPage ? '6px 10px' : '12px 14px',
+      <div
+        className={isFloatDesktop ? 'chat-float-header' : undefined}
+        style={{
+        padding: isPage ? '6px 10px' : (isFloatDesktop ? undefined : '12px 14px'),
         paddingTop: isPage && activeConvo ? 'max(6px, env(safe-area-inset-top, 0px))' : (isPage ? 6 : undefined),
-        borderBottom: t.borderHairlineLight,
+        borderBottom: isFloatDesktop ? undefined : t.borderHairlineLight,
         display: 'flex',
         alignItems: 'center',
         gap: isPage ? 6 : 8,
-        background: t.headerBg,
+        background: isFloatDesktop ? undefined : t.headerBg,
         flexShrink: 0,
         minHeight: isPage ? undefined : undefined,
       }}>
@@ -690,21 +693,22 @@ export default function ChatSidebar({
         {!isPage && activeConvo && (
           <button
             type="button"
+            className={isFloatDesktop ? 'chat-float-back-btn' : undefined}
             onClick={() => { setActiveConvo(null); setMessages([]); }}
-            style={{ background: 'none', border: 'none', color: t.headerText, cursor: 'pointer', fontSize: 22, padding: '2px 6px 2px 0', fontFamily: 'inherit', lineHeight: 1, flexShrink: 0 }}
+            style={{ background: isFloatDesktop ? undefined : 'none', border: 'none', color: isFloatDesktop ? undefined : t.headerText, cursor: 'pointer', fontSize: 22, padding: '2px 6px 2px 0', fontFamily: 'inherit', lineHeight: 1, flexShrink: 0 }}
             aria-label="Back to inbox"
           >
             ‹
           </button>
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: isPage ? 14 : 13, fontWeight: 600, color: t.headerText, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.25 }}>{headerTitle}</div>
+          <div className={isFloatDesktop ? 'chat-float-title' : undefined} style={{ fontSize: isPage ? 14 : 13, fontWeight: 600, color: isFloatDesktop ? undefined : t.headerText, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.25 }}>{headerTitle}</div>
           {isStaff && activeCustomerProfile && !isPage && (
             <div style={{ marginTop: 6 }}>
               <CustomerBadges profile={activeCustomerProfile} size="sm" />
             </div>
           )}
-          {headerSub && <div style={{ fontSize: 11, color: t.headerMuted, marginTop: 2 }}>{headerSub}</div>}
+          {headerSub && <div className={isFloatDesktop ? 'chat-float-sub' : undefined} style={{ fontSize: 11, color: isFloatDesktop ? undefined : t.headerMuted, marginTop: 2 }}>{headerSub}</div>}
           {!isStaff && customerInquiry && !isPage && (
             <div style={{ marginTop: 6 }}>
               <QuoteStatusBadge status={customerInquiry.quote_status || 'new'} size="sm" />
@@ -712,7 +716,7 @@ export default function ChatSidebar({
           )}
         </div>
         {!isPage && (
-          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', color: t.headerMuted, cursor: 'pointer', fontSize: 22, fontFamily: 'inherit', padding: 4 }}>×</button>
+          <button type="button" className={isFloatDesktop ? 'chat-float-close-btn' : undefined} onClick={onClose} style={{ background: isFloatDesktop ? undefined : 'none', border: 'none', color: isFloatDesktop ? undefined : t.headerMuted, cursor: 'pointer', fontSize: 22, fontFamily: 'inherit', padding: isFloatDesktop ? undefined : 4 }} aria-label="Close chat">×</button>
         )}
       </div>
       )}
@@ -732,10 +736,11 @@ export default function ChatSidebar({
       )}
 
       {!activeConvo && isStaff && (
-        <div style={{ display: 'flex', borderBottom: t.borderHairlineLight, flexShrink: 0 }}>
+        <div className={isFloatDesktop ? 'chat-float-tabs' : undefined} style={{ display: 'flex', borderBottom: isFloatDesktop ? undefined : t.borderHairlineLight, flexShrink: 0 }}>
           {[['chats', 'Inbox'], ['people', 'Customers']].map(([id, label]) => (
             <button key={id} type="button" onClick={() => setTab(id)}
-              style={{ flex: 1, padding: '12px 6px', border: 'none', background: tab === id ? t.bgMuted : t.bgElevated, fontSize: 12, fontWeight: tab === id ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit', color: tab === id ? t.text : t.textMuted }}>
+              className={isFloatDesktop ? (tab === id ? 'chat-float-tab chat-float-tab--active' : 'chat-float-tab') : undefined}
+              style={{ flex: 1, padding: '12px 6px', border: 'none', background: isFloatDesktop ? undefined : (tab === id ? t.bgMuted : t.bgElevated), fontSize: 12, fontWeight: tab === id ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit', color: isFloatDesktop ? undefined : (tab === id ? t.text : t.textMuted) }}>
               {label}{id === 'chats' && unread ? ` (${unread})` : ''}
             </button>
           ))}
@@ -842,10 +847,10 @@ export default function ChatSidebar({
               />
             )}
             <div
-              className="chat-compose-bar"
+              className={`chat-compose-bar${isFloatDesktop ? ' chat-float-compose' : ''}`}
               style={{
                 flexShrink: 0,
-                background: t.bgElevated,
+                background: isFloatDesktop ? undefined : t.bgElevated,
                 paddingBottom: keyboardInset > 0 ? keyboardInset : undefined,
               }}
             >
