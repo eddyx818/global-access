@@ -31,7 +31,7 @@ export default function MobileBottomNav({
     { id: 'home', label: homeLabel, icon: '⌂', onClick: onHome, active: activeView === 'home' || activeView === 'brand' },
     showList && { id: 'list', label: listLabel, icon: '☰', onClick: onList, active: activeView === 'interest', badge: listCount || null },
     showQuotes && { id: 'quotes', label: 'Quotes', icon: '📋', onClick: onQuotes, active: activeView === 'quotes', badge: quotesCount || null },
-    showPriceChecks && { id: 'price_checks', label: 'Price check', icon: '💰', onClick: onPriceChecks, active: activeView === 'price_checks', badge: priceCheckBadge || null },
+    showPriceChecks && { id: 'price_checks', label: 'Price Check', icon: '💰', onClick: onPriceChecks, active: activeView === 'price_checks', badge: priceCheckBadge || null },
     showChat && { id: 'chat', label: chatLabel, icon: '💬', onClick: onChat, active: activeView === 'chat', badge: unread || null, accent: true },
     showProfile && { id: 'profile', label: 'Profile', icon: '👤', onClick: onProfile, active: activeView === 'profile' },
   ].filter(Boolean);

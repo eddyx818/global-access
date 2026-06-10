@@ -332,12 +332,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal, onOpenMes
           <span style={{ fontSize: narrowHeader ? 15 : 13, color: t.gold, letterSpacing: '0.14em' }}>Admin</span>
         </div>
         {narrowHeader ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, width: '100%' }}>
-            {onOpenMessages && (
-              <button type="button" onClick={onOpenMessages} style={portalBtnStyle}>
-                Messages{messagesUnread > 0 ? ` (${messagesUnread})` : ''}
-              </button>
-            )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%' }}>
             <button type="button" onClick={onViewPortal} style={portalBtnStyle}>Portal</button>
             <button type="button" onClick={onLogout} style={signOutBtnStyle}>Sign out</button>
           </div>

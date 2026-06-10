@@ -147,7 +147,7 @@ export default function Nav({
         {previewToggle}
       </div>
       <div className="app-portal-nav__right">
-        {onChat && (
+        {onChat && !isMobile && (
           <button type="button" onClick={onChat} style={{ ...dashboardBtnStyle, position: 'relative' }}>
             {chatLabel}
             {unread > 0 && (
