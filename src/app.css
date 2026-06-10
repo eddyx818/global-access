@@ -872,12 +872,17 @@ html[data-theme='night'] .chat-float-compose {
 }
 
 .chat-float-panel .chat-staff-actions-scroll,
-.chat-float-panel [style*='maxHeight: 360'] {
+.chat-float-panel .chat-staff-actions-bar {
   background: rgba(255, 255, 255, 0.35) !important;
   border-bottom-color: rgba(0, 0, 0, 0.05) !important;
 }
 
-html[data-theme='night'] .chat-float-panel .chat-staff-actions-scroll {
+.chat-float-panel .chat-staff-actions-toggle {
+  color: inherit;
+}
+
+html[data-theme='night'] .chat-float-panel .chat-staff-actions-scroll,
+html[data-theme='night'] .chat-float-panel .chat-staff-actions-bar {
   background: rgba(255, 255, 255, 0.04) !important;
 }
 

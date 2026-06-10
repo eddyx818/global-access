@@ -778,18 +778,21 @@ export default function ChatSidebar({
         {activeConvo ? (
           <>
             {!activeIsGroup && isStaff && (
-              isPage ? (
-                <div style={{ flexShrink: 0, borderBottom: t.borderHairlineLight, background: t.bgHover }}>
+                <div
+                  className={isFloatDesktop ? 'chat-staff-actions-bar' : undefined}
+                  style={{ flexShrink: 0, borderBottom: t.borderHairlineLight, background: t.bgHover }}
+                >
                   <button
                     type="button"
                     onClick={() => setStaffActionsOpen(v => !v)}
+                    className={isFloatDesktop ? 'chat-staff-actions-toggle' : undefined}
                     style={{
                       width: '100%',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       gap: 10,
-                      padding: '9px 12px',
+                      padding: isFloatDesktop ? '8px 14px' : '9px 12px',
                       background: 'none',
                       border: 'none',
                       fontFamily: 'inherit',
@@ -801,39 +804,28 @@ export default function ChatSidebar({
                       {staffActionsOpen ? '▲ Hide actions' : '▼ Actions & tools'}
                     </span>
                     {!staffActionsOpen && (
-                      <span style={{ fontSize: 10, color: t.textFaint, flexShrink: 0 }}>WhatsApp · join · notes</span>
+                      <span style={{ fontSize: 10, color: t.textFaint, flexShrink: 0 }}>
+                        WhatsApp · call · price check · notes
+                      </span>
                     )}
                   </button>
                   {staffActionsOpen && (
-                    <div className="chat-staff-actions-scroll" style={{
-                      padding: '0 12px 12px',
-                      maxHeight: '36vh',
-                      overflowY: 'auto',
-                      WebkitOverflowScrolling: 'touch',
-                      fontSize: 12,
-                      color: t.textSecondary,
-                      lineHeight: 1.45,
-                    }}>
+                    <div
+                      className="chat-staff-actions-scroll"
+                      style={{
+                        padding: isFloatDesktop ? '0 14px 12px' : '0 12px 12px',
+                        maxHeight: isFloatDesktop ? 'min(40vh, 280px)' : '36vh',
+                        overflowY: 'auto',
+                        WebkitOverflowScrolling: 'touch',
+                        fontSize: 12,
+                        color: t.textSecondary,
+                        lineHeight: 1.45,
+                      }}
+                    >
                       {renderStaffConversationTools()}
                     </div>
                   )}
                 </div>
-              ) : (
-                <div style={{
-                  padding: '8px 12px',
-                  borderBottom: t.borderHairlineLight,
-                  background: t.bgHover,
-                  fontSize: 12,
-                  color: t.textSecondary,
-                  lineHeight: 1.45,
-                  flexShrink: 0,
-                  maxHeight: 360,
-                  overflowY: 'auto',
-                  WebkitOverflowScrolling: 'touch',
-                }}>
-                  {renderStaffConversationTools()}
-                </div>
-              )
             )}
             {!activeIsGroup && !isStaff && !isPage && (
               <div style={{
@@ -904,7 +896,7 @@ export default function ChatSidebar({
                 aiSuggestLoading={aiLoading}
                 aiError={aiError}
                 onComposeFocus={() => {
-                  if (isPage) setStaffActionsOpen(false);
+                  if (isPage || isFloatDesktop) setStaffActionsOpen(false);
                 }}
               />
             </div>

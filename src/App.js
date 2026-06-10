@@ -996,34 +996,19 @@ export default function App() {
       />
     );
   }
-  if (authState === 'admin' && adminMode === 'dashboard') {
-    return (
-      <>
-        <AdminDashboard
-          user={user}
-          onLogout={handleLogout}
-          onViewPortal={() => setAdminMode('portal')}
-          onOpenMessages={() => setChatOpen(true)}
-          messagesUnread={chatUnread}
-        />
-        {user && (
-          <ChatErrorBoundary onFallback={() => setChatOpen(false)}>
-            <ChatSidebar
-              user={user}
-              open={chatOpen}
-              onClose={() => setChatOpen(false)}
-              isAdmin
-              onUnreadChange={refreshUnread}
-              profileComplete
-              desktopFloat={!isMobileDevice}
-            />
-          </ChatErrorBoundary>
-        )}
-      </>
-    );
-  }
+  const showAdminDesktopChat = user && authState === 'admin' && (adminMode === 'dashboard' || !mobileShell);
 
   return (
+    <>
+    {authState === 'admin' && adminMode === 'dashboard' ? (
+      <AdminDashboard
+        user={user}
+        onLogout={handleLogout}
+        onViewPortal={() => setAdminMode('portal')}
+        onOpenMessages={() => setChatOpen(true)}
+        messagesUnread={chatUnread}
+      />
+    ) : (
     <div className="app-viewport app-no-select" style={{ background: isNight ? t.bg : (bgColor || t.bg), fontFamily: getFontFamily(globalStyles.font_family), color: isNight ? t.text : (globalStyles.primary_color || t.text), transition: 'background 0.35s ease, color 0.35s ease', display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: '100dvh' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
 
@@ -1079,7 +1064,7 @@ export default function App() {
         onStaffHomeClick={isRepCatalog ? openRepDashboard : null}
       />
       )}
-      {user && !mobileShell && (
+      {user && !mobileShell && authState !== 'admin' && (
         <ChatErrorBoundary onFallback={navigateHome}>
           <ChatSidebar
             user={user}
@@ -1327,5 +1312,24 @@ export default function App() {
         />
       )}
     </div>
+    )}
+    {showAdminDesktopChat && (
+      <ChatErrorBoundary onFallback={() => setChatOpen(false)}>
+        <ChatSidebar
+          user={user}
+          open={chatOpen}
+          onClose={() => setChatOpen(false)}
+          isAdmin
+          onUnreadChange={refreshUnread}
+          profileComplete
+          desktopFloat={!isMobileDevice}
+          customerChatLabel={chatLabel}
+          onPriceCheckSubmitted={() => {
+            fetchRecentPriceChecks(50).then(rows => setPriceCheckNewCount(countNewPriceChecks(rows)));
+          }}
+        />
+      </ChatErrorBoundary>
+    )}
+    </>
   );
 }
