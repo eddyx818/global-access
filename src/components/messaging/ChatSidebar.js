@@ -99,6 +99,7 @@ export default function ChatSidebar({
   const [aiError, setAiError] = useState('');
   const [minimized, setMinimized] = useState(false);
   const subRef = useRef(null);
+  const staffPanelInnerRef = useRef(null);
   const keyboardInset = useVisualViewportInset(isPage);
 
   const mergeProfiles = async (convos, msgs = []) => {
@@ -525,6 +526,12 @@ export default function ChatSidebar({
     setAiError('');
   }, [activeConvo?.id]);
 
+  useEffect(() => {
+    const panel = staffPanelInnerRef.current;
+    if (!panel) return;
+    panel.inert = !staffActionsOpen;
+  }, [staffActionsOpen, activeConvo?.id]);
+
   const handleAiSuggest = async () => {
     if (!isStaff || activeIsGroup) return;
     setAiLoading(true);
@@ -832,7 +839,7 @@ export default function ChatSidebar({
                     />
                   </button>
                   <div className="chat-staff-actions-panel">
-                    <div className="chat-staff-actions-panel__inner">
+                    <div ref={staffPanelInnerRef} className="chat-staff-actions-panel__inner">
                       {renderStaffConversationTools()}
                     </div>
                   </div>

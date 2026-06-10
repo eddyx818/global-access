@@ -795,6 +795,10 @@ html.app-native .home-brand-card--selected {
   grid-template-rows: 1fr;
 }
 
+.chat-staff-actions-bar:not(.chat-staff-actions-bar--open) .chat-staff-actions-panel {
+  pointer-events: none;
+}
+
 .chat-staff-actions-panel__inner {
   overflow: hidden;
   min-height: 0;

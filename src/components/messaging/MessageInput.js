@@ -129,11 +129,19 @@ export default function MessageInput({
   };
 
   const handleKeyDown = (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
+
+  const mobileFieldNavProps = isMobile
+    ? { enterKeyHint: 'send', inputMode: 'text' }
+    : { enterKeyHint: 'send' };
 
   return (
     <div style={{
@@ -200,6 +208,7 @@ export default function MessageInput({
             onClick={onAiSuggest}
             disabled={aiSuggestLoading || sending}
             title="AI suggest reply"
+            tabIndex={isMobile ? -1 : 0}
             style={{
               width: isMobile ? 44 : 40,
               height: isMobile ? 44 : 40,
@@ -225,17 +234,18 @@ export default function MessageInput({
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
           placeholder={placeholder}
-          enterKeyHint="send"
           autoComplete="off"
           autoCorrect="on"
           spellCheck
           aria-label={placeholder}
+          {...mobileFieldNavProps}
           style={fieldStyle}
         />
         <button
           type="button"
           onClick={handleSend}
           disabled={!canSend}
+          tabIndex={isMobile ? -1 : 0}
           style={{
             width: isMobile ? 48 : 40,
             height: isMobile ? 48 : 40,
