@@ -155,6 +155,24 @@ export default function App() {
     else setChatOpen(true);
   };
 
+  /** Home/footer CTA — open Trade Desk with a fresh session (does not resurrect archived threads). */
+  const openMessageTradeDesk = () => {
+    if (user && !isPortalAdmin && !isProfileComplete(form)) {
+      setProfileGate('chat');
+      setShowProfile(false);
+      if (mobileShell) setView('profile');
+      else setShowProfile(true);
+      return;
+    }
+    setShowProfile(false);
+    setProfileGate(null);
+    setOpenSupportOnLoad(n => n + 1);
+    if (mobileShell) setView('chat');
+    else setChatOpen(true);
+  };
+
+  const clearOpenSupportOnLoad = () => setOpenSupportOnLoad(0);
+
   const closeChat = () => {
     setChatOpen(false);
     setChatInThread(false);
@@ -1044,7 +1062,9 @@ export default function App() {
             profileComplete={isProfileComplete(form)}
             onRequireProfile={requireProfileForChat}
             openSupportOnLoad={openSupportOnLoad}
+            onSupportOpened={clearOpenSupportOnLoad}
             customerChatLabel={chatLabel}
+            openSupportFreshSession
             onPriceCheckSubmitted={() => {
               fetchRecentPriceChecks(50).then(rows => setPriceCheckNewCount(countNewPriceChecks(rows)));
             }}
@@ -1110,7 +1130,7 @@ export default function App() {
             masterPricingQualified={masterPricingQualified}
             isStaff={isStaffPortalUser}
             chatLabel={chatLabel}
-            onMessageUs={authState === 'portal' && user && !isStaffPortalUser ? openChat : null}
+            onMessageUs={authState === 'portal' && user && !isStaffPortalUser ? openMessageTradeDesk : null}
             onBrowseSignUp={authState === 'browse' ? openAccessRequest : null}
             onBrowseSignIn={authState === 'browse' ? () => setAuthState('login') : null}
           />
@@ -1131,6 +1151,8 @@ export default function App() {
               profileComplete={isProfileComplete(form)}
               onRequireProfile={requireProfileForChat}
               openSupportOnLoad={openSupportOnLoad}
+              onSupportOpened={clearOpenSupportOnLoad}
+              openSupportFreshSession
               customerChatLabel={chatLabel}
               onPriceCheckSubmitted={() => {
                 fetchRecentPriceChecks(50).then(rows => setPriceCheckNewCount(countNewPriceChecks(rows)));
@@ -1244,7 +1266,7 @@ export default function App() {
       {view === 'thanks' && (
         <ThanksView
           onBack={goHome}
-          onOpenSupport={user ? openChat : null}
+          onOpenSupport={user ? openMessageTradeDesk : null}
           chatLabel={chatLabel}
           staffPriceCheck={isStaffPriceCheck}
         />

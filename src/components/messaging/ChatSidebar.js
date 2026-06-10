@@ -1,13 +1,17 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   fetchConversations, fetchMessages, sendMessage, markMessagesRead,
   getOrCreateDirectConversation, getOrCreateSupportConversation, subscribeToMessages, getUnreadCount,
   fetchContactableUsers, getConversationTitle, isGroupConversation,
   getCustomerParticipantId, confirmConversationContact,
   joinStaffToConversation, updateCustomerAppointment, sendMessage as sendChatMessage,
-  softDeleteMessage, isMessageHiddenForUser,
+  softDeleteMessage, isMessageHiddenForUser, filterMessagesForCustomerView, isSupportConversation,
 } from '../../lib/community';
-import { filterAndSortConversations, loadConvoPrefs, pinConversation, unpinConversation, hideConversation } from '../../lib/conversationPrefs';
+import {
+  filterAndSortConversations, loadConvoPrefs, pinConversation, unpinConversation, hideConversation,
+  ensureConversationVisible, startConversationSession, getConversationSessionStart, clearConversationSession,
+  dedupeCustomerSupportInbox, MAX_CUSTOMER_SUPPORT_CHATS,
+} from '../../lib/conversationPrefs';
 import { validateAppointmentSlot, minAppointmentDateStr } from '../../lib/appointments';
 import { getNotificationPrefs, requestNotificationPermission } from '../../lib/notificationPrefs';
 import { subscribeToPushNotifications } from '../../lib/pushNotifications';
@@ -58,6 +62,8 @@ export default function ChatSidebar({
   profileComplete = true,
   onRequireProfile,
   openSupportOnLoad = 0,
+  openSupportFreshSession = false,
+  onSupportOpened = null,
   customerChatLabel = 'Trade Desk',
   onPriceCheckSubmitted = null,
 }) {
@@ -107,12 +113,19 @@ export default function ChatSidebar({
         fetchContactableUsers(user.id, { isAdmin, isSalesRep }),
         getUnreadCount(user.id, { isAdmin, isSalesRep }),
       ]);
-      setConversations(filterAndSortConversations(convos, user.id));
+      const ids = new Set();
+      convos.forEach(c => c.participant_user_ids.forEach(id => ids.add(id)));
+      const loadedProfiles = ids.size ? await loadProfileMap([...ids]) : {};
+      setProfiles(prev => ({ ...prev, ...loadedProfiles }));
+      let visible = filterAndSortConversations(convos, user.id);
+      if (!isAdmin && !isSalesRep) {
+        visible = dedupeCustomerSupportInbox(visible, loadedProfiles, user.id);
+      }
+      setConversations(visible);
       setConvoPrefs(loadConvoPrefs(user.id));
       setContactableUsers(contacts);
       setUnread(count);
       onUnreadChange?.(count);
-      await mergeProfiles(convos);
     } catch (err) {
       setLoadError(err?.message || 'Could not load messages. Pull down to refresh or try again.');
     }
@@ -140,21 +153,33 @@ export default function ChatSidebar({
   }, [isPage]);
 
   useEffect(() => {
-    if (!activeConvo?.id) return;
+    const convoId = activeConvo?.id;
+    if (!convoId) {
+      setMessages([]);
+      setLoading(false);
+      return undefined;
+    }
+
+    setMessages([]);
     setLoading(true);
-    fetchMessages(activeConvo.id).then(async (msgs) => {
+    let cancelled = false;
+
+    fetchMessages(convoId).then(async (msgs) => {
+      if (cancelled) return;
       setMessages(msgs);
       await mergeProfiles([activeConvo], msgs);
       if (!isGroupConversation(activeConvo)) {
-        await markMessagesRead(activeConvo.id, user.id, { isAdmin, isSalesRep });
+        await markMessagesRead(convoId, user.id, { isAdmin, isSalesRep });
         refresh();
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     });
+
     if (subRef.current) subRef.current.unsubscribe();
     subRef.current = subscribeToMessages(
-      activeConvo.id,
+      convoId,
       async (msg) => {
+        if (cancelled) return;
         setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg]);
         await mergeProfiles([], [msg]);
         if (!isGroupConversation(activeConvo)) {
@@ -162,12 +187,13 @@ export default function ChatSidebar({
             ? !profiles[msg.from_user_id]?.is_portal_admin
             : msg.to_user_id === user.id;
           if (shouldMark) {
-            await markMessagesRead(activeConvo.id, user.id, { isAdmin, isSalesRep });
+            await markMessagesRead(convoId, user.id, { isAdmin, isSalesRep });
             refresh();
           }
         }
       },
       async (msg) => {
+        if (cancelled) return;
         if (isMessageHiddenForUser(msg, user.id, { isPortalAdmin: isAdmin })) {
           setMessages(prev => prev.filter(m => m.id !== msg.id));
           return;
@@ -175,7 +201,11 @@ export default function ChatSidebar({
         setMessages(prev => prev.map(m => (m.id === msg.id ? msg : m)));
       },
     );
-    return () => subRef.current?.unsubscribe();
+
+    return () => {
+      cancelled = true;
+      subRef.current?.unsubscribe();
+    };
   }, [activeConvo?.id, user.id, isStaff]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const customerUserId = activeConvo && isStaff && !isGroupConversation(activeConvo)
@@ -214,12 +244,43 @@ export default function ChatSidebar({
     setConversations(prev => filterAndSortConversations(prev, user.id));
   };
 
-  const handleDeleteConvo = (convoId) => {
-    if (!window.confirm('Hide this chat from your inbox? You can start a new message anytime.')) return;
-    const next = hideConversation(user.id, convoId);
+  const handleDeleteConvo = async (convoId) => {
+    const label = isStaff
+      ? 'Hide this chat from your inbox? You can start a new message anytime.'
+      : 'Archive this chat? It will leave your inbox. Message Trade Desk again anytime to start fresh.';
+    if (!window.confirm(label)) return;
+
+    let next = hideConversation(user.id, convoId);
+
+    if (!isStaff) {
+      try {
+        const allConvos = await fetchConversations(user.id, { isAdmin: false, isSalesRep: false });
+        const ids = new Set();
+        allConvos.forEach(c => c.participant_user_ids.forEach(id => ids.add(id)));
+        const profileMap = ids.size ? await loadProfileMap([...ids]) : {};
+        for (const c of allConvos) {
+          if (isSupportConversation(c, profileMap, user.id)) {
+            next = hideConversation(user.id, c.id);
+          }
+        }
+      } catch (_) {}
+    }
+
     setConvoPrefs(next);
-    if (activeConvo?.id === convoId) setActiveConvo(null);
-    setConversations(prev => filterAndSortConversations(prev, user.id));
+    if (activeConvo?.id === convoId || (!isStaff && activeConvo && isSupportConversation(activeConvo, profiles, user.id))) {
+      setActiveConvo(null);
+      setMessages([]);
+    }
+    setConversations(prev => prev.filter(c => !next.hidden.includes(c.id)));
+  };
+
+  const handleSelectConvo = (convo) => {
+    setMessages([]);
+    if (!isStaff) {
+      const next = clearConversationSession(user.id, convo.id);
+      setConvoPrefs(next);
+    }
+    setActiveConvo(convo);
   };
 
   const handleJoinConvo = async () => {
@@ -296,7 +357,7 @@ export default function ChatSidebar({
     await refresh();
   };
 
-  const openSupportChat = async () => {
+  const openSupportChat = async ({ freshSession = false } = {}) => {
     if (!isStaff && !profileComplete) {
       onRequireProfile?.();
       return;
@@ -304,6 +365,26 @@ export default function ChatSidebar({
     setSupportError('');
     try {
       const convo = await getOrCreateSupportConversation(user.id);
+      const prefs = loadConvoPrefs(user.id);
+      const visibleSupport = conversations.filter(c =>
+        isSupportConversation(c, profiles, user.id) && !prefs.hidden.includes(c.id)
+      );
+
+      if (!isStaff && freshSession) {
+        if (visibleSupport.length >= MAX_CUSTOMER_SUPPORT_CHATS && !visibleSupport.some(c => c.id === convo.id)) {
+          setSupportError(`You can keep up to ${MAX_CUSTOMER_SUPPORT_CHATS} active chats. Archive one before starting another.`);
+          return;
+        }
+      }
+
+      let next = loadConvoPrefs(user.id);
+      if (!isStaff && freshSession) {
+        next = ensureConversationVisible(user.id, convo.id);
+        next = startConversationSession(user.id, convo.id);
+      }
+      setConvoPrefs(next);
+
+      setMessages([]);
       setActiveConvo(convo);
       setTab('chats');
       await refresh();
@@ -320,7 +401,9 @@ export default function ChatSidebar({
   useEffect(() => {
     if (!openSupportOnLoad || !user?.id || isStaff) return;
     if (!(open || isPage) || !profileComplete) return;
-    openSupportChat().catch(() => {});
+    openSupportChat({ freshSession: !!openSupportFreshSession })
+      .catch(() => {})
+      .finally(() => onSupportOpened?.());
   }, [openSupportOnLoad]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDeleteMessage = async (messageId, scope) => {
@@ -361,7 +444,11 @@ export default function ChatSidebar({
       attachment,
       isGroup,
     });
-    refresh();
+    if (!isStaff) {
+      const next = ensureConversationVisible(user.id, activeConvo.id);
+      setConvoPrefs(next);
+    }
+    await refresh();
   };
 
   const handleConfirmContact = async () => {
@@ -378,6 +465,8 @@ export default function ChatSidebar({
   const handleClose = () => {
     if (activeConvo) {
       setActiveConvo(null);
+      setMessages([]);
+      refresh();
       return;
     }
     onClose?.();
@@ -424,6 +513,12 @@ export default function ChatSidebar({
     }
     setSuggestedReply(result.text);
   };
+
+  const displayMessages = useMemo(() => {
+    if (isStaff || !activeConvo?.id) return messages;
+    const sessionStart = getConversationSessionStart(user.id, activeConvo.id);
+    return filterMessagesForCustomerView(messages, user.id, sessionStart);
+  }, [messages, isStaff, activeConvo?.id, user.id, convoPrefs]);
 
   const renderStaffConversationTools = () => (
     <>
@@ -572,7 +667,7 @@ export default function ChatSidebar({
       {showPageHeader && (
       <div style={{
         padding: isPage ? '6px 10px' : '12px 14px',
-        paddingTop: isPage ? 'max(6px, env(safe-area-inset-top, 0px))' : undefined,
+        paddingTop: isPage && activeConvo ? 'max(6px, env(safe-area-inset-top, 0px))' : (isPage ? 6 : undefined),
         borderBottom: t.borderHairlineLight,
         display: 'flex',
         alignItems: 'center',
@@ -717,7 +812,7 @@ export default function ChatSidebar({
               </div>
             )}
             <MessageThread
-              messages={messages}
+              messages={displayMessages}
               currentUserId={user.id}
               profiles={profiles}
               loading={loading}
@@ -777,14 +872,15 @@ export default function ChatSidebar({
             profiles={profiles}
             currentUserId={user.id}
             isStaff={isStaff}
-            onSelect={setActiveConvo}
-            onMessageSupport={!isStaff ? openSupportChat : null}
+            onSelect={handleSelectConvo}
+            onMessageSupport={!isStaff ? () => openSupportChat({ freshSession: true }) : null}
             isMobile={isPage}
             customerChatLabel={customerChatLabel}
             pinnedIds={convoPrefs.pinned}
             onPin={(id) => handlePinConvo(id, true)}
             onUnpin={(id) => handlePinConvo(id, false)}
             onDelete={handleDeleteConvo}
+            compactInbox={isPage}
           />
         ) : (
           <UserList users={contactableUsers} onSelect={(u) => openChatWith(u.user_id)} emptyLabel={isSalesRep ? 'No assigned customers yet. Share your rep code when signing people up.' : 'No customers yet.'} />

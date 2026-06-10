@@ -177,6 +177,22 @@ export function isMessageHiddenForUser(msg, userId, { isPortalAdmin = false } = 
   return (msg?.hidden_for_user_ids || []).includes(userId);
 }
 
+export function filterMessagesForCustomerView(messages, userId, sessionStart = null) {
+  const sessionTs = sessionStart ? new Date(sessionStart).getTime() : null;
+  return (messages || []).filter((msg) => {
+    if (isMessageHiddenForUser(msg, userId)) return false;
+    if (!sessionTs) return true;
+    return new Date(msg.created_at).getTime() >= sessionTs;
+  });
+}
+
+export function isSupportConversation(convo, profiles, customerUserId) {
+  if (!convo || convo.is_group) return false;
+  const otherId = (convo.participant_user_ids || []).find(id => id !== customerUserId);
+  const p = profiles[otherId] || {};
+  return !!(p.is_portal_admin || p.is_sales_rep);
+}
+
 export function isMessageHiddenFromCustomer(msg, customerUserId) {
   if (!customerUserId) return false;
   return (msg?.hidden_for_user_ids || []).includes(customerUserId);
