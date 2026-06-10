@@ -1321,7 +1321,6 @@ export default function App() {
           listLabel="My List"
           showQuotes={isStaffPortalUser}
           showPriceChecks={isStaffCatalogPortal}
-          showChat={!isStaffPortalUser}
           showProfile={!isStaffCatalogPortal}
           homeLabel={isStaffCatalogPortal ? 'Catalog' : 'Home'}
         />
