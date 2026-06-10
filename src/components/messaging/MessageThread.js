@@ -4,7 +4,7 @@ import { getChatDisplayName, isMessageHiddenFromCustomer } from '../../lib/commu
 import CustomerBadges from '../CustomerBadges';
 import { useTheme } from '../../context/ThemeContext';
 
-function MessageDeleteMenu({ onDelete, onClose, openAbove = false }) {
+function MessageDeleteMenu({ onDelete, onClose, openAbove = false, expandRight = false }) {
   const { t } = useTheme();
 
   const run = async () => {
@@ -20,7 +20,7 @@ function MessageDeleteMenu({ onDelete, onClose, openAbove = false }) {
         ...(openAbove
           ? { bottom: '100%', marginBottom: 4 }
           : { top: '100%', marginTop: 4 }),
-        right: 0,
+        ...(expandRight ? { left: 0 } : { right: 0 }),
         zIndex: 20,
         minWidth: 140,
         background: t.bgElevated,
@@ -172,7 +172,7 @@ export default function MessageThread({
                 {isCustomerSender && <CustomerBadges profile={fromProfile} size="sm" />}
               </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: mine ? 'row-reverse' : 'row', maxWidth: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: 'row', maxWidth: '100%', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
               <div className={`chat-bubble${mine ? ' chat-bubble--mine' : ' chat-bubble--other'}`} style={{
                 maxWidth: '85%', padding: '10px 14px',
                 background: mine ? t.bubbleMineBg : t.bubbleOtherBg, color: mine ? t.bubbleMineText : t.bubbleOtherText,
@@ -204,10 +204,11 @@ export default function MessageThread({
                 </div>
               </div>
               {showMenu && (
-                <div style={{ position: 'relative', flexShrink: 0 }}>
+                <div style={{ position: 'relative', flexShrink: 0, order: mine ? -1 : 1 }}>
                   {menuMessageId === msg.id && (
                     <MessageDeleteMenu
                       openAbove={!isMobile}
+                      expandRight={!mine}
                       onDelete={() => onDeleteMessage(msg.id)}
                       onClose={() => setMenuMessageId(null)}
                     />
