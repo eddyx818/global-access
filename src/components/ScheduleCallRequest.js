@@ -72,6 +72,7 @@ export default function ScheduleCallRequest({ user, onSendMessage, isMobile = fa
       <button
         type="button"
         onClick={() => { setOpen(v => !v); setError(''); setFeedback(''); }}
+        tabIndex={isMobile ? -1 : 0}
         style={{
           width: '100%',
           display: 'flex',

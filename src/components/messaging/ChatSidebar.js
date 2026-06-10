@@ -95,11 +95,13 @@ export default function ChatSidebar({
   const [counterTime, setCounterTime] = useState('');
   const [appointmentBusy, setAppointmentBusy] = useState(false);
   const [staffActionsOpen, setStaffActionsOpen] = useState(false);
+  const [composeFocused, setComposeFocused] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
   const [minimized, setMinimized] = useState(false);
   const subRef = useRef(null);
   const staffPanelInnerRef = useRef(null);
+  const composeInertRef = useRef(null);
   const keyboardInset = useVisualViewportInset(isPage);
 
   const mergeProfiles = async (convos, msgs = []) => {
@@ -523,6 +525,7 @@ export default function ChatSidebar({
 
   useEffect(() => {
     setStaffActionsOpen(false);
+    setComposeFocused(false);
     setAiError('');
   }, [activeConvo?.id]);
 
@@ -531,6 +534,12 @@ export default function ChatSidebar({
     if (!panel) return;
     panel.inert = !staffActionsOpen;
   }, [staffActionsOpen, activeConvo?.id]);
+
+  useEffect(() => {
+    const block = composeInertRef.current;
+    if (!block) return;
+    block.inert = isPage && composeFocused;
+  }, [composeFocused, isPage, activeConvo?.id]);
 
   const handleAiSuggest = async () => {
     if (!isStaff || activeIsGroup) return;
@@ -826,6 +835,7 @@ export default function ChatSidebar({
                     onClick={() => setStaffActionsOpen(v => !v)}
                     className="chat-staff-actions-toggle"
                     aria-expanded={staffActionsOpen}
+                    tabIndex={isPage ? -1 : 0}
                   >
                     <span className="chat-staff-actions-toggle__label">Tools</span>
                     {!staffActionsOpen && (
@@ -864,6 +874,7 @@ export default function ChatSidebar({
                 )}
               </div>
             )}
+            <div ref={composeInertRef} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
             <MessageThread
               messages={displayMessages}
               currentUserId={user.id}
@@ -882,6 +893,7 @@ export default function ChatSidebar({
                 onSendMessage={(text) => handleSend(text)}
               />
             )}
+            </div>
             <div
               className={`chat-compose-bar${isFloatDesktop ? ' chat-float-compose' : ''}`}
               style={{
@@ -912,8 +924,10 @@ export default function ChatSidebar({
                 aiSuggestLoading={aiLoading}
                 aiError={aiError}
                 onComposeFocus={() => {
+                  setComposeFocused(true);
                   if (isPage || isFloatDesktop) setStaffActionsOpen(false);
                 }}
+                onComposeBlur={() => setComposeFocused(false)}
               />
             </div>
           </>

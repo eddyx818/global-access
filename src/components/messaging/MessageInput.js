@@ -4,15 +4,17 @@ import { useTheme } from '../../context/ThemeContext';
 
 const FILE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,application/pdf';
 
-function composeHeights(isMobile) {
+function composeHeights(isMobile, expanded) {
   const lineHeight = 1.4;
   const fontSize = 16;
-  const visibleLines = isMobile ? 5 : 4;
-  const padY = isMobile ? 12 : 10;
+  const padY = isMobile ? 10 : 8;
   const linePx = fontSize * lineHeight;
+  const visibleLines = expanded ? 14 : (isMobile ? 5 : 4);
+  const expandedCap = isMobile ? Math.round(window.innerHeight * 0.38) : 280;
+  const maxFromLines = Math.round(linePx * visibleLines + padY * 2);
   return {
     minH: Math.round(linePx + padY * 2),
-    maxH: Math.round(linePx * visibleLines + padY * 2),
+    maxH: expanded ? Math.max(maxFromLines, expandedCap) : maxFromLines,
   };
 }
 
@@ -30,9 +32,11 @@ export default function MessageInput({
   aiSuggestLoading = false,
   aiError = '',
   onComposeFocus,
+  onComposeBlur,
 }) {
   const { t } = useTheme();
   const [text, setText] = useState('');
+  const [expanded, setExpanded] = useState(false);
   const inputRef = useRef(null);
   const [sending, setSending] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
@@ -41,7 +45,7 @@ export default function MessageInput({
   const autoResize = useCallback(() => {
     const el = inputRef.current;
     if (!el) return;
-    const { minH, maxH } = composeHeights(isMobile);
+    const { minH, maxH } = composeHeights(isMobile, expanded);
     el.style.height = '0px';
     const contentH = el.scrollHeight;
     const next = Math.max(minH, Math.min(contentH, maxH));
@@ -50,11 +54,18 @@ export default function MessageInput({
     if (contentH > maxH) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [isMobile]);
+  }, [isMobile, expanded]);
 
   useLayoutEffect(() => {
     autoResize();
   }, [text, autoResize]);
+
+  useEffect(() => {
+    if (!expanded) return undefined;
+    const onResize = () => autoResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [expanded, autoResize]);
 
   useEffect(() => {
     if (!suggestedText) return;
@@ -83,6 +94,7 @@ export default function MessageInput({
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = FILE_ACCEPT;
+    input.tabIndex = -1;
     input.style.cssText = 'position:fixed;left:-9999px;opacity:0;width:1px;height:1px;';
     input.addEventListener('change', (e) => {
       handlePickFile(e);
@@ -104,6 +116,7 @@ export default function MessageInput({
       await onSend(text, attachment);
       setText('');
       setPendingFile(null);
+      setExpanded(false);
       requestAnimationFrame(() => autoResize());
     } catch (err) {
       setError(err?.message || 'Could not send message.');
@@ -112,6 +125,7 @@ export default function MessageInput({
   };
 
   const canSend = (text.trim() || pendingFile) && !sending;
+  const mobileTabSkip = isMobile ? { tabIndex: -1 } : {};
 
   const handleFocus = () => {
     onComposeFocus?.();
@@ -121,36 +135,40 @@ export default function MessageInput({
     });
   };
 
+  const handleBlur = () => {
+    onComposeBlur?.();
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Tab') {
       e.preventDefault();
       return;
     }
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !expanded) {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const toggleExpanded = () => {
+    setExpanded(v => !v);
+    requestAnimationFrame(() => {
+      autoResize();
+      inputRef.current?.focus();
+    });
   };
 
   const mobileFieldNavProps = isMobile
     ? { enterKeyHint: 'send', inputMode: 'text' }
     : { enterKeyHint: 'send' };
 
-  const actionBtnStyle = {
-    width: isMobile ? 44 : 40,
-    height: isMobile ? 44 : 40,
-    background: t.inputBg,
-    border: t.borderHairline,
-    borderRadius: isMobile ? 12 : 10,
-    cursor: sending ? 'not-allowed' : 'pointer',
-    fontFamily: 'inherit',
-    fontSize: 18,
-    flexShrink: 0,
-  };
-
   return (
     <div
-      className={`chat-compose${isMobile ? ' chat-compose--mobile' : ''}`}
+      className={[
+        'chat-compose',
+        isMobile ? 'chat-compose--mobile' : '',
+        expanded ? 'chat-compose--expanded' : '',
+      ].filter(Boolean).join(' ')}
       style={{
         borderTop: t.borderHairlineLight,
         background: t.bgElevated,
@@ -161,7 +179,7 @@ export default function MessageInput({
       {pendingFile && (
         <div className="chat-compose-attachment">
           <span className="chat-compose-attachment__name">📎 {pendingFile.name}</span>
-          <button type="button" onClick={() => setPendingFile(null)} className="chat-compose-attachment__remove" style={{ color: t.errorText }}>
+          <button type="button" onClick={() => setPendingFile(null)} className="chat-compose-attachment__remove" style={{ color: t.errorText }} {...mobileTabSkip}>
             Remove
           </button>
         </div>
@@ -177,81 +195,87 @@ export default function MessageInput({
             : '10px 12px',
         }}
       >
-        <button
-          type="button"
-          className="chat-compose-action"
-          onClick={handleAttachClick}
-          disabled={sending}
-          title="Attach photo or document"
-          tabIndex={-1}
-          style={actionBtnStyle}
-        >
-          📎
-        </button>
-        {showAiSuggest && (
-          <button
-            type="button"
-            className="chat-compose-action"
-            onClick={onAiSuggest}
-            disabled={aiSuggestLoading || sending}
-            title="AI suggest reply"
-            tabIndex={isMobile ? -1 : 0}
-            style={{
-              ...actionBtnStyle,
-              background: aiSuggestLoading ? t.border : t.goldBg,
-              border: `0.5px solid ${t.gold}`,
-              color: t.gold,
-            }}
-          >
-            {aiSuggestLoading ? '…' : '✨'}
-          </button>
-        )}
         <div
-          className="chat-compose-input-wrap"
+          className="chat-compose-shell"
           style={{
             background: t.inputBg,
             border: t.borderHairline,
           }}
         >
-          <textarea
-            ref={inputRef}
-            className="chat-compose-field"
-            rows={1}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={handleFocus}
-            placeholder={placeholder}
-            autoComplete="off"
-            autoCorrect="on"
-            spellCheck
-            aria-label={placeholder}
-            style={{ color: t.text }}
-            {...mobileFieldNavProps}
-          />
+          <div className="chat-compose-editor">
+            <textarea
+              ref={inputRef}
+              className="chat-compose-field"
+              rows={1}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              placeholder={placeholder}
+              autoComplete="off"
+              autoCorrect="on"
+              spellCheck
+              aria-label={placeholder}
+              style={{ color: t.text }}
+              {...mobileFieldNavProps}
+            />
+            {isMobile && (
+              <button
+                type="button"
+                className="chat-compose-expand"
+                onClick={toggleExpanded}
+                aria-label={expanded ? 'Collapse message box' : 'Expand message box'}
+                title={expanded ? 'Collapse' : 'Expand'}
+                {...mobileTabSkip}
+              >
+                <span className={`chat-compose-expand-icon${expanded ? ' chat-compose-expand-icon--expanded' : ''}`} aria-hidden />
+              </button>
+            )}
+          </div>
+          <div className="chat-compose-toolbar">
+            <button
+              type="button"
+              className="chat-compose-tool"
+              onClick={handleAttachClick}
+              disabled={sending}
+              title="Attach photo or document"
+              aria-label="Attach file"
+              {...mobileTabSkip}
+            >
+              📎
+            </button>
+            {showAiSuggest && (
+              <button
+                type="button"
+                className="chat-compose-tool chat-compose-tool--ai"
+                onClick={onAiSuggest}
+                disabled={aiSuggestLoading || sending}
+                title="AI suggest reply"
+                aria-label="AI suggest reply"
+                {...mobileTabSkip}
+                style={{ color: t.gold }}
+              >
+                {aiSuggestLoading ? '…' : '✨'}
+              </button>
+            )}
+            <div className="chat-compose-toolbar__spacer" />
+            <button
+              type="button"
+              className={`chat-compose-send${canSend ? ' chat-compose-send--active' : ''}`}
+              onClick={handleSend}
+              disabled={!canSend}
+              aria-label="Send message"
+              {...mobileTabSkip}
+              style={{
+                color: canSend ? t.btnPrimaryText : t.textDisabled,
+                background: canSend ? t.btnPrimaryBg : 'transparent',
+              }}
+            >
+              ↑
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          className="chat-compose-send"
-          onClick={handleSend}
-          disabled={!canSend}
-          tabIndex={isMobile ? -1 : 0}
-          aria-label="Send message"
-          style={{
-            width: isMobile ? 44 : 40,
-            height: isMobile ? 44 : 40,
-            background: canSend ? t.btnPrimaryBg : t.border,
-            border: 'none',
-            borderRadius: isMobile ? 22 : 10,
-            color: canSend ? t.btnPrimaryText : t.textDisabled,
-            cursor: canSend ? 'pointer' : 'not-allowed',
-            fontFamily: 'inherit',
-            fontSize: isMobile ? 20 : 18,
-            flexShrink: 0,
-          }}
-        >
-          ↑
-        </button>
       </div>
     </div>
   );
