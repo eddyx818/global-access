@@ -101,6 +101,7 @@ export default function ChatSidebar({
   const subRef = useRef(null);
   const staffPanelInnerRef = useRef(null);
   const composeInertRef = useRef(null);
+  const panelRef = useRef(null);
 
   const mergeProfiles = async (convos, msgs = []) => {
     const ids = new Set();
@@ -534,9 +535,16 @@ export default function ChatSidebar({
   }, [staffActionsOpen, activeConvo?.id]);
 
   useEffect(() => {
-    const block = composeInertRef.current;
-    if (!block) return;
-    block.inert = isPage && composeFocused;
+    if (!isPage || !panelRef.current) return undefined;
+    const targets = panelRef.current.querySelectorAll('.chat-compose-isolation-target');
+    targets.forEach((el) => {
+      el.inert = composeFocused;
+    });
+    return () => {
+      targets.forEach((el) => {
+        el.inert = false;
+      });
+    };
   }, [composeFocused, isPage, activeConvo?.id]);
 
   const handleAiSuggest = async () => {
@@ -721,12 +729,12 @@ export default function ChatSidebar({
   const showPageHeader = !isPage || activeConvo || isPage;
 
   const inner = (
-    <div className={isPage ? `chat-page-panel${inMobileThread ? ' chat-thread-panel' : ''}` : (isFloatDesktop ? 'chat-float-panel' : undefined)} style={panelStyle}>
+    <div ref={panelRef} className={isPage ? `chat-page-panel${inMobileThread ? ' chat-thread-panel' : ''}` : (isFloatDesktop ? 'chat-float-panel' : undefined)} style={panelStyle}>
       {showPageHeader && (
       <div
         className={[
           isFloatDesktop ? 'chat-float-header' : undefined,
-          isPage && activeConvo ? 'chat-page-header' : undefined,
+          isPage && activeConvo ? 'chat-page-header chat-compose-isolation-target' : undefined,
         ].filter(Boolean).join(' ') || undefined}
         style={{
         padding: isPage ? '4px 8px 4px 4px' : (isFloatDesktop ? undefined : '12px 14px'),
@@ -744,6 +752,7 @@ export default function ChatSidebar({
             onClick={handleClose}
             style={{ color: t.headerText }}
             aria-label="Back to inbox"
+            tabIndex={-1}
           >
             ‹
           </button>
@@ -828,7 +837,7 @@ export default function ChatSidebar({
           <>
             {!activeIsGroup && isStaff && (
                 <div
-                  className={`chat-staff-actions-bar${staffActionsOpen ? ' chat-staff-actions-bar--open' : ''}${isFloatDesktop ? ' chat-staff-actions-bar--float' : ''}`}
+                  className={`chat-staff-actions-bar chat-compose-isolation-target${staffActionsOpen ? ' chat-staff-actions-bar--open' : ''}${isFloatDesktop ? ' chat-staff-actions-bar--float' : ''}`}
                 >
                   <button
                     type="button"
@@ -874,7 +883,7 @@ export default function ChatSidebar({
                 )}
               </div>
             )}
-            <div ref={composeInertRef} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <div ref={composeInertRef} className="chat-compose-isolation-target" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
             <MessageThread
               messages={displayMessages}
               currentUserId={user.id}

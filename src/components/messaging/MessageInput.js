@@ -139,7 +139,7 @@ export default function MessageInput({
       e.preventDefault();
       return;
     }
-    if (e.key === 'Enter' && !e.shiftKey && !expanded) {
+    if (!isMobile && e.key === 'Enter' && !e.shiftKey && !expanded) {
       e.preventDefault();
       handleSend();
     }
@@ -154,7 +154,7 @@ export default function MessageInput({
   };
 
   const mobileFieldNavProps = isMobile
-    ? { enterKeyHint: 'send', inputMode: 'text' }
+    ? { enterKeyHint: 'enter' }
     : { enterKeyHint: 'send' };
 
   return (

@@ -390,6 +390,27 @@ export default function App() {
     };
   }, [mobileShell, view, chatInThread, keyboardOpen]);
 
+  useEffect(() => {
+    const lockNav = mobileShell && view === 'chat' && chatInThread && keyboardOpen;
+    const nav = document.querySelector('nav.app-portal-nav');
+    if (nav) nav.inert = lockNav;
+    return () => {
+      if (nav) nav.inert = false;
+    };
+  }, [mobileShell, view, chatInThread, keyboardOpen]);
+
+  useEffect(() => {
+    if (!mobileShell || !keyboardOpen || view !== 'chat' || !chatInThread) return undefined;
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+    const lockScroll = () => {
+      window.scrollTo(0, 0);
+    };
+    vv.addEventListener('scroll', lockScroll);
+    lockScroll();
+    return () => vv.removeEventListener('scroll', lockScroll);
+  }, [mobileShell, keyboardOpen, view, chatInThread]);
+
   const requireProfileForChat = () => {
     setProfileGate('chat');
     if (mobileShell) setView('profile');
@@ -1006,7 +1027,7 @@ export default function App() {
       />
     );
   }
-  const showAdminDesktopChat = user && authState === 'admin' && (adminMode === 'dashboard' || !mobileShell);
+  const showAdminDesktopChat = user && authState === 'admin' && adminMode === 'portal' && !mobileShell;
 
   return (
     <>
@@ -1015,7 +1036,10 @@ export default function App() {
         user={user}
         onLogout={handleLogout}
         onViewPortal={() => setAdminMode('portal')}
-        onOpenMessages={() => setChatOpen(true)}
+        onOpenMessages={() => {
+          setAdminMode('portal');
+          setView('chat');
+        }}
         messagesUnread={chatUnread}
       />
     ) : (
