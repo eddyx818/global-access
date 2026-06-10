@@ -620,7 +620,7 @@ export default function HomeView({
             <div>
               <div className="home-catalog__title" style={{ color: t.textFaint }}>Our Brands</div>
               <div className="home-catalog__subtitle" style={{ color: t.textMuted }}>
-                Wholesale catalog · MOQ &amp; case pricing · Direct rep support
+                Wholesale Catalog · MOQ &amp; Case Pricing · Direct Rep Support
               </div>
               {isPortalUser && displayCompany && (
                 <div className="home-catalog__personal" style={{ color: t.textMuted }}>
@@ -643,7 +643,7 @@ export default function HomeView({
               <div style={{ fontSize: 11, color: t.textDisabled }}>
                 {reorderMode
                   ? (swapSourceIdx != null ? 'Tap another brand to swap' : 'Tap a brand, then tap where to move it')
-                  : (isMobile ? 'Tap to open · hold 3 sec to reorder' : `${brands.length} brands · Reorder to arrange`)}
+                  : (isMobile ? 'Tap to Open · Hold 3 Sec to Reorder' : `${brands.length} Brands · Reorder to Arrange`)}
               </div>
             </div>
           </div>
@@ -737,7 +737,7 @@ export default function HomeView({
           })}
         </div>
         <div style={{ textAlign: 'center', marginTop: 12, fontSize: 11, color: t.textDisabled }}>
-          {isMobile ? 'Swipe the hero to change brands · Tap a card to open' : 'Drag cards to reorder · Order saves automatically'}
+          {isMobile ? 'Swipe the Hero to Change Brands · Tap a Card to Open' : 'Drag Cards to Reorder · Order Saves Automatically'}
         </div>
 
         {!isStaff && (
@@ -828,7 +828,7 @@ export default function HomeView({
       <div style={{ borderTop: t.borderHairline, padding: '2rem 1.5rem', textAlign: 'center' }}>
         <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: '0.12em', color: t.text, marginBottom: 8 }}>Global Access</div>
         <div style={{ fontSize: 12, color: t.textDisabled, lineHeight: 1.65, maxWidth: 440, margin: '0 auto' }}>
-          Trade portal · Invite only
+          Trade Portal · Invite Only
           {!isStaff && onMessageUs ? (
             <>
               <br />
