@@ -891,6 +891,89 @@ html[data-theme='night'] .chat-float-panel .chat-bubble--other {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
+.chat-float-minimize-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: var(--ga-text-muted) !important;
+  border: 0.5px solid rgba(0, 0, 0, 0.06) !important;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.chat-float-minimize-btn:hover {
+  background: rgba(0, 0, 0, 0.1) !important;
+  color: var(--ga-text) !important;
+}
+
+html[data-theme='night'] .chat-float-minimize-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.chat-float-minimized {
+  position: fixed;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  z-index: 450;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ga-text);
+  animation: chat-float-in 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-theme='night'] .chat-float-minimized {
+  background: rgba(26, 26, 31, 0.88);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.chat-float-minimized__icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.chat-float-minimized__badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--ga-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-inbox-hint {
+  padding: 0 14px 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ga-text-faint);
+}
+
 .chat-compose-bar {
   position: relative;
   z-index: 5;

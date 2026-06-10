@@ -13,6 +13,7 @@ import {
   dedupeCustomerSupportInbox, MAX_CUSTOMER_SUPPORT_CHATS,
 } from '../../lib/conversationPrefs';
 import { validateAppointmentSlot, minAppointmentDateStr } from '../../lib/appointments';
+import { formatPhoneDisplay } from '../../lib/whatsapp';
 import { getNotificationPrefs, requestNotificationPermission } from '../../lib/notificationPrefs';
 import { subscribeToPushNotifications } from '../../lib/pushNotifications';
 import { supabase } from '../../lib/supabase';
@@ -94,6 +95,7 @@ export default function ChatSidebar({
   const [staffActionsOpen, setStaffActionsOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
+  const [minimized, setMinimized] = useState(false);
   const subRef = useRef(null);
   const keyboardInset = useVisualViewportInset(isPage);
 
@@ -119,6 +121,9 @@ export default function ChatSidebar({
       const loadedProfiles = ids.size ? await loadProfileMap([...ids]) : {};
       setProfiles(prev => ({ ...prev, ...loadedProfiles }));
       let visible = filterAndSortConversations(convos, user.id);
+      if (isAdmin || isSalesRep) {
+        visible = visible.filter(c => !!getCustomerParticipantId(c, loadedProfiles));
+      }
       if (!isAdmin && !isSalesRep) {
         visible = dedupeCustomerSupportInbox(visible, loadedProfiles, user.id);
       }
@@ -131,6 +136,10 @@ export default function ChatSidebar({
       setLoadError(err?.message || 'Could not load messages. Pull down to refresh or try again.');
     }
   }, [user?.id, isAdmin, isSalesRep, onUnreadChange]);
+
+  useEffect(() => {
+    if (!open && !isPage) setMinimized(false);
+  }, [open, isPage]);
 
   useEffect(() => {
     if (!(open || isPage) || !user?.id) return;
@@ -355,6 +364,8 @@ export default function ChatSidebar({
 
   const openChatWith = async (otherUserId) => {
     const convo = await getOrCreateDirectConversation(user.id, otherUserId);
+    const next = ensureConversationVisible(user.id, convo.id);
+    setConvoPrefs(next);
     setActiveConvo(convo);
     setTab('chats');
     await refresh();
@@ -447,10 +458,8 @@ export default function ChatSidebar({
       attachment,
       isGroup,
     });
-    if (!isStaff) {
-      const next = ensureConversationVisible(user.id, activeConvo.id);
-      setConvoPrefs(next);
-    }
+    const next = ensureConversationVisible(user.id, activeConvo.id);
+    setConvoPrefs(next);
     await refresh();
   };
 
@@ -532,7 +541,7 @@ export default function ChatSidebar({
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
             {staffCustomerProfile.email && <span>📧 {staffCustomerProfile.email}</span>}
             {staffCustomerProfile.phone && (
-              <span style={{ fontSize: 12, color: t.textSecondary }}>📱 {staffCustomerProfile.phone}</span>
+              <span style={{ fontSize: 12, color: t.textSecondary }}>📱 {formatPhoneDisplay(staffCustomerProfile.phone)}</span>
             )}
             {isStaff && customerInquiry && (
               <select
@@ -716,7 +725,20 @@ export default function ChatSidebar({
           )}
         </div>
         {!isPage && (
-          <button type="button" className={isFloatDesktop ? 'chat-float-close-btn' : undefined} onClick={onClose} style={{ background: isFloatDesktop ? undefined : 'none', border: 'none', color: isFloatDesktop ? undefined : t.headerMuted, cursor: 'pointer', fontSize: 22, fontFamily: 'inherit', padding: isFloatDesktop ? undefined : 4 }} aria-label="Close chat">×</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            {isFloatDesktop && (
+              <button
+                type="button"
+                className={isFloatDesktop ? 'chat-float-minimize-btn' : undefined}
+                onClick={() => setMinimized(true)}
+                aria-label="Minimize chat"
+                title="Minimize"
+              >
+                ─
+              </button>
+            )}
+            <button type="button" className={isFloatDesktop ? 'chat-float-close-btn' : undefined} onClick={onClose} style={{ background: isFloatDesktop ? undefined : 'none', border: 'none', color: isFloatDesktop ? undefined : t.headerMuted, cursor: 'pointer', fontSize: 22, fontFamily: 'inherit', padding: isFloatDesktop ? undefined : 4 }} aria-label="Close chat">×</button>
+          </div>
         )}
       </div>
       )}
@@ -736,7 +758,8 @@ export default function ChatSidebar({
       )}
 
       {!activeConvo && isStaff && (
-        <div className={isFloatDesktop ? 'chat-float-tabs' : undefined} style={{ display: 'flex', borderBottom: isFloatDesktop ? undefined : t.borderHairlineLight, flexShrink: 0 }}>
+        <div className={isFloatDesktop ? 'chat-float-tabs' : undefined} style={{ display: 'flex', borderBottom: isFloatDesktop ? undefined : t.borderHairlineLight, flexShrink: 0, flexDirection: 'column' }}>
+          <div style={{ display: 'flex', width: '100%' }}>
           {[['chats', 'Inbox'], ['people', 'Customers']].map(([id, label]) => (
             <button key={id} type="button" onClick={() => setTab(id)}
               className={isFloatDesktop ? (tab === id ? 'chat-float-tab chat-float-tab--active' : 'chat-float-tab') : undefined}
@@ -744,6 +767,10 @@ export default function ChatSidebar({
               {label}{id === 'chats' && unread ? ` (${unread})` : ''}
             </button>
           ))}
+          </div>
+          {tab === 'chats' && (
+            <div className="chat-inbox-hint">Active threads from the last 48 hours — includes messages you send and receive.</div>
+          )}
         </div>
       )}
 
@@ -906,6 +933,23 @@ export default function ChatSidebar({
   );
 
   if (isPage) return inner;
+
+  if (desktopFloat && minimized) {
+    return (
+      <button
+        type="button"
+        className="chat-float-minimized"
+        onClick={() => setMinimized(false)}
+        aria-label="Open messages"
+      >
+        <span className="chat-float-minimized__icon" aria-hidden>💬</span>
+        <span className="chat-float-minimized__label">{isStaff ? 'Messages' : customerChatLabel}</span>
+        {unread > 0 && (
+          <span className="chat-float-minimized__badge">{unread > 99 ? '99+' : unread}</span>
+        )}
+      </button>
+    );
+  }
 
   if (desktopFloat) {
     return (

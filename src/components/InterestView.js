@@ -66,6 +66,7 @@ export function InterestView({
                   style={profileSaved && field !== 'email' ? lockedStyle : inputStyle}
                   autoCapitalize={field === 'email' ? 'none' : 'words'}
                   inputMode={field === 'phone' ? 'tel' : field === 'email' ? 'email' : 'text'}
+                  placeholder={field === 'phone' ? '+1 (818) 319-9888 or +44 7911 123456' : undefined}
                 />
               </div>
             ))}

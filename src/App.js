@@ -27,7 +27,7 @@ import { subscribeToPushNotifications } from './lib/pushNotifications';
 import { canAccessPortal } from './lib/authGate';
 import { isHoneypotClean, isValidPhone, getPhoneValidationError } from './lib/accessRequestGate';
 import { validatePersonName, validateCompanyName } from './lib/nameValidation';
-import { hasCallablePhone } from './lib/whatsapp';
+import { hasCallablePhone, normalizePhoneE164 } from './lib/whatsapp';
 import { useTheme } from './context/ThemeContext';
 import {
   clearAppNavigation,
@@ -887,7 +887,7 @@ export default function App() {
       user_id: user?.id || null,
       name: nameCheck.value,
       company: companyCheck.value,
-      phone: form.phone,
+      phone: normalizePhoneE164(form.phone),
       email: form.email,
       notes: form.notes,
       interests,
@@ -1127,7 +1127,7 @@ export default function App() {
             {[['name','Your name *'],['company','Company / Store *'],['phone','Phone / WhatsApp *'],['email','Email']].map(([field, label]) => (
               <div key={field} style={{ marginBottom: '0.875rem' }}>
                 <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
-                <input value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} style={{ width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '11px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} autoCapitalize={field === 'email' ? 'none' : 'words'} inputMode={field === 'phone' ? 'tel' : field === 'email' ? 'email' : 'text'} />
+                <input value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} style={{ width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '11px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} autoCapitalize={field === 'email' ? 'none' : 'words'} inputMode={field === 'phone' ? 'tel' : field === 'email' ? 'email' : 'text'} placeholder={field === 'phone' ? '+1 (818) 319-9888 or +44 7911 123456' : undefined} />
               </div>
             ))}
             {signupPromptError && (

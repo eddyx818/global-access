@@ -28,6 +28,38 @@ export function normalizePhoneDigits(phone) {
   return (phone || '').replace(/\D/g, '');
 }
 
+/** Store phones in +E.164-style form (+country + national number). */
+export function normalizePhoneE164(phone) {
+  const trimmed = (phone || '').trim();
+  const digits = normalizePhoneDigits(trimmed);
+  if (!digits) return '';
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return trimmed.startsWith('+') ? `+${digits}` : `+${digits}`;
+}
+
+/** Human-readable display — US/Canada formatted; international keeps +country code. */
+export function formatPhoneDisplay(phone) {
+  const trimmed = (phone || '').trim();
+  const digits = normalizePhoneDigits(trimmed);
+  if (!digits) return trimmed;
+
+  const formatNanp = (n10) => `+1 (${n10.slice(0, 3)}) ${n10.slice(3, 6)}-${n10.slice(6)}`;
+
+  if (digits.length === 10) return formatNanp(digits);
+  if (digits.length === 11 && digits.startsWith('1')) return formatNanp(digits.slice(1));
+
+  if (digits.length > 10) {
+    const ccLen = digits.length >= 12 ? 2 : 1;
+    const cc = digits.slice(0, ccLen);
+    const rest = digits.slice(ccLen);
+    const parts = rest.match(/.{1,4}/g) || [];
+    return `+${cc} ${parts.join(' ')}`.trim();
+  }
+
+  return trimmed.startsWith('+') ? trimmed : `+${digits}`;
+}
+
 function nationalNumber(digits) {
   if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
   return digits;
@@ -77,7 +109,7 @@ function isValidNanp(n10) {
 export function validatePhone(phone) {
   const digits = normalizePhoneDigits(phone);
   if (digits.length < 10) {
-    return { ok: false, error: 'Enter at least 10 digits for your mobile number.' };
+    return { ok: false, error: 'Enter at least 10 digits, including country code if outside US/Canada (e.g. +1 or +44).' };
   }
   if (digits.length > 15) {
     return { ok: false, error: 'That phone number looks too long.' };

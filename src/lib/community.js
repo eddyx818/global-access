@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { getPortalSessionToken } from './session';
-import { hasCallablePhone } from './whatsapp';
+import { hasCallablePhone, normalizePhoneE164 } from './whatsapp';
 import { createStaffPriceCheckRecord } from './priceChecks';
 import { loadConvoPrefs, isConversationInboxActive } from './conversationPrefs';
 
@@ -496,8 +496,20 @@ async function getStaffSenderIds() {
 
 async function countStaffInboxUnread(userId, { isAdmin = false, isSalesRep = false } = {}) {
   const hidden = new Set(loadConvoPrefs(userId).hidden || []);
-  const convos = await fetchConversations(userId, { isAdmin, isSalesRep });
-  const visibleIds = convos.filter(c => !hidden.has(c.id) && isConversationInboxActive(c)).map(c => c.id);
+  let convos = await fetchConversations(userId, { isAdmin, isSalesRep });
+  convos = convos.filter(c => !hidden.has(c.id) && isConversationInboxActive(c));
+  const ids = new Set();
+  convos.forEach(c => (c.participant_user_ids || []).forEach(id => ids.add(id)));
+  if (ids.size) {
+    const { data: profiles } = await supabase
+      .from('user_profiles')
+      .select('user_id, is_portal_admin, is_sales_rep, role')
+      .in('user_id', [...ids]);
+    const profileMap = {};
+    (profiles || []).forEach(p => { profileMap[p.user_id] = p; });
+    convos = convos.filter(c => !!getCustomerParticipantId(c, profileMap));
+  }
+  const visibleIds = convos.map(c => c.id);
   if (!visibleIds.length) return 0;
   const staffIds = await getStaffSenderIds();
   const { data: msgs, error } = await supabase
@@ -576,7 +588,9 @@ export async function saveProfile(userId, email, fields) {
   if (fields.username !== undefined) payload.username = fields.username;
   if (fields.name !== undefined) payload.name = fields.name;
   if (fields.company !== undefined) payload.company = fields.company;
-  if (fields.phone !== undefined) payload.phone = fields.phone;
+  if (fields.phone !== undefined) {
+    payload.phone = fields.phone?.trim() ? normalizePhoneE164(fields.phone) : fields.phone;
+  }
   if (fields.bio !== undefined) payload.bio = fields.bio;
   if (fields.profile_avatar_url !== undefined) payload.profile_avatar_url = fields.profile_avatar_url;
   if (fields.user_type !== undefined) payload.user_type = fields.user_type;
