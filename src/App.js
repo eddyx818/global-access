@@ -1015,6 +1015,7 @@ export default function App() {
               isAdmin
               onUnreadChange={refreshUnread}
               profileComplete
+              desktopFloat={!isMobileDevice}
             />
           </ChatErrorBoundary>
         )}
@@ -1093,6 +1094,7 @@ export default function App() {
             onSupportOpened={clearOpenSupportOnLoad}
             customerChatLabel={chatLabel}
             openSupportFreshSession
+            desktopFloat={!isMobileDevice}
             onPriceCheckSubmitted={() => {
               fetchRecentPriceChecks(50).then(rows => setPriceCheckNewCount(countNewPriceChecks(rows)));
             }}

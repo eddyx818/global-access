@@ -56,7 +56,10 @@ export default function ConversationList({
         justifyContent: 'center',
       }}>
         {isStaff ? (
-          'No conversations yet. Message a customer from the Customers tab.'
+          <>
+            <div style={{ marginBottom: 12 }}>No active conversations in the last 48 hours.</div>
+            <div style={{ fontSize: 12, opacity: 0.85 }}>Message a customer from the Customers tab. Older threads drop off your inbox automatically.</div>
+          </>
         ) : (
           <>
             <div style={{ marginBottom: 20, lineHeight: 1.6, maxWidth: 280 }}>Questions about products, pricing, or orders? Our team is here to help.</div>

@@ -66,6 +66,7 @@ export default function ChatSidebar({
   onSupportOpened = null,
   customerChatLabel = 'Trade Desk',
   onPriceCheckSubmitted = null,
+  desktopFloat = false,
 }) {
   const { t } = useTheme();
   const isStaff = isAdmin || isSalesRep;
@@ -246,7 +247,7 @@ export default function ChatSidebar({
 
   const handleDeleteConvo = async (convoId) => {
     const label = isStaff
-      ? 'Hide this chat from your inbox? You can start a new message anytime.'
+      ? 'Remove this chat from your inbox? It clears automatically after 48 hours without activity.'
       : 'Archive this chat? It will leave your inbox. Message Trade Desk again anytime to start fresh.';
     if (!window.confirm(label)) return;
 
@@ -652,14 +653,12 @@ export default function ChatSidebar({
         ...(inMobileThread ? { position: 'fixed', inset: 0, zIndex: 450 } : {}),
       }
     : {
-        width: 360,
-        maxWidth: '100vw',
+        width: '100%',
         height: '100%',
         background: t.bgElevated,
-        borderLeft: t.borderHairlineLight,
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: `-8px 0 32px ${t.shadow}`,
+        overflow: 'hidden',
       };
 
   const showPageHeader = !isPage || activeConvo || isPage;
@@ -683,6 +682,16 @@ export default function ChatSidebar({
             type="button"
             onClick={handleClose}
             style={{ background: 'none', border: 'none', color: t.headerText, cursor: 'pointer', fontSize: 26, padding: '2px 6px 2px 0', fontFamily: 'inherit', lineHeight: 1, flexShrink: 0 }}
+            aria-label="Back to inbox"
+          >
+            ‹
+          </button>
+        )}
+        {!isPage && activeConvo && (
+          <button
+            type="button"
+            onClick={() => { setActiveConvo(null); setMessages([]); }}
+            style={{ background: 'none', border: 'none', color: t.headerText, cursor: 'pointer', fontSize: 22, padding: '2px 6px 2px 0', fontFamily: 'inherit', lineHeight: 1, flexShrink: 0 }}
             aria-label="Back to inbox"
           >
             ‹
@@ -893,10 +902,30 @@ export default function ChatSidebar({
 
   if (isPage) return inner;
 
+  if (desktopFloat) {
+    return (
+      <div className="chat-float-widget">
+        {inner}
+      </div>
+    );
+  }
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', justifyContent: 'flex-end' }}>
       <div onClick={onClose} style={{ flex: 1, background: t.overlayLight }} role="presentation" />
-      {inner}
+      <div style={{
+        width: 360,
+        maxWidth: '100vw',
+        height: '100%',
+        background: t.bgElevated,
+        borderLeft: t.borderHairlineLight,
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: `-8px 0 32px ${t.shadow}`,
+        overflow: 'hidden',
+      }}>
+        {inner}
+      </div>
     </div>
   );
 }

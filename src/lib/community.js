@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { getPortalSessionToken } from './session';
 import { hasCallablePhone } from './whatsapp';
 import { createStaffPriceCheckRecord } from './priceChecks';
-import { loadConvoPrefs } from './conversationPrefs';
+import { loadConvoPrefs, isConversationInboxActive } from './conversationPrefs';
 
 const ADMIN_EMAILS = () => (process.env.REACT_APP_ADMIN_EMAIL || '')
   .split(',')
@@ -497,7 +497,7 @@ async function getStaffSenderIds() {
 async function countStaffInboxUnread(userId, { isAdmin = false, isSalesRep = false } = {}) {
   const hidden = new Set(loadConvoPrefs(userId).hidden || []);
   const convos = await fetchConversations(userId, { isAdmin, isSalesRep });
-  const visibleIds = convos.filter(c => !hidden.has(c.id)).map(c => c.id);
+  const visibleIds = convos.filter(c => !hidden.has(c.id) && isConversationInboxActive(c)).map(c => c.id);
   if (!visibleIds.length) return 0;
   const staffIds = await getStaffSenderIds();
   const { data: msgs, error } = await supabase
@@ -515,7 +515,7 @@ export async function getUnreadCount(userId, { isAdmin = false, isSalesRep = fal
   }
   const hidden = new Set(loadConvoPrefs(userId).hidden || []);
   const convos = await fetchConversations(userId, { isAdmin: false, isSalesRep: false });
-  const visibleIds = convos.filter(c => !hidden.has(c.id)).map(c => c.id);
+  const visibleIds = convos.filter(c => !hidden.has(c.id) && isConversationInboxActive(c)).map(c => c.id);
   if (!visibleIds.length) return 0;
   const { count } = await supabase
     .from('messages')

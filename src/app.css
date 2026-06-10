@@ -699,6 +699,27 @@ html.app-native .brand-card--selected {
   overflow: hidden;
 }
 
+/* Desktop-only floating messenger (sidebar variant); mobile uses full-page chat */
+.chat-float-widget {
+  position: fixed;
+  bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  right: max(20px, env(safe-area-inset-right, 0px));
+  width: min(380px, calc(100vw - 32px));
+  height: min(560px, calc(100dvh - 40px));
+  z-index: 450;
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  border: 0.5px solid var(--ga-border-subtle, rgba(0, 0, 0, 0.08));
+  background: var(--ga-bg-elevated, #fff);
+}
+
+html[data-theme="night"] .chat-float-widget {
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45), 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+}
+
 .chat-compose-bar {
   position: relative;
   z-index: 5;

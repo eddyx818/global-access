@@ -1,5 +1,19 @@
 const prefsKey = (userId) => `ga-convo-prefs-${userId}`;
 
+/** Inbox only shows threads with activity in this window (messages stay in the database). */
+export const INBOX_RETENTION_HOURS = 48;
+const INBOX_RETENTION_MS = INBOX_RETENTION_HOURS * 60 * 60 * 1000;
+
+export function getConversationActivityAt(convo) {
+  return convo?.last_message_at || convo?.created_at || null;
+}
+
+export function isConversationInboxActive(convo, nowMs = Date.now()) {
+  const at = getConversationActivityAt(convo);
+  if (!at) return true;
+  return nowMs - new Date(at).getTime() <= INBOX_RETENTION_MS;
+}
+
 export function loadConvoPrefs(userId) {
   try {
     const raw = localStorage.getItem(prefsKey(userId));
@@ -91,7 +105,9 @@ export const MAX_CUSTOMER_SUPPORT_CHATS = 3;
 
 export function filterAndSortConversations(conversations, userId) {
   const prefs = loadConvoPrefs(userId);
-  const visible = (conversations || []).filter(c => !prefs.hidden.includes(c.id));
+  const visible = (conversations || []).filter(
+    c => !prefs.hidden.includes(c.id) && isConversationInboxActive(c),
+  );
   const pinnedSet = new Set(prefs.pinned);
   return [...visible].sort((a, b) => {
     const aPin = pinnedSet.has(a.id) ? 0 : 1;
