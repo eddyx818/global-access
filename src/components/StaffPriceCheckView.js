@@ -172,7 +172,7 @@ export default function StaffPriceCheckView({
 
         <div style={{ ...cardStyle, marginBottom: 20 }}>
           <PortalSectionLabel>New {COPY.priceCheck}</PortalSectionLabel>
-          <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6 }}>Store / account name</label>
+          <label style={{ fontSize: 11, color: t.textFaint, display: 'block', marginBottom: 6, letterSpacing: '0.08em', fontWeight: 600 }}>{COPY.storeAccountName}</label>
           <input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder="e.g. Joe's Market · ABC Distributors" style={{ ...inputStyle, marginBottom: 12 }} />
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             {['retailer', 'distributor'].map(type => (
@@ -182,7 +182,7 @@ export default function StaffPriceCheckView({
                 color: userType === type ? t.btnPrimaryText : t.textMuted,
                 border: userType === type ? `0.5px solid ${t.btnPrimaryBg}` : t.borderHairline,
               }}>
-                {type === 'distributor' ? 'Distributor pricing' : 'Retailer pricing'}
+                {type === 'distributor' ? COPY.distributorPricing : COPY.retailerPricing}
               </button>
             ))}
           </div>
@@ -240,7 +240,7 @@ export default function StaffPriceCheckView({
               </div>
               {isEditing ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <input value={editDraft.accountName} onChange={e => setEditDraft(d => ({ ...d, accountName: e.target.value }))} placeholder="Store / account name" style={inputStyle} />
+                  <input value={editDraft.accountName} onChange={e => setEditDraft(d => ({ ...d, accountName: e.target.value }))} placeholder={COPY.storeAccountName} style={inputStyle} />
                   <textarea value={editDraft.targetRates} onChange={e => setEditDraft(d => ({ ...d, targetRates: e.target.value }))} placeholder="Target rates" style={{ ...inputStyle, height: 80, resize: 'vertical' }} />
                   <textarea value={editDraft.notes} onChange={e => setEditDraft(d => ({ ...d, notes: e.target.value }))} placeholder="Notes" style={{ ...inputStyle, height: 64, resize: 'vertical' }} />
                   <div style={{ display: 'flex', gap: 8 }}>

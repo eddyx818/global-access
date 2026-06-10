@@ -4,6 +4,7 @@ import { applyBrandOrder, saveUserBrandOrder } from '../lib/userBrandOrder';
 import { COPY } from '../lib/portalCopy';
 
 import MasterPricingNotice from './MasterPricingNotice';
+import PricingPreviewToggle from './PricingPreviewToggle';
 import { useTheme } from '../context/ThemeContext';
 
 /** Always lead the hero with this brand, then rotate in catalog card order. */
@@ -27,6 +28,8 @@ export default function HomeView({
   userType,
   masterPricingQualified,
   isStaff = false,
+  showPricingPreview = false,
+  onUserTypeChange = null,
   isPortalUser = false,
   companyName = '',
   onMessageUs = null,
@@ -601,6 +604,14 @@ export default function HomeView({
           {activeSlideIdx + 1} / {brands.length}
         </div>
       </div>
+
+      {showPricingPreview && (
+        <PricingPreviewToggle
+          userType={userType}
+          onChange={onUserTypeChange}
+          isMobile={isMobile}
+        />
+      )}
 
       <div className="home-trust-strip" style={{ color: t.textFaint }}>
         <span>Invite-only trade portal</span>

@@ -13,6 +13,9 @@ export const COPY = {
   whatsAppContact: 'WhatsApp Contact',
   dropShip: 'Drop Ship',
   pricingOnQuote: 'Pricing on Quote',
+  retailerPricing: 'Retailer Pricing',
+  distributorPricing: 'Distributor Pricing',
+  storeAccountName: 'Store / Account Name',
 };
 
 export const portalType = {

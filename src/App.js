@@ -981,9 +981,6 @@ export default function App() {
         homeLabel={isStaffCatalogPortal ? 'Catalog' : 'Home'}
         isAdmin={isPortalAdmin && adminMode === 'portal'}
         onAdminClick={openAdminDashboard}
-        showAdminPreview={isStaffCatalogPortal && (!mobileShell || resolvedView === 'home')}
-        previewUserType={userType}
-        onPreviewUserTypeChange={setUserType}
         onStaffHomeClick={isRepCatalog ? openRepDashboard : null}
       />
       {showProfile && !mobileShell && (
@@ -1044,6 +1041,8 @@ export default function App() {
             userType={userType}
             masterPricingQualified={masterPricingQualified}
             isStaff={isStaffPortalUser}
+            showPricingPreview={isStaffCatalogPortal}
+            onUserTypeChange={setUserType}
             isPortalUser={authState === 'portal' && !!user && !isStaffPortalUser}
             companyName={authState === 'portal' ? form.company : ''}
             onMessageUs={isPortalCustomer ? navigateMyQuotes : null}
