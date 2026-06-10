@@ -12,6 +12,7 @@ export function InterestView({
   profileSaved = false,
   chatLabel = 'Trade Desk',
   staffPriceCheck = false,
+  submitError = '',
 }) {
   const { t } = useTheme();
   const inputStyle = { width: '100%', background: t.inputBg, border: t.borderHairline, borderRadius: 8, padding: '11px 12px', color: t.text, fontSize: 16, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
@@ -90,6 +91,11 @@ export function InterestView({
             placeholder="e.g. Need best case price for a repeat buyer, compare to last quote…"
             style={{ ...inputStyle, height: 80, resize: 'none' }}
           />
+        </div>
+      )}
+      {submitError && (
+        <div style={{ fontSize: 13, color: t.error || '#c44', marginBottom: '1rem', lineHeight: 1.45, padding: '10px 12px', background: t.errorBg, borderRadius: 8, border: t.errorBorder }}>
+          {submitError}
         </div>
       )}
       <button onClick={onSubmit} disabled={interests.length === 0} style={{ width: '100%', background: interests.length > 0 ? t.btnPrimaryBg : t.border, color: interests.length > 0 ? t.btnPrimaryText : t.textDisabled, border: 'none', borderRadius: 10, padding: '15px', fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', cursor: interests.length > 0 ? 'pointer' : 'not-allowed', transition: 'all 0.15s', fontFamily: 'inherit' }}>

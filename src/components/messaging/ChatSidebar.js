@@ -13,6 +13,7 @@ import {
   dedupeCustomerSupportInbox, MAX_CUSTOMER_SUPPORT_CHATS,
 } from '../../lib/conversationPrefs';
 import { validateAppointmentSlot, minAppointmentDateStr } from '../../lib/appointments';
+import { debounce } from '../../lib/debounce';
 import { formatPhoneDisplay } from '../../lib/whatsapp';
 import { getNotificationPrefs, requestNotificationPermission } from '../../lib/notificationPrefs';
 import { subscribeToPushNotifications } from '../../lib/pushNotifications';
@@ -137,6 +138,21 @@ export default function ChatSidebar({
     }
   }, [user?.id, isAdmin, isSalesRep, onUnreadChange]);
 
+  const refreshInboxDebouncedRef = useRef(null);
+  useEffect(() => {
+    refreshInboxDebouncedRef.current = debounce(() => { refresh(); }, 500);
+    return () => refreshInboxDebouncedRef.current?.cancel?.();
+  }, [refresh]);
+
+  const bumpUnreadOnly = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const count = await getUnreadCount(user.id, { isAdmin, isSalesRep });
+      setUnread(count);
+      onUnreadChange?.(count);
+    } catch (_) {}
+  }, [user?.id, isAdmin, isSalesRep, onUnreadChange]);
+
   useEffect(() => {
     if (!open && !isPage) setMinimized(false);
   }, [open, isPage]);
@@ -180,9 +196,13 @@ export default function ChatSidebar({
       await mergeProfiles([activeConvo], msgs);
       if (!isGroupConversation(activeConvo)) {
         await markMessagesRead(convoId, user.id, { isAdmin, isSalesRep });
-        refresh();
+        bumpUnreadOnly();
       }
       if (!cancelled) setLoading(false);
+    }).catch((err) => {
+      if (cancelled) return;
+      setLoadError(err?.message || 'Could not load messages.');
+      setLoading(false);
     });
 
     if (subRef.current) subRef.current.unsubscribe();
@@ -193,12 +213,13 @@ export default function ChatSidebar({
         setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg]);
         await mergeProfiles([], [msg]);
         if (!isGroupConversation(activeConvo)) {
+          const senderProfile = profiles[msg.from_user_id];
           const shouldMark = isStaff
-            ? !profiles[msg.from_user_id]?.is_portal_admin
+            ? !senderProfile?.is_portal_admin && !senderProfile?.is_sales_rep
             : msg.to_user_id === user.id;
           if (shouldMark) {
             await markMessagesRead(convoId, user.id, { isAdmin, isSalesRep });
-            refresh();
+            bumpUnreadOnly();
           }
         }
       },
@@ -209,6 +230,10 @@ export default function ChatSidebar({
           return;
         }
         setMessages(prev => prev.map(m => (m.id === msg.id ? msg : m)));
+      },
+      (msg) => {
+        if (cancelled || !msg?.id) return;
+        setMessages(prev => prev.filter(m => m.id !== msg.id));
       },
     );
 
@@ -447,17 +472,21 @@ export default function ChatSidebar({
         otherId = activeConvo.participant_user_ids.find(id => id !== user.id);
       }
     }
-    await sendMessage({
-      conversationId: activeConvo.id,
-      fromUserId: user.id,
-      toUserId: otherId,
-      content: text,
-      attachment,
-      isGroup,
-    });
-    const next = ensureConversationVisible(user.id, activeConvo.id);
-    setConvoPrefs(next);
-    await refresh();
+    try {
+      await sendMessage({
+        conversationId: activeConvo.id,
+        fromUserId: user.id,
+        toUserId: otherId,
+        content: text,
+        attachment,
+        isGroup,
+      });
+      const next = ensureConversationVisible(user.id, activeConvo.id);
+      setConvoPrefs(next);
+      refreshInboxDebouncedRef.current?.();
+    } catch (err) {
+      setLoadError(err?.message || 'Could not send message. Try again.');
+    }
   };
 
   const handleConfirmContact = async () => {

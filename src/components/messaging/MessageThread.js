@@ -68,10 +68,16 @@ export default function MessageThread({
 }) {
   const { t } = useTheme();
   const endRef = useRef(null);
+  const threadRef = useRef(null);
   const [menuMessageId, setMenuMessageId] = useState(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = threadRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 96;
+    if (nearBottom) {
+      endRef.current?.scrollIntoView({ behavior: 'auto' });
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -139,7 +145,7 @@ export default function MessageThread({
   const canDelete = (msg) => !msg.is_system && onDeleteMessage;
 
   return (
-    <div className="chat-message-thread" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, background: t.bgHover, minHeight: 0, minWidth: 0 }}>
+    <div ref={threadRef} className="chat-message-thread" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, background: t.bgHover, minHeight: 0, minWidth: 0 }}>
       {messages.map(msg => {
         if (msg.is_system) {
           return (

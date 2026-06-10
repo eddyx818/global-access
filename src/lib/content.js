@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useRef, createContext, useContext, useMemo } from 'react';
 import { supabase } from './supabase';
 import { BRANDS } from './data';
 import { DEFAULT_GLOBAL_STYLES, parseJsonField } from './design';
@@ -165,7 +165,7 @@ function useBrandContentState() {
 
   const loadContent = refreshAll;
 
-  const getMergedBrands = () => {
+  const mergedBrands = useMemo(() => {
     const allBrands = [...BRANDS, ...customBrands].filter(b => b?.id && !hiddenBrands.includes(b.id));
     return allBrands.map(brand => {
       const override = brandOverrides[brand.id] || {};
@@ -245,9 +245,11 @@ function useBrandContentState() {
         }),
       };
     });
-  };
+  }, [brandOverrides, productOverrides, galleryOverrides, hiddenBrands, customBrands]);
 
-  return { getMergedBrands, loadContent, loading, brandOverrides, productOverrides, bgColor, heroConfig, globalStyles, navigation, customerChatLabel };
+  const getMergedBrands = useCallback(() => mergedBrands, [mergedBrands]);
+
+  return { getMergedBrands, mergedBrands, loadContent, loading, brandOverrides, productOverrides, bgColor, heroConfig, globalStyles, navigation, customerChatLabel };
 }
 
 export function BrandContentProvider({ children }) {

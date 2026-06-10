@@ -87,6 +87,7 @@ export default function App() {
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [loginInitialMode, setLoginInitialMode] = useState(null);
   const [signupPromptError, setSignupPromptError] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [showProfile, setShowProfile] = useState(false);
   const [profileGate, setProfileGate] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -316,7 +317,7 @@ export default function App() {
       setQuotesNewCount(quotes.filter(i => (i.quote_status || 'new') === 'new').length);
       setPriceCheckNewCount(countNewPriceChecks(priceChecks));
     });
-  }, [isStaffPortalUser, inPortalView, view]);
+  }, [isStaffPortalUser, inPortalView]);
 
   // Recover orphaned views (desktop width with mobile routes, brand without id, etc.)
   useEffect(() => {
@@ -674,6 +675,7 @@ export default function App() {
     init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED') return;
       if (event === 'INITIAL_SESSION') {
         if (session?.user && !authInitHandledRef.current) {
           try {
@@ -840,6 +842,7 @@ export default function App() {
 
   const handleSubmitAttempt = () => {
     if (!showCustomerShopping) return;
+    setSubmitError('');
     if (isStaffPriceCheck) {
       if (!interests.length) return;
       setView('price_checks');
@@ -865,24 +868,28 @@ export default function App() {
     const nameCheck = validatePersonName(form.name, { label: 'Name' });
     if (!nameCheck.ok) {
       const msg = nameCheck.error;
+      setSubmitError(msg);
       if (showSignupPrompt) setSignupPromptError(msg);
       return;
     }
     const companyCheck = validateCompanyName(form.company);
     if (!companyCheck.ok) {
       const msg = companyCheck.error;
+      setSubmitError(msg);
       if (showSignupPrompt) setSignupPromptError(msg);
       return;
     }
     if (!hasCallablePhone(form.phone)) {
       const msg = getPhoneValidationError(form.phone)
         || 'Please enter your name, company, and a real mobile number.';
+      setSubmitError(msg);
       if (showSignupPrompt) setSignupPromptError(msg);
       return;
     }
     setSignupPromptError('');
+    setSubmitError('');
     const sessionId = await getSessionId();
-    await supabase.from('inquiries').insert({
+    const { error: insertErr } = await supabase.from('inquiries').insert({
       session_id: sessionId,
       user_id: user?.id || null,
       name: nameCheck.value,
@@ -896,6 +903,12 @@ export default function App() {
       quote_status: 'new',
       created_at: new Date().toISOString(),
     });
+    if (insertErr) {
+      const msg = insertErr.message || 'Could not submit your quote. Please try again.';
+      setSubmitError(msg);
+      if (showSignupPrompt) setSignupPromptError(msg);
+      return;
+    }
     if (user?.id) {
       try {
         await submitInterestToSupport(user.id, { form, interests, userType, masterPricingInterest });
@@ -1010,8 +1023,6 @@ export default function App() {
       />
     ) : (
     <div className="app-viewport app-no-select" style={{ background: isNight ? t.bg : (bgColor || t.bg), fontFamily: getFontFamily(globalStyles.font_family), color: isNight ? t.text : (globalStyles.primary_color || t.text), transition: 'background 0.35s ease, color 0.35s ease', display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: '100dvh' }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Bebas+Neue&display=swap" rel="stylesheet" />
-
       {/* Install app banner */}
       {showInstallBanner && (
         <InstallAppBanner
@@ -1237,6 +1248,7 @@ export default function App() {
           form={form}
           setForm={setForm}
           onSubmit={handleSubmitAttempt}
+          submitError={submitError}
           onBack={() => {
             if (activeBrand) {
               setView('brand');

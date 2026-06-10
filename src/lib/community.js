@@ -156,7 +156,8 @@ export async function fetchConversations(userId, { isAdmin = false, isSalesRep =
     query = query.contains('participant_user_ids', [userId]);
   }
 
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) throw new Error(error.message || 'Could not load conversations.');
   let convos = data || [];
   if (!isAdmin && !isSalesRep) {
     convos = convos.filter(c => !c.is_group);
@@ -164,13 +165,17 @@ export async function fetchConversations(userId, { isAdmin = false, isSalesRep =
   return convos;
 }
 
-export async function fetchMessages(conversationId) {
-  const { data } = await supabase
+const MESSAGE_PAGE_SIZE = 150;
+
+export async function fetchMessages(conversationId, { limit = MESSAGE_PAGE_SIZE } = {}) {
+  const { data, error } = await supabase
     .from('messages')
     .select('*')
     .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
-  return data || [];
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message || 'Could not load messages.');
+  return (data || []).reverse();
 }
 
 export function isMessageHiddenForUser(msg, userId, { isPortalAdmin = false } = {}) {
@@ -555,7 +560,7 @@ export async function fetchRecentActivity(limit = 50) {
   return data || [];
 }
 
-export function subscribeToMessages(conversationId, onMessage, onUpdate = null) {
+export function subscribeToMessages(conversationId, onMessage, onUpdate = null, onDelete = null) {
   const channel = supabase.channel(`messages:${conversationId}`);
   channel.on('postgres_changes', {
     event: 'INSERT',
@@ -570,6 +575,14 @@ export function subscribeToMessages(conversationId, onMessage, onUpdate = null) 
       table: 'messages',
       filter: `conversation_id=eq.${conversationId}`,
     }, payload => onUpdate(payload.new));
+  }
+  if (onDelete) {
+    channel.on('postgres_changes', {
+      event: 'DELETE',
+      schema: 'public',
+      table: 'messages',
+      filter: `conversation_id=eq.${conversationId}`,
+    }, payload => onDelete(payload.old));
   }
   channel.subscribe();
   return channel;
