@@ -147,16 +147,6 @@ export default function Nav({
         {previewToggle}
       </div>
       <div className="app-portal-nav__right">
-        {onQuotes && (
-          <button type="button" onClick={onQuotes} style={{ ...dashboardBtnStyle, background: isNight ? 'rgba(212, 180, 90, 0.22)' : 'rgba(201, 168, 76, 0.28)', color: isNight ? '#E8D08A' : '#6B5210' }}>
-            Quotes{quotesNewCount > 0 ? ` (${quotesNewCount})` : ''}
-          </button>
-        )}
-        {onPriceChecks && (
-          <button type="button" onClick={onPriceChecks} style={{ ...dashboardBtnStyle, background: isNight ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.55)' }}>
-            Price check{(priceCheckNewCount + priceCheckDraftCount) > 0 ? ` (${priceCheckNewCount + priceCheckDraftCount})` : ''}
-          </button>
-        )}
         {onChat && (
           <button type="button" onClick={onChat} style={{ ...dashboardBtnStyle, position: 'relative' }}>
             {chatLabel}

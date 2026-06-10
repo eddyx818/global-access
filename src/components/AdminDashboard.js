@@ -21,9 +21,6 @@ import { updateInquiryQuoteStatus, QUOTE_STATUSES, deleteInquiry, parseInquiryIn
 import { loadAppNavigation, saveAppNavigationPartial, normalizeAdminTab } from '../lib/appNavigation';
 import IndustryFactsPanel from './IndustryFactsPanel';
 import DashboardProfilePanel from './DashboardProfilePanel';
-import ChatSidebar from './messaging/ChatSidebar';
-import ChatErrorBoundary from './ChatErrorBoundary';
-import { useUnreadCount } from '../hooks/useUnreadCount';
 
 export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const { t } = useTheme();
@@ -57,10 +54,6 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const [requestActionMsg, setRequestActionMsg] = useState('');
   const [showDismissedRequests, setShowDismissedRequests] = useState(false);
   const [statusUpdatingId, setStatusUpdatingId] = useState(null);
-  const { unread: messagesUnread, refresh: refreshMessagesUnread } = useUnreadCount(user?.id, {
-    isAdmin: true,
-    enabled: !!user?.id,
-  });
 
   useEffect(() => { loadAll(); loadContentOverrides(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -180,7 +173,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
     const waUrl = req.phone ? whatsAppUrl(req.phone, result.whatsAppMessage) : null;
     if (waUrl) window.open(waUrl, '_blank');
     if (result.tempPassword) {
-      setApproveMsg(`Account created for ${result.email}. Temp password: ${result.tempPassword}${result.welcomeEmailSent ? ' — welcome email sent.' : result.welcomeEmailError ? ` (email failed: ${result.welcomeEmailError})` : ''}${req.phone ? ' WhatsApp opened if phone was on file.' : ''}`);
+      setApproveMsg(`Account created for ${result.email}. Temp password: ${result.tempPassword}${result.welcomeEmailSent ? ' ? welcome email sent.' : result.welcomeEmailError ? ` (email failed: ${result.welcomeEmailError})` : ''}${req.phone ? ' WhatsApp opened if phone was on file.' : ''}`);
     } else {
       setApproveMsg(`Linked existing account for ${result.email}.${result.welcomeEmailSent ? ' Welcome email sent.' : result.welcomeEmailError ? ` Email failed: ${result.welcomeEmailError}` : ''}`);
     }
@@ -339,18 +332,12 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           <span style={{ fontSize: narrowHeader ? 15 : 13, color: t.gold, letterSpacing: '0.14em' }}>Admin</span>
         </div>
         {narrowHeader ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, width: '100%' }}>
-            <button type="button" onClick={() => setTab('messages')} style={portalBtnStyle}>
-              Messages{messagesUnread > 0 ? ` (${messagesUnread})` : ''}
-            </button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%' }}>
             <button type="button" onClick={onViewPortal} style={portalBtnStyle}>Portal</button>
             <button type="button" onClick={onLogout} style={signOutBtnStyle}>Sign out</button>
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <button type="button" onClick={() => setTab('messages')} style={portalBtnStyle}>
-              Messages{messagesUnread > 0 ? ` (${messagesUnread})` : ''}
-            </button>
             <button type="button" onClick={onViewPortal} style={portalBtnStyle}>Portal</button>
             <button type="button" onClick={onLogout} style={signOutBtnStyle}>Sign out</button>
           </div>
@@ -359,19 +346,19 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
       {alert && (
         <div style={{ background: t.warningBg, borderBottom: `0.5px solid ${t.warningBorder}`, padding: '12px 1.5rem', fontSize: 13, color: t.warningText, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
           {alert}
-          <button onClick={() => setAlert(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: t.warningText }}>×</button>
+          <button onClick={() => setAlert(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: t.warningText }}>�</button>
         </div>
       )}
       {approveMsg && (
         <div style={{ background: t.successBg, borderBottom: `0.5px solid ${t.successBorder}`, padding: '12px 1.5rem', fontSize: 13, color: t.successText, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
           {approveMsg}
-          <button onClick={() => setApproveMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: t.successText }}>×</button>
+          <button onClick={() => setApproveMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: t.successText }}>�</button>
         </div>
       )}
       {requestActionMsg && (
         <div style={{ background: t.warningBg, borderBottom: `0.5px solid ${t.warningBorder}`, padding: '12px 1.5rem', fontSize: 13, color: t.warningText, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
           {requestActionMsg}
-          <button type="button" onClick={() => setRequestActionMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: t.warningText }}>×</button>
+          <button type="button" onClick={() => setRequestActionMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: t.warningText }}>�</button>
         </div>
       )}
       <div style={{ padding: narrowHeader ? '1rem' : '1.5rem', maxWidth: 960, margin: '0 auto', paddingBottom: narrowHeader ? 'max(1rem, var(--ga-inset-bottom))' : '1.5rem' }}>
@@ -379,29 +366,11 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           activeTab={tab}
           onTabChange={setTab}
           pendingCount={pending.length}
-          messagesUnread={messagesUnread}
           onRefresh={loadAll}
         />
-        {loading && tab !== 'messages' && <div style={{ color: t.textFaint, fontSize: 13 }}>Loading...</div>}
+        {loading && <div style={{ color: t.textFaint, fontSize: 13 }}>Loading...</div>}
         {tab === 'profile' && (
           <DashboardProfilePanel user={user} isStaff />
-        )}
-        {tab === 'messages' && !user?.id && (
-          <div style={{ color: t.textFaint, fontSize: 13 }}>Loading messages…</div>
-        )}
-        {tab === 'messages' && user?.id && (
-          <div style={{ background: t.bgElevated, border: t.borderHairlineLight, borderRadius: 12, minHeight: narrowHeader ? 'min(72vh, 640px)' : 'min(560px, calc(100vh - 200px))', overflow: 'hidden' }}>
-            <ChatErrorBoundary onFallback={() => setTab('overview')}>
-              <ChatSidebar
-                user={user}
-                open
-                variant="page"
-                isAdmin
-                onUnreadChange={refreshMessagesUnread}
-                profileComplete
-              />
-            </ChatErrorBoundary>
-          </div>
         )}
         {!loading && tab === 'overview' && (
           <div>
@@ -419,7 +388,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
               {inquiries.slice(0, 5).map(inq => (
                 <div key={inq.id} style={ui.row}>
                   <div>
-                    <div style={{ fontWeight: 500 }}>{inq.name} — {inq.company}</div>
+                    <div style={{ fontWeight: 500 }}>{inq.name} ? {inq.company}</div>
                     <div style={{ color: t.textFaint, fontSize: 12, marginTop: 2 }}>{(inq.interests || []).length} items</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
@@ -485,7 +454,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
               <div style={{ fontSize: 12, color: t.textFaint }}>
-                {pending.length} pending · {requests.length} shown
+                {pending.length} pending � {requests.length} shown
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.textMuted, cursor: 'pointer' }}>
                 <input
@@ -537,7 +506,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
                     padding: 0,
                   }}
                 >
-                  ×
+                  �
                 </button>
                 {req.dismissed_at ? (
                   <button
@@ -566,7 +535,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
                       padding: 0,
                     }}
                   >
-                    ↩
+                    ?
                   </button>
                 ) : (
                   <button
@@ -595,16 +564,16 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
                       padding: 0,
                     }}
                   >
-                    −
+                    ?
                   </button>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, paddingRight: req.dismissed_at ? 36 : 72 }}>
                   <div>
-                    <div style={{ fontWeight: 500, fontSize: 15 }}>{req.name} — {req.company}</div>
-                    <div style={{ fontSize: 12, color: t.textFaint, marginTop: 2 }}>{req.email} · {req.phone}</div>
+                    <div style={{ fontWeight: 500, fontSize: 15 }}>{req.name} ? {req.company}</div>
+                    <div style={{ fontSize: 12, color: t.textFaint, marginTop: 2 }}>{req.email} � {req.phone}</div>
                     <div style={{ fontSize: 11, color: t.textDisabled, marginTop: 4 }}>
                       {new Date(req.created_at).toLocaleString()}
-                      {req.dismissed_at ? ' · dismissed' : ''}
+                      {req.dismissed_at ? ' � dismissed' : ''}
                     </div>
                     {req.referral_code_used && <div style={{ fontSize: 11, color: t.gold, marginTop: 4 }}>Rep code: {req.referral_code_used}</div>}
                   </div>
@@ -617,7 +586,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
                         disabled={approvingId === req.id}
                         style={{ ...actionBtn(t.accent), cursor: approvingId === req.id ? 'wait' : 'pointer' }}
                       >
-                        {approvingId === req.id ? 'Creating…' : 'Approve & create account'}
+                        {approvingId === req.id ? 'Creating?' : 'Approve & create account'}
                       </button>
                     )}
                     {(req.status === 'pending' || req.status === 'approved') && (
@@ -627,7 +596,7 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
                         disabled={denyingId === req.id}
                         style={{ ...actionBtn(t.errorText), cursor: denyingId === req.id ? 'wait' : 'pointer' }}
                       >
-                        {denyingId === req.id ? 'Denying…' : req.status === 'approved' ? 'Revoke & deny' : 'Deny'}
+                        {denyingId === req.id ? 'Denying?' : req.status === 'approved' ? 'Revoke & deny' : 'Deny'}
                       </button>
                     )}
                   </div>
@@ -667,10 +636,10 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
                     padding: 0,
                   }}
                 >
-                  ×
+                  �
                 </button>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8, paddingRight: 36 }}>
-                  <div><div style={{ fontWeight: 500, fontSize: 15 }}>{inq.name} — {inq.company}</div><div style={{ fontSize: 12, color: t.textFaint, marginTop: 2 }}>{inq.phone || '—'} · {inq.email || '—'}</div></div>
+                  <div><div style={{ fontWeight: 500, fontSize: 15 }}>{inq.name} ? {inq.company}</div><div style={{ fontSize: 12, color: t.textFaint, marginTop: 2 }}>{inq.phone || '?'} � {inq.email || '?'}</div></div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                     <select
                       value={inq.quote_status || 'new'}
@@ -688,12 +657,12 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
                 {parseInquiryInterests(inq.interests).map(i => (
                   <div key={i.key || `${i.sku}-${i.productName}`} style={{ fontSize: 12, color: t.textSecondary, padding: '4px 0', borderBottom: `0.5px solid ${t.borderSubtle}` }}>
                     {i.sku && <span style={{ fontFamily: 'monospace', fontSize: 10, color: t.gold, marginRight: 6 }}>{i.sku}</span>}
-                    {i.brandName} — {i.productName} · {i.flavor}
+                    {i.brandName} ? {i.productName} � {i.flavor}
                   </div>
                 ))}
                 {inq.master_pricing_interest && (
                   <div style={{ fontSize: 12, color: t.warningText, padding: '6px 0', fontWeight: 600 }}>
-                    ⭐ Flagged for Master Distributor volume review
+                    ? Flagged for Master Distributor volume review
                   </div>
                 )}
                 {inq.notes && <div style={{ fontSize: 12, color: t.textMuted, background: t.bgMuted, borderRadius: 6, padding: '8px 10px', marginTop: 8 }}>"{inq.notes}"</div>}

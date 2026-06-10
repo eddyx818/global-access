@@ -1,7 +1,7 @@
 const KEY = 'ga-app-nav';
 
 const ADMIN_TABS = new Set([
-  'overview', 'profile', 'messages', 'community', 'contacts', 'pages', 'clicks',
+  'overview', 'profile', 'community', 'contacts', 'pages', 'clicks',
   'requests', 'inquiries', 'content', 'users', 'map', 'brands', 'marketing',
 ]);
 
