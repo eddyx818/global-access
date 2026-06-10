@@ -21,6 +21,7 @@ import InstallAppBanner from './components/InstallAppBanner';
 import { useUnreadCount } from './hooks/useUnreadCount';
 import { useMessageAlerts } from './hooks/useMessageAlerts';
 import { usePwaInstall } from './hooks/usePwaInstall';
+import useVisualViewportInset from './hooks/useVisualViewportInset';
 import { getNotificationPermission } from './lib/notificationPrefs';
 import { subscribeToPushNotifications } from './lib/pushNotifications';
 import { canAccessPortal } from './lib/authGate';
@@ -90,6 +91,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [profileGate, setProfileGate] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatInThread, setChatInThread] = useState(false);
   const [openSupportOnLoad, setOpenSupportOnLoad] = useState(0);
   const [isPortalAdmin, setIsPortalAdmin] = useState(false);
   const [isSalesRep, setIsSalesRep] = useState(false);
@@ -130,6 +132,12 @@ export default function App() {
   const showInstallPrompt = isMobileDevice && !isInstalled;
   const showInstallBanner = showInstallPrompt && inPortalView;
   const showMobileNav = mobileShell && !!user;
+  const keyboardInset = useVisualViewportInset(mobileShell);
+  const keyboardOpen = keyboardInset > 40;
+  const showMobileBottomNav = showMobileNav
+    && !(view === 'chat' && chatInThread)
+    && !keyboardOpen;
+  const hideNavInChatThread = mobileShell && view === 'chat' && chatInThread;
   const portalTopChrome = showInstallBanner || authState === 'browse';
   const chatLabel = isPortalAdmin || isSalesRep ? staffChatLabel() : resolveCustomerChatLabel(customerChatLabel);
 
@@ -149,6 +157,7 @@ export default function App() {
 
   const closeChat = () => {
     setChatOpen(false);
+    setChatInThread(false);
     if (view === 'chat') setView(activeBrand ? 'brand' : 'home');
   };
 
@@ -268,7 +277,7 @@ export default function App() {
     onOpenChat: openChat,
   });
 
-  const mobileContentPad = showMobileNav
+  const mobileContentPad = showMobileBottomNav
     ? { paddingBottom: 'var(--ga-bottom-nav-height)' }
     : {};
 
@@ -335,17 +344,31 @@ export default function App() {
   const mobileNavHeight = portalTopChrome
     ? 'var(--ga-nav-bar)'
     : 'var(--ga-nav-height)';
-  const mobileBottomOffset = showMobileNav ? ' - var(--ga-bottom-nav-height)' : '';
+  const mobileBottomOffset = showMobileBottomNav ? ' - var(--ga-bottom-nav-height)' : '';
   const mobilePageShellStyle = {
     flex: 1,
     minHeight: 0,
     display: 'flex',
     flexDirection: 'column',
-    // Explicit height for mobile browsers that don't flex-fill reliably
     height: mobileShell
-      ? `calc(100dvh - ${mobileNavHeight}${mobileBottomOffset})`
+      ? (view === 'chat' && chatInThread
+        ? '100dvh'
+        : `calc(100dvh - ${mobileNavHeight}${mobileBottomOffset})`)
       : undefined,
   };
+
+  useEffect(() => {
+    if (view !== 'chat') setChatInThread(false);
+  }, [view]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('chat-thread-open', mobileShell && view === 'chat' && chatInThread);
+    root.classList.toggle('chat-keyboard-open', mobileShell && keyboardOpen);
+    return () => {
+      root.classList.remove('chat-thread-open', 'chat-keyboard-open');
+    };
+  }, [mobileShell, view, chatInThread, keyboardOpen]);
 
   const requireProfileForChat = () => {
     setProfileGate('chat');
@@ -977,6 +1000,7 @@ export default function App() {
         </div>
       )}
 
+      {!hideNavInChatThread && (
       <Nav
         interests={interests}
         view={view}
@@ -1002,11 +1026,12 @@ export default function App() {
         homeLabel={isStaffCatalogPortal ? 'Catalog' : 'Home'}
         isAdmin={isPortalAdmin && adminMode === 'portal'}
         onAdminClick={openAdminDashboard}
-        showAdminPreview={isStaffCatalogPortal}
+        showAdminPreview={isStaffCatalogPortal && (!mobileShell || view === 'home')}
         previewUserType={userType}
         onPreviewUserTypeChange={setUserType}
         onStaffHomeClick={isRepCatalog ? openRepDashboard : null}
       />
+      )}
       {user && !mobileShell && (
         <ChatErrorBoundary onFallback={navigateHome}>
           <ChatSidebar
@@ -1099,6 +1124,7 @@ export default function App() {
               open
               variant="page"
               onClose={closeChat}
+              onThreadChange={setChatInThread}
               isAdmin={isPortalAdmin}
               isSalesRep={isSalesRep}
               onUnreadChange={refreshUnread}
@@ -1225,7 +1251,7 @@ export default function App() {
       )}
       </div>
 
-      {showMobileNav && (
+      {showMobileBottomNav && (
         <MobileBottomNav
           activeView={view}
           onHome={navigateHome}
