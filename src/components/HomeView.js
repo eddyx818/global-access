@@ -428,7 +428,11 @@ export default function HomeView({
           return (
             <div
               key={brand.id}
-              className={`hero-brand-slide${heroTransitions ? '' : ' hero-brand-slide--no-transition'}`}
+              className={[
+                'hero-brand-slide',
+                heroTransitions ? '' : 'hero-brand-slide--no-transition',
+                isActive ? '' : 'hero-brand-slide--inactive',
+              ].filter(Boolean).join(' ')}
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -668,7 +672,6 @@ export default function HomeView({
                 className={[
                   'home-brand-card',
                   'app-no-select',
-                  !reorderMode ? 'home-brand-card--enter' : '',
                   isSelected ? 'home-brand-card--selected' : '',
                   reorderMode ? 'home-brand-card--reorder' : '',
                 ].filter(Boolean).join(' ')}
@@ -678,7 +681,6 @@ export default function HomeView({
                   boxShadow: isSelected
                     ? `0 0 0 2px ${brand.color}55, 0 8px 24px ${brand.color}33`
                     : `0 4px 16px ${t.shadow}`,
-                  animationDelay: reorderMode ? undefined : `${idx * 0.04}s`,
                   WebkitTapHighlightColor: 'transparent',
                 }}
                 onClick={(e) => handleBrandCardClick(e, idx, brand.id)}
