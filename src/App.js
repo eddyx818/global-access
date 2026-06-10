@@ -996,7 +996,31 @@ export default function App() {
       />
     );
   }
-  if (authState === 'admin' && adminMode === 'dashboard') return <AdminDashboard user={user} onLogout={handleLogout} onViewPortal={() => setAdminMode('portal')} />;
+  if (authState === 'admin' && adminMode === 'dashboard') {
+    return (
+      <>
+        <AdminDashboard
+          user={user}
+          onLogout={handleLogout}
+          onViewPortal={() => setAdminMode('portal')}
+          onOpenMessages={() => setChatOpen(true)}
+          messagesUnread={chatUnread}
+        />
+        {user && (
+          <ChatErrorBoundary onFallback={() => setChatOpen(false)}>
+            <ChatSidebar
+              user={user}
+              open={chatOpen}
+              onClose={() => setChatOpen(false)}
+              isAdmin
+              onUnreadChange={refreshUnread}
+              profileComplete
+            />
+          </ChatErrorBoundary>
+        )}
+      </>
+    );
+  }
 
   return (
     <div className="app-viewport app-no-select" style={{ background: isNight ? t.bg : (bgColor || t.bg), fontFamily: getFontFamily(globalStyles.font_family), color: isNight ? t.text : (globalStyles.primary_color || t.text), transition: 'background 0.35s ease, color 0.35s ease', display: mobileShell ? 'flex' : undefined, flexDirection: mobileShell ? 'column' : undefined, minHeight: '100dvh' }}>
