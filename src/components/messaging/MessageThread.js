@@ -1,58 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { isChatImage } from '../../lib/chatAttachments';
 import { getChatDisplayName, isMessageHiddenFromCustomer } from '../../lib/community';
 import CustomerBadges from '../CustomerBadges';
 import { useTheme } from '../../context/ThemeContext';
-
-function MessageDeleteMenu({ onDelete, onClose, openAbove = false, expandRight = false }) {
-  const { t } = useTheme();
-
-  const run = async () => {
-    onClose();
-    await onDelete?.();
-  };
-
-  return (
-    <div
-      className="chat-message-delete-menu"
-      style={{
-        position: 'absolute',
-        ...(openAbove
-          ? { bottom: '100%', marginBottom: 4 }
-          : { top: '100%', marginTop: 4 }),
-        ...(expandRight ? { left: 0 } : { right: 0 }),
-        zIndex: 20,
-        minWidth: 140,
-        background: t.bgElevated,
-        border: t.borderHairline,
-        borderRadius: 10,
-        boxShadow: `0 8px 24px ${t.shadow}`,
-        overflow: 'hidden',
-      }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button
-        type="button"
-        onClick={run}
-        style={{
-          display: 'block',
-          width: '100%',
-          textAlign: 'left',
-          padding: '10px 12px',
-          border: 'none',
-          background: 'transparent',
-          color: t.errorText,
-          fontSize: 13,
-          fontWeight: 600,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-        }}
-      >
-        Delete
-      </button>
-    </div>
-  );
-}
 
 export default function MessageThread({
   messages,
@@ -63,13 +13,10 @@ export default function MessageThread({
   showStaffNames = false,
   isStaff = false,
   customerUserId = null,
-  onDeleteMessage = null,
-  isMobile = false,
 }) {
   const { t } = useTheme();
   const endRef = useRef(null);
   const threadRef = useRef(null);
-  const [menuMessageId, setMenuMessageId] = useState(null);
 
   useEffect(() => {
     const el = threadRef.current;
@@ -79,12 +26,6 @@ export default function MessageThread({
       endRef.current?.scrollIntoView({ behavior: 'auto' });
     }
   }, [messages]);
-
-  useEffect(() => {
-    const close = () => setMenuMessageId(null);
-    window.addEventListener('click', close);
-    return () => window.removeEventListener('click', close);
-  }, []);
 
   if (loading) {
     return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textFaint, fontSize: 13 }}>Loading...</div>;
@@ -142,8 +83,6 @@ export default function MessageThread({
     return msg.content;
   };
 
-  const canDelete = (msg) => !msg.is_system && onDeleteMessage;
-
   return (
     <div ref={threadRef} className="chat-message-thread" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, background: t.bgHover, minHeight: 0, minWidth: 0 }}>
       {messages.map(msg => {
@@ -168,7 +107,6 @@ export default function MessageThread({
         const staffLabel = fromProfile.is_portal_admin ? (fromProfile.name || 'Team') : senderName(msg.from_user_id);
         const body = displayContent(msg);
         const hiddenFromCustomer = isStaff && isMessageHiddenFromCustomer(msg, customerUserId);
-        const showMenu = canDelete(msg);
 
         return (
           <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start', position: 'relative' }}>
@@ -209,41 +147,6 @@ export default function MessageThread({
                   {mine && !isGroup && msg.read_status ? ' · read' : ''}
                 </div>
               </div>
-              {showMenu && (
-                <div style={{ position: 'relative', flexShrink: 0, order: mine ? -1 : 1 }}>
-                  {menuMessageId === msg.id && (
-                    <MessageDeleteMenu
-                      openAbove={!isMobile}
-                      expandRight={!mine}
-                      onDelete={() => onDeleteMessage(msg.id)}
-                      onClose={() => setMenuMessageId(null)}
-                    />
-                  )}
-                  <button
-                    type="button"
-                    aria-label="Message options"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuMessageId(prev => (prev === msg.id ? null : msg.id));
-                    }}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: '50%',
-                      border: t.borderHairline,
-                      background: t.bgElevated,
-                      color: t.textMuted,
-                      fontSize: 14,
-                      lineHeight: 1,
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      padding: 0,
-                    }}
-                  >
-                    ···
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         );

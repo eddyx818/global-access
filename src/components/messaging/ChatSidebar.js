@@ -5,7 +5,7 @@ import {
   fetchContactableUsers, getConversationTitle, isGroupConversation,
   getCustomerParticipantId, confirmConversationContact,
   joinStaffToConversation, updateCustomerAppointment, sendMessage as sendChatMessage,
-  softDeleteMessage, isMessageHiddenForUser, filterMessagesForCustomerView, isSupportConversation,
+  isMessageHiddenForUser, filterMessagesForCustomerView, isSupportConversation,
 } from '../../lib/community';
 import {
   filterAndSortConversations, loadConvoPrefs, pinConversation, unpinConversation, hideConversation,
@@ -445,17 +445,6 @@ export default function ChatSidebar({
       .finally(() => onSupportOpened?.());
   }, [openSupportOnLoad]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleDeleteMessage = async (messageId) => {
-    if (!window.confirm('Delete this message? It will be removed from the conversation.')) return;
-    const result = await softDeleteMessage(messageId, isStaff ? 'all' : 'me');
-    if (!result.ok) {
-      window.alert(result.error || 'Could not delete message.');
-      return;
-    }
-    const msgs = await fetchMessages(activeConvo.id);
-    setMessages(msgs);
-  };
-
   const handleSend = async (text, attachment = null) => {
     if (!activeConvo) return;
     if (!isStaff && !profileComplete) {
@@ -881,8 +870,6 @@ export default function ChatSidebar({
               showStaffNames={isStaff}
               isStaff={isStaff}
               customerUserId={customerUserId}
-              onDeleteMessage={isStaff ? handleDeleteMessage : null}
-              isMobile={isPage}
             />
             {!isStaff && activeConvo && (
               <ScheduleCallRequest
