@@ -560,10 +560,10 @@ export default function ChatSidebar({
             )}
             {isStaff && customerInquiry && (
               <select
+                className="chat-staff-select"
                 value={customerInquiry.quote_status || 'new'}
                 disabled={statusUpdating}
                 onChange={(e) => handleQuoteStatusChange(e.target.value)}
-                style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8, border: t.borderHairline, background: t.bgElevated, fontFamily: 'inherit', cursor: statusUpdating ? 'wait' : 'pointer' }}
               >
                 {QUOTE_STATUSES.map(s => (
                   <option key={s.id} value={s.id}>{s.label}</option>
@@ -794,52 +794,30 @@ export default function ChatSidebar({
           <>
             {!activeIsGroup && isStaff && (
                 <div
-                  className={isFloatDesktop ? 'chat-staff-actions-bar' : undefined}
-                  style={{ flexShrink: 0, borderBottom: t.borderHairlineLight, background: t.bgHover }}
+                  className={`chat-staff-actions-bar${staffActionsOpen ? ' chat-staff-actions-bar--open' : ''}${isFloatDesktop ? ' chat-staff-actions-bar--float' : ''}`}
                 >
                   <button
                     type="button"
                     onClick={() => setStaffActionsOpen(v => !v)}
-                    className={isFloatDesktop ? 'chat-staff-actions-toggle' : undefined}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 10,
-                      padding: isFloatDesktop ? '8px 14px' : '9px 12px',
-                      background: 'none',
-                      border: 'none',
-                      fontFamily: 'inherit',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
+                    className="chat-staff-actions-toggle"
+                    aria-expanded={staffActionsOpen}
                   >
-                    <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>
-                      {staffActionsOpen ? '▲ Hide actions' : '▼ Actions & tools'}
-                    </span>
+                    <span className="chat-staff-actions-toggle__label">Tools</span>
                     {!staffActionsOpen && (
-                      <span style={{ fontSize: 10, color: t.textFaint, flexShrink: 0 }}>
+                      <span className="chat-staff-actions-toggle__hint">
                         WhatsApp · call · price check · notes
                       </span>
                     )}
+                    <span
+                      className={`chat-staff-actions-chevron${staffActionsOpen ? ' chat-staff-actions-chevron--open' : ''}`}
+                      aria-hidden
+                    />
                   </button>
-                  {staffActionsOpen && (
-                    <div
-                      className="chat-staff-actions-scroll"
-                      style={{
-                        padding: isFloatDesktop ? '0 14px 12px' : '0 12px 12px',
-                        maxHeight: isFloatDesktop ? 'min(40vh, 280px)' : '36vh',
-                        overflowY: 'auto',
-                        WebkitOverflowScrolling: 'touch',
-                        fontSize: 12,
-                        color: t.textSecondary,
-                        lineHeight: 1.45,
-                      }}
-                    >
+                  <div className="chat-staff-actions-panel">
+                    <div className="chat-staff-actions-panel__inner">
                       {renderStaffConversationTools()}
                     </div>
-                  )}
+                  </div>
                 </div>
             )}
             {!activeIsGroup && !isStaff && !isPage && (
