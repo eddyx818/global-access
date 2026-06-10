@@ -69,6 +69,7 @@ export default function ChatSidebar({
   customerChatLabel = 'Trade Desk',
   onPriceCheckSubmitted = null,
   desktopFloat = false,
+  onLaunch = null,
 }) {
   const { t } = useTheme();
   const isStaff = isAdmin || isSalesRep;
@@ -662,6 +663,23 @@ export default function ChatSidebar({
       )}
     </>
   );
+
+  if (desktopFloat && !open && !isPage && onLaunch) {
+    return (
+      <button
+        type="button"
+        className="chat-float-minimized"
+        onClick={onLaunch}
+        aria-label="Open messages"
+      >
+        <span className="chat-float-minimized__icon" aria-hidden>💬</span>
+        <span className="chat-float-minimized__label">{isStaff ? 'Messages' : customerChatLabel}</span>
+        {unread > 0 && (
+          <span className="chat-float-minimized__badge">{unread > 99 ? '99+' : unread}</span>
+        )}
+      </button>
+    );
+  }
 
   if (!open && !isPage) return null;
 

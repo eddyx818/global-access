@@ -1336,7 +1336,8 @@ export default function App() {
           isAdmin
           onUnreadChange={refreshUnread}
           profileComplete
-          desktopFloat={!isMobileDevice}
+          desktopFloat
+          onLaunch={() => setChatOpen(true)}
           customerChatLabel={chatLabel}
           onPriceCheckSubmitted={() => {
             fetchRecentPriceChecks(50).then(rows => setPriceCheckNewCount(countNewPriceChecks(rows)));
