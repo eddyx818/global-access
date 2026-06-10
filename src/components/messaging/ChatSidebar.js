@@ -69,6 +69,7 @@ export default function ChatSidebar({
   onPriceCheckSubmitted = null,
   desktopFloat = false,
   onLaunch = null,
+  onComposeActiveChange = null,
 }) {
   const { t } = useTheme();
   const isStaff = isAdmin || isSalesRep;
@@ -94,7 +95,6 @@ export default function ChatSidebar({
   const [counterTime, setCounterTime] = useState('');
   const [appointmentBusy, setAppointmentBusy] = useState(false);
   const [staffActionsOpen, setStaffActionsOpen] = useState(false);
-  const [composeFocused, setComposeFocused] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
   const [minimized, setMinimized] = useState(false);
@@ -522,30 +522,26 @@ export default function ChatSidebar({
     return () => onThreadChange?.(false);
   }, [activeConvo, onThreadChange]);
 
+  const setComposeIsolation = useCallback((active) => {
+    onComposeActiveChange?.(active);
+    if (panelRef.current) {
+      panelRef.current.querySelectorAll('.chat-compose-isolation-target').forEach((el) => {
+        el.inert = active;
+      });
+    }
+  }, [onComposeActiveChange]);
+
   useEffect(() => {
     setStaffActionsOpen(false);
-    setComposeFocused(false);
+    setComposeIsolation(false);
     setAiError('');
-  }, [activeConvo?.id]);
+  }, [activeConvo?.id, setComposeIsolation]);
 
   useEffect(() => {
     const panel = staffPanelInnerRef.current;
     if (!panel) return;
     panel.inert = !staffActionsOpen;
   }, [staffActionsOpen, activeConvo?.id]);
-
-  useEffect(() => {
-    if (!isPage || !panelRef.current) return undefined;
-    const targets = panelRef.current.querySelectorAll('.chat-compose-isolation-target');
-    targets.forEach((el) => {
-      el.inert = composeFocused;
-    });
-    return () => {
-      targets.forEach((el) => {
-        el.inert = false;
-      });
-    };
-  }, [composeFocused, isPage, activeConvo?.id]);
 
   const handleAiSuggest = async () => {
     if (!isStaff || activeIsGroup) return;
@@ -857,10 +853,12 @@ export default function ChatSidebar({
                       aria-hidden
                     />
                   </button>
-                  <div className="chat-staff-actions-panel">
+                  <div className={`chat-staff-actions-panel${staffActionsOpen ? ' chat-staff-actions-panel--mounted' : ''}`}>
+                    {staffActionsOpen && (
                     <div ref={staffPanelInnerRef} className="chat-staff-actions-panel__inner">
                       {renderStaffConversationTools()}
                     </div>
+                    )}
                   </div>
                 </div>
             )}
@@ -930,11 +928,22 @@ export default function ChatSidebar({
                 onAiSuggest={handleAiSuggest}
                 aiSuggestLoading={aiLoading}
                 aiError={aiError}
-                onComposeFocus={() => {
-                  setComposeFocused(true);
-                  if (isPage || isFloatDesktop) setStaffActionsOpen(false);
+                onComposePrepare={() => {
+                  if (!isPage) return;
+                  setStaffActionsOpen(false);
+                  setComposeIsolation(true);
                 }}
-                onComposeBlur={() => setComposeFocused(false)}
+                onComposeFocus={() => {
+                  if (isPage) setComposeIsolation(true);
+                  else if (isFloatDesktop) setStaffActionsOpen(false);
+                }}
+                onComposeBlur={() => {
+                  if (!isPage) return;
+                  window.setTimeout(() => {
+                    if (document.activeElement?.closest?.('.chat-compose')) return;
+                    setComposeIsolation(false);
+                  }, 0);
+                }}
               />
             </div>
           </>

@@ -32,6 +32,7 @@ export default function MessageInput({
   aiError = '',
   onComposeFocus,
   onComposeBlur,
+  onComposePrepare,
 }) {
   const { t } = useTheme();
   const [text, setText] = useState('');
@@ -126,7 +127,13 @@ export default function MessageInput({
   const canSend = (text.trim() || pendingFile) && !sending;
   const mobileTabSkip = isMobile ? { tabIndex: -1 } : {};
 
+  const armCompose = () => {
+    if (!isMobile) return;
+    onComposePrepare?.();
+  };
+
   const handleFocus = () => {
+    armCompose();
     onComposeFocus?.();
   };
 
@@ -153,9 +160,7 @@ export default function MessageInput({
     });
   };
 
-  const mobileFieldNavProps = isMobile
-    ? { enterKeyHint: 'enter' }
-    : { enterKeyHint: 'send' };
+  const mobileFieldNavProps = isMobile ? {} : { enterKeyHint: 'send' };
 
   return (
     <div
@@ -192,6 +197,7 @@ export default function MessageInput({
       >
         <div
           className="chat-compose-shell"
+          onPointerDownCapture={armCompose}
           style={{
             background: t.inputBg,
             border: t.borderHairline,
@@ -205,6 +211,7 @@ export default function MessageInput({
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPointerDownCapture={armCompose}
               onFocus={handleFocus}
               onBlur={handleBlur}
               placeholder={placeholder}

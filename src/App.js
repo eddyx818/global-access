@@ -22,6 +22,7 @@ import { useUnreadCount } from './hooks/useUnreadCount';
 import { useMessageAlerts } from './hooks/useMessageAlerts';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import useVisualViewportInset from './hooks/useVisualViewportInset';
+import useMobileChatComposeLock from './hooks/useMobileChatComposeLock';
 import { getNotificationPermission } from './lib/notificationPrefs';
 import { subscribeToPushNotifications } from './lib/pushNotifications';
 import { canAccessPortal } from './lib/authGate';
@@ -92,6 +93,7 @@ export default function App() {
   const [profileGate, setProfileGate] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInThread, setChatInThread] = useState(false);
+  const [chatComposeActive, setChatComposeActive] = useState(false);
   const [openSupportOnLoad, setOpenSupportOnLoad] = useState(0);
   const [isPortalAdmin, setIsPortalAdmin] = useState(false);
   const [isSalesRep, setIsSalesRep] = useState(false);
@@ -382,6 +384,16 @@ export default function App() {
   }, [view]);
 
   useEffect(() => {
+    if (view !== 'chat' || !chatInThread) setChatComposeActive(false);
+  }, [view, chatInThread]);
+
+  useMobileChatComposeLock({
+    enabled: mobileShell,
+    active: chatComposeActive,
+    inThread: view === 'chat' && chatInThread,
+  });
+
+  useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle('chat-thread-open', mobileShell && view === 'chat' && chatInThread);
     root.classList.toggle('chat-keyboard-open', mobileShell && keyboardOpen);
@@ -389,27 +401,6 @@ export default function App() {
       root.classList.remove('chat-thread-open', 'chat-keyboard-open');
     };
   }, [mobileShell, view, chatInThread, keyboardOpen]);
-
-  useEffect(() => {
-    const lockNav = mobileShell && view === 'chat' && chatInThread && keyboardOpen;
-    const nav = document.querySelector('nav.app-portal-nav');
-    if (nav) nav.inert = lockNav;
-    return () => {
-      if (nav) nav.inert = false;
-    };
-  }, [mobileShell, view, chatInThread, keyboardOpen]);
-
-  useEffect(() => {
-    if (!mobileShell || !keyboardOpen || view !== 'chat' || !chatInThread) return undefined;
-    const vv = window.visualViewport;
-    if (!vv) return undefined;
-    const lockScroll = () => {
-      window.scrollTo(0, 0);
-    };
-    vv.addEventListener('scroll', lockScroll);
-    lockScroll();
-    return () => vv.removeEventListener('scroll', lockScroll);
-  }, [mobileShell, keyboardOpen, view, chatInThread]);
 
   const requireProfileForChat = () => {
     setProfileGate('chat');
@@ -1204,6 +1195,7 @@ export default function App() {
               onPriceCheckSubmitted={() => {
                 fetchRecentPriceChecks(50).then(rows => setPriceCheckNewCount(countNewPriceChecks(rows)));
               }}
+              onComposeActiveChange={setChatComposeActive}
             />
           </ChatErrorBoundary>
         </div>
