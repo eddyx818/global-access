@@ -21,6 +21,8 @@ import { updateInquiryQuoteStatus, QUOTE_STATUSES, deleteInquiry, parseInquiryIn
 import { loadAppNavigation, saveAppNavigationPartial } from '../lib/appNavigation';
 import IndustryFactsPanel from './IndustryFactsPanel';
 import DashboardProfilePanel from './DashboardProfilePanel';
+import ChatSidebar from './messaging/ChatSidebar';
+import { useUnreadCount } from '../hooks/useUnreadCount';
 
 export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const { t } = useTheme();
@@ -54,6 +56,10 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const [requestActionMsg, setRequestActionMsg] = useState('');
   const [showDismissedRequests, setShowDismissedRequests] = useState(false);
   const [statusUpdatingId, setStatusUpdatingId] = useState(null);
+  const { unread: messagesUnread, refresh: refreshMessagesUnread } = useUnreadCount(user?.id, {
+    isAdmin: true,
+    enabled: !!user?.id,
+  });
 
   useEffect(() => { loadAll(); loadContentOverrides(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -332,12 +338,18 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           <span style={{ fontSize: narrowHeader ? 15 : 13, color: t.gold, letterSpacing: '0.14em' }}>Admin</span>
         </div>
         {narrowHeader ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, width: '100%' }}>
+            <button type="button" onClick={() => setTab('messages')} style={portalBtnStyle}>
+              Messages{messagesUnread > 0 ? ` (${messagesUnread})` : ''}
+            </button>
             <button type="button" onClick={onViewPortal} style={portalBtnStyle}>Portal</button>
             <button type="button" onClick={onLogout} style={signOutBtnStyle}>Sign out</button>
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <button type="button" onClick={() => setTab('messages')} style={portalBtnStyle}>
+              Messages{messagesUnread > 0 ? ` (${messagesUnread})` : ''}
+            </button>
             <button type="button" onClick={onViewPortal} style={portalBtnStyle}>Portal</button>
             <button type="button" onClick={onLogout} style={signOutBtnStyle}>Sign out</button>
           </div>
@@ -366,11 +378,24 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
           activeTab={tab}
           onTabChange={setTab}
           pendingCount={pending.length}
+          messagesUnread={messagesUnread}
           onRefresh={loadAll}
         />
-        {loading && <div style={{ color: t.textFaint, fontSize: 13 }}>Loading...</div>}
+        {loading && tab !== 'messages' && <div style={{ color: t.textFaint, fontSize: 13 }}>Loading...</div>}
         {tab === 'profile' && (
           <DashboardProfilePanel user={user} isStaff />
+        )}
+        {tab === 'messages' && (
+          <div style={{ background: t.bgElevated, border: t.borderHairlineLight, borderRadius: 12, minHeight: narrowHeader ? 'min(72vh, 640px)' : 'min(560px, calc(100vh - 200px))', overflow: 'hidden' }}>
+            <ChatSidebar
+              user={user}
+              open
+              variant="page"
+              isAdmin
+              onUnreadChange={refreshMessagesUnread}
+              profileComplete
+            />
+          </div>
         )}
         {!loading && tab === 'overview' && (
           <div>

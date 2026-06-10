@@ -9,7 +9,7 @@ import {
 } from '../../lib/community';
 import {
   filterAndSortConversations, loadConvoPrefs, pinConversation, unpinConversation, hideConversation,
-  ensureConversationVisible, startConversationSession, getConversationSessionStart, clearConversationSession,
+  ensureConversationVisible, startConversationSession, getConversationSessionStart,
   dedupeCustomerSupportInbox, MAX_CUSTOMER_SUPPORT_CHATS,
 } from '../../lib/conversationPrefs';
 import { validateAppointmentSlot, minAppointmentDateStr } from '../../lib/appointments';
@@ -261,6 +261,7 @@ export default function ChatSidebar({
         for (const c of allConvos) {
           if (isSupportConversation(c, profileMap, user.id)) {
             next = hideConversation(user.id, c.id);
+            next = startConversationSession(user.id, c.id);
           }
         }
       } catch (_) {}
@@ -276,10 +277,6 @@ export default function ChatSidebar({
 
   const handleSelectConvo = (convo) => {
     setMessages([]);
-    if (!isStaff) {
-      const next = clearConversationSession(user.id, convo.id);
-      setConvoPrefs(next);
-    }
     setActiveConvo(convo);
   };
 
@@ -820,7 +817,7 @@ export default function ChatSidebar({
               showStaffNames={isStaff}
               isStaff={isStaff}
               customerUserId={customerUserId}
-              onDeleteMessage={handleDeleteMessage}
+              onDeleteMessage={isStaff ? handleDeleteMessage : null}
             />
             {!isStaff && activeConvo && (
               <ScheduleCallRequest

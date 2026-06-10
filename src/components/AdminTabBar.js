@@ -2,11 +2,12 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { getAdminUi } from '../lib/theme';
 
-const TAB_IDS = ['overview', 'profile', 'community', 'contacts', 'pages', 'clicks', 'requests', 'inquiries', 'content', 'users', 'map', 'brands', 'marketing'];
+const TAB_IDS = ['overview', 'profile', 'messages', 'community', 'contacts', 'pages', 'clicks', 'requests', 'inquiries', 'content', 'users', 'map', 'brands', 'marketing'];
 
 const TAB_LABELS = {
   overview: 'Overview',
   profile: 'Profile',
+  messages: 'Messages',
   community: 'Community',
   contacts: 'Contacts',
   pages: 'Pages',
@@ -20,7 +21,7 @@ const TAB_LABELS = {
   marketing: 'Marketing',
 };
 
-export default function AdminTabBar({ activeTab, onTabChange, pendingCount = 0, onRefresh }) {
+export default function AdminTabBar({ activeTab, onTabChange, pendingCount = 0, messagesUnread = 0, onRefresh }) {
   const { t } = useTheme();
   const ui = getAdminUi();
   const scrollRef = useRef(null);
@@ -162,7 +163,9 @@ export default function AdminTabBar({ activeTab, onTabChange, pendingCount = 0, 
           >
             {tabId === 'requests' && pendingCount > 0
               ? `Requests (${pendingCount})`
-              : TAB_LABELS[tabId] || tabId}
+              : tabId === 'messages' && messagesUnread > 0
+                ? `Messages (${messagesUnread})`
+                : TAB_LABELS[tabId] || tabId}
           </button>
         ))}
         <button
