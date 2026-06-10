@@ -53,7 +53,7 @@ export default function StaffQuotesView({ onCountsChange, isMobile = true, staff
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: t.bg, overflow: 'hidden' }}>
       <div style={{
-        padding: isMobile ? 'max(12px, var(--ga-inset-top)) 1rem 12px' : '1rem 1.25rem',
+        padding: isMobile ? '10px 1rem 12px' : '1rem 1.25rem',
         borderBottom: t.borderHairlineLight,
         background: t.bgElevated,
         flexShrink: 0,

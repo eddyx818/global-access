@@ -161,7 +161,7 @@ export default function StaffPriceCheckView({
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: t.bg, overflow: 'hidden' }}>
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: isMobile ? 'max(12px, var(--ga-inset-top)) 1rem calc(1rem + var(--ga-inset-bottom))' : '1rem 1.25rem' }}>
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: isMobile ? '10px 1rem calc(1rem + var(--ga-inset-bottom))' : '1rem 1.25rem' }}>
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: '0.04em', color: t.text }}>Price check</div>
           <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4, lineHeight: 1.45 }}>
