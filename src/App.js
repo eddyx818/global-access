@@ -142,7 +142,6 @@ export default function App() {
   const showMobileBottomNav = showMobileNav
     && !(view === 'chat' && chatInThread)
     && !keyboardOpen;
-  const hideNavInChatThread = mobileShell && view === 'chat' && chatInThread;
   const portalTopChrome = showInstallBanner || authState === 'browse';
   const chatLabel = isPortalAdmin || isSalesRep ? staffChatLabel() : resolveCustomerChatLabel(customerChatLabel);
 
@@ -374,9 +373,7 @@ export default function App() {
     display: 'flex',
     flexDirection: 'column',
     height: mobileShell
-      ? (view === 'chat' && chatInThread
-        ? '100dvh'
-        : `calc(100dvh - ${mobileNavHeight}${mobileBottomOffset})`)
+      ? `calc(100dvh - ${mobileNavHeight}${mobileBottomOffset})`
       : undefined,
   };
 
@@ -1043,7 +1040,6 @@ export default function App() {
         </div>
       )}
 
-      {!hideNavInChatThread && (
       <Nav
         interests={interests}
         view={view}
@@ -1074,7 +1070,6 @@ export default function App() {
         onPreviewUserTypeChange={setUserType}
         onStaffHomeClick={isRepCatalog ? openRepDashboard : null}
       />
-      )}
       {user && !mobileShell && authState !== 'admin' && (
         <ChatErrorBoundary onFallback={navigateHome}>
           <ChatSidebar

@@ -38,7 +38,6 @@ import ScheduleCallRequest from '../ScheduleCallRequest';
 import StaffWhatsAppCallButton from './StaffWhatsAppCallButton';
 import ChatPriceCheckPanel from '../ChatPriceCheckPanel';
 import { useTheme } from '../../context/ThemeContext';
-import useVisualViewportInset from '../../hooks/useVisualViewportInset';
 
 async function loadProfileMap(userIds) {
   if (!userIds.length) return {};
@@ -102,7 +101,6 @@ export default function ChatSidebar({
   const subRef = useRef(null);
   const staffPanelInnerRef = useRef(null);
   const composeInertRef = useRef(null);
-  const keyboardInset = useVisualViewportInset(isPage);
 
   const mergeProfiles = async (convos, msgs = []) => {
     const ids = new Set();
@@ -705,11 +703,11 @@ export default function ChatSidebar({
   const panelStyle = isPage
     ? {
         width: '100%',
-        height: inMobileThread ? '100dvh' : '100%',
+        height: '100%',
+        minHeight: 0,
         background: t.bgElevated,
         display: 'flex',
         flexDirection: 'column',
-        ...(inMobileThread ? { position: 'fixed', inset: 0, zIndex: 450 } : {}),
       }
     : {
         width: '100%',
@@ -726,23 +724,25 @@ export default function ChatSidebar({
     <div className={isPage ? `chat-page-panel${inMobileThread ? ' chat-thread-panel' : ''}` : (isFloatDesktop ? 'chat-float-panel' : undefined)} style={panelStyle}>
       {showPageHeader && (
       <div
-        className={isFloatDesktop ? 'chat-float-header' : undefined}
+        className={[
+          isFloatDesktop ? 'chat-float-header' : undefined,
+          isPage && activeConvo ? 'chat-page-header' : undefined,
+        ].filter(Boolean).join(' ') || undefined}
         style={{
-        padding: isPage ? '6px 10px' : (isFloatDesktop ? undefined : '12px 14px'),
-        paddingTop: isPage && activeConvo ? 'max(6px, env(safe-area-inset-top, 0px))' : (isPage ? 6 : undefined),
+        padding: isPage ? '4px 8px 4px 4px' : (isFloatDesktop ? undefined : '12px 14px'),
         borderBottom: isFloatDesktop ? undefined : t.borderHairlineLight,
         display: 'flex',
         alignItems: 'center',
-        gap: isPage ? 6 : 8,
+        gap: isPage ? 4 : 8,
         background: isFloatDesktop ? undefined : t.headerBg,
         flexShrink: 0,
-        minHeight: isPage ? undefined : undefined,
       }}>
         {isPage && activeConvo && (
           <button
             type="button"
+            className="chat-page-back-btn"
             onClick={handleClose}
-            style={{ background: 'none', border: 'none', color: t.headerText, cursor: 'pointer', fontSize: 26, padding: '2px 6px 2px 0', fontFamily: 'inherit', lineHeight: 1, flexShrink: 0 }}
+            style={{ color: t.headerText }}
             aria-label="Back to inbox"
           >
             ‹
@@ -899,7 +899,6 @@ export default function ChatSidebar({
               style={{
                 flexShrink: 0,
                 background: isFloatDesktop ? undefined : t.bgElevated,
-                paddingBottom: keyboardInset > 0 ? keyboardInset : undefined,
               }}
             >
               {isStaff && !activeIsGroup && isFloatDesktop && (
@@ -918,7 +917,6 @@ export default function ChatSidebar({
                 userId={user.id}
                 suggestedText={suggestedReply}
                 onSuggestedTextApplied={() => setSuggestedReply('')}
-                keyboardInset={keyboardInset}
                 showAiSuggest={isStaff && !activeIsGroup && isPage}
                 onAiSuggest={handleAiSuggest}
                 aiSuggestLoading={aiLoading}

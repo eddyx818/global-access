@@ -26,7 +26,6 @@ export default function MessageInput({
   userId,
   suggestedText = '',
   onSuggestedTextApplied,
-  keyboardInset = 0,
   showAiSuggest = false,
   onAiSuggest,
   aiSuggestLoading = false,
@@ -129,10 +128,6 @@ export default function MessageInput({
 
   const handleFocus = () => {
     onComposeFocus?.();
-    if (!isMobile) return;
-    requestAnimationFrame(() => {
-      inputRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    });
   };
 
   const handleBlur = () => {
@@ -191,7 +186,7 @@ export default function MessageInput({
         className="chat-compose-row"
         style={{
           padding: isMobile
-            ? `10px 14px ${keyboardInset > 0 ? 10 : 'max(10px, env(safe-area-inset-bottom, 0px))'}`
+            ? '10px 14px max(10px, env(safe-area-inset-bottom, 0px))'
             : '10px 12px',
         }}
       >

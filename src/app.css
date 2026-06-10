@@ -1543,16 +1543,15 @@ html[data-theme='night'] .chat-float-minimized {
   color: var(--ga-text-faint);
 }
 
-html.chat-thread-open,
-html.chat-thread-open body {
+html.chat-thread-open .app-main-content {
   overflow: hidden;
-  overscroll-behavior: none;
 }
 
-html.chat-thread-open body {
-  position: fixed;
-  width: 100%;
-  height: 100%;
+html.chat-keyboard-open .app-main-content {
+  flex: 0 0 auto;
+  height: calc(var(--ga-vv-height, 100dvh) - var(--ga-nav-height));
+  max-height: calc(var(--ga-vv-height, 100dvh) - var(--ga-nav-height));
+  overflow: hidden;
 }
 
 html.chat-keyboard-open .app-bottom-nav {
@@ -1560,8 +1559,42 @@ html.chat-keyboard-open .app-bottom-nav {
   pointer-events: none;
 }
 
+.chat-page-header {
+  min-height: 44px;
+}
+
+.chat-page-back-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 22px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 34px;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+
+.chat-page-back-btn:active {
+  background: rgba(0, 0, 0, 0.06);
+  transform: scale(0.96);
+}
+
+html[data-theme='night'] .chat-page-back-btn:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .chat-thread-panel {
-  max-height: 100dvh;
+  min-height: 0;
 }
 
 /* ── Home page (B2B catalog) ── */
