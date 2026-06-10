@@ -1155,6 +1155,8 @@ export default function App() {
             userType={userType}
             masterPricingQualified={masterPricingQualified}
             isStaff={isStaffPortalUser}
+            isPortalUser={authState === 'portal' && !!user && !isStaffPortalUser}
+            companyName={authState === 'portal' ? form.company : ''}
             chatLabel={chatLabel}
             onMessageUs={authState === 'portal' && user && !isStaffPortalUser ? openMessageTradeDesk : null}
             onBrowseSignUp={authState === 'browse' ? openAccessRequest : null}
