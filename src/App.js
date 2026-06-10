@@ -32,7 +32,6 @@ import { useTheme } from './context/ThemeContext';
 import {
   clearAppNavigation,
   loadAppNavigation,
-  normalizePortalView,
   readSavedPortalNav,
   saveAppNavigation,
 } from './lib/appNavigation';
@@ -122,6 +121,11 @@ export default function App() {
   const showCustomerShopping = !isStaffPortalUser || isStaffCatalogPortal;
   const showCustomerList = showCustomerShopping && !isStaffCatalogPortal;
   const showStaffTools = isStaffPortalUser && !isStaffCatalogPortal;
+
+  /** Legacy saved `inbox` has no screen — map to quotes/home for render until state recovers. */
+  const resolvedView = view === 'inbox'
+    ? (isStaffPortalUser ? 'quotes' : 'home')
+    : view;
 
   const inPortalView = authState === 'portal' || authState === 'browse'
     || (authState === 'admin' && adminMode === 'portal')
@@ -525,7 +529,7 @@ export default function App() {
           || (salesRep && (savedNav?.repMode === 'portal'));
 
         if (savedNav && inPortalShell) {
-          const nextView = normalizePortalView(savedNav.view);
+          const nextView = savedNav.view;
           setView(nextView);
           if (savedNav.activeBrand && (nextView === 'brand' || savedNav.activeBrand)) {
             setActiveBrand(savedNav.activeBrand);
@@ -1044,7 +1048,7 @@ export default function App() {
         homeLabel={isStaffCatalogPortal ? 'Catalog' : 'Home'}
         isAdmin={isPortalAdmin && adminMode === 'portal'}
         onAdminClick={openAdminDashboard}
-        showAdminPreview={isStaffCatalogPortal && (!mobileShell || view === 'home')}
+        showAdminPreview={isStaffCatalogPortal && (!mobileShell || resolvedView === 'home')}
         previewUserType={userType}
         onPreviewUserTypeChange={setUserType}
         onStaffHomeClick={isRepCatalog ? openRepDashboard : null}
@@ -1115,14 +1119,14 @@ export default function App() {
         </div>
       )}
 
-      {(showMobileNav || view === 'home') && (
+      {(showMobileNav || resolvedView === 'home') && (
         <div
-          className={`portal-home-view${view === 'home' ? ' portal-home-view--active' : ''}`}
-          style={{ display: view === 'home' ? 'block' : 'none' }}
-          aria-hidden={view !== 'home'}
+          className={`portal-home-view${resolvedView === 'home' ? ' portal-home-view--active' : ''}`}
+          style={{ display: resolvedView === 'home' ? 'block' : 'none' }}
+          aria-hidden={resolvedView !== 'home'}
         >
           <HomeView
-            visible={view === 'home'}
+            visible={resolvedView === 'home'}
             onBrandClick={goToBrand}
             isMobile={isMobile}
             userId={user?.id}
@@ -1236,7 +1240,7 @@ export default function App() {
           staffPriceCheck={isStaffPriceCheck}
         />
       )}
-      {view === 'quotes' && isStaffPortalUser && (
+      {resolvedView === 'quotes' && isStaffPortalUser && (
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <StaffQuotesView
             isMobile={isMobile || isMobileDevice}
@@ -1275,7 +1279,7 @@ export default function App() {
 
       {showMobileBottomNav && (
         <MobileBottomNav
-          activeView={view}
+          activeView={resolvedView}
           onHome={navigateHome}
           onList={navigateList}
           onQuotes={navigateQuotes}

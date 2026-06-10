@@ -18,16 +18,17 @@ import { getAdminUi } from '../lib/theme';
 import { approveAccessRequestAndCreateAccount, denyAccessRequest, deleteAccessRequest, setAccessRequestDismissed } from '../lib/accessApproval';
 import { whatsAppUrl } from '../lib/whatsapp';
 import { updateInquiryQuoteStatus, QUOTE_STATUSES, deleteInquiry, parseInquiryInterests } from '../lib/inquiries';
-import { loadAppNavigation, saveAppNavigationPartial } from '../lib/appNavigation';
+import { loadAppNavigation, saveAppNavigationPartial, normalizeAdminTab } from '../lib/appNavigation';
 import IndustryFactsPanel from './IndustryFactsPanel';
 import DashboardProfilePanel from './DashboardProfilePanel';
 import ChatSidebar from './messaging/ChatSidebar';
+import ChatErrorBoundary from './ChatErrorBoundary';
 import { useUnreadCount } from '../hooks/useUnreadCount';
 
 export default function AdminDashboard({ user, onLogout, onViewPortal }) {
   const { t } = useTheme();
   const ui = getAdminUi();
-  const [tab, setTab] = useState(() => loadAppNavigation()?.adminTab || 'overview');
+  const [tab, setTab] = useState(() => normalizeAdminTab(loadAppNavigation()?.adminTab));
   const [brandOverrides, setBrandOverrides] = useState({});
   const [productOverrides, setProductOverrides] = useState({});
 
@@ -385,16 +386,21 @@ export default function AdminDashboard({ user, onLogout, onViewPortal }) {
         {tab === 'profile' && (
           <DashboardProfilePanel user={user} isStaff />
         )}
-        {tab === 'messages' && (
+        {tab === 'messages' && !user?.id && (
+          <div style={{ color: t.textFaint, fontSize: 13 }}>Loading messages…</div>
+        )}
+        {tab === 'messages' && user?.id && (
           <div style={{ background: t.bgElevated, border: t.borderHairlineLight, borderRadius: 12, minHeight: narrowHeader ? 'min(72vh, 640px)' : 'min(560px, calc(100vh - 200px))', overflow: 'hidden' }}>
-            <ChatSidebar
-              user={user}
-              open
-              variant="page"
-              isAdmin
-              onUnreadChange={refreshMessagesUnread}
-              profileComplete
-            />
+            <ChatErrorBoundary onFallback={() => setTab('overview')}>
+              <ChatSidebar
+                user={user}
+                open
+                variant="page"
+                isAdmin
+                onUnreadChange={refreshMessagesUnread}
+                profileComplete
+              />
+            </ChatErrorBoundary>
           </div>
         )}
         {!loading && tab === 'overview' && (

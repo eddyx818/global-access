@@ -1,5 +1,10 @@
 const KEY = 'ga-app-nav';
 
+const ADMIN_TABS = new Set([
+  'overview', 'profile', 'messages', 'community', 'contacts', 'pages', 'clicks',
+  'requests', 'inquiries', 'content', 'users', 'map', 'brands', 'marketing',
+]);
+
 export function loadAppNavigation() {
   try {
     const raw = sessionStorage.getItem(KEY);
@@ -13,7 +18,9 @@ export function loadAppNavigation() {
 export function saveAppNavigation(state) {
   try {
     const prev = loadAppNavigation() || {};
-    sessionStorage.setItem(KEY, JSON.stringify({ ...prev, ...state, ts: Date.now() }));
+    const next = { ...prev, ...state, ts: Date.now() };
+    if (next.view) next.view = normalizePortalView(next.view);
+    sessionStorage.setItem(KEY, JSON.stringify(next));
   } catch (_) {}
 }
 
@@ -29,9 +36,12 @@ export function clearAppNavigation() {
 
 /** Map legacy route names to current portal views. */
 export function normalizePortalView(view) {
-  if (view === 'quotes') return 'inbox';
   if (view === 'inbox') return 'quotes';
   return view || 'home';
+}
+
+export function normalizeAdminTab(tab) {
+  return ADMIN_TABS.has(tab) ? tab : 'overview';
 }
 
 /** Restore portal / admin-preview navigation after resume or bfcache. */
@@ -43,6 +53,6 @@ export function readSavedPortalNav(userId) {
     repMode: saved.repMode === 'portal' ? 'portal' : 'dashboard',
     view: normalizePortalView(saved.view),
     activeBrand: saved.activeBrand || null,
-    adminTab: saved.adminTab || 'overview',
+    adminTab: normalizeAdminTab(saved.adminTab),
   };
 }
