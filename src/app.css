@@ -697,20 +697,122 @@ html.app-native .home-brand-card--selected {
   position: relative;
   z-index: 5;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.chat-compose {
+  min-width: 0;
 }
 
 .chat-compose-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
   min-width: 0;
+}
+
+.chat-compose-attachment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 0;
+  font-size: 12px;
+  color: var(--ga-text-secondary);
+}
+
+.chat-compose-attachment__name {
+  flex: 1;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-compose-attachment__remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 0;
+}
+
+.chat-compose-error {
+  padding: 6px 14px 0;
+  font-size: 11px;
+}
+
+.chat-compose-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chat-compose-input-wrap {
+  flex: 1;
+  min-width: 0;
+  border-radius: 20px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.chat-compose-input-wrap:focus-within {
+  border-color: var(--ga-accent-border, rgba(0, 0, 0, 0.18));
+  box-shadow: 0 0 0 2px var(--ga-accent-bg, rgba(0, 0, 0, 0.04));
 }
 
 .chat-compose-field {
   flex: 1;
   min-width: 0;
+  width: 100%;
+  margin: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 10px 14px;
+  box-sizing: border-box;
   overflow-x: hidden;
   overflow-wrap: anywhere;
   word-break: break-word;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.chat-compose--mobile .chat-compose-field {
+  padding: 12px 14px;
+  min-height: calc(1.4em + 24px);
+  max-height: calc(1.4em * 5 + 24px);
+}
+
+.chat-compose:not(.chat-compose--mobile) .chat-compose-field {
+  min-height: calc(1.4em + 20px);
+  max-height: calc(1.4em * 4 + 20px);
+}
+
+.chat-compose-field::placeholder {
+  color: var(--ga-text-disabled, rgba(0, 0, 0, 0.38));
+}
+
+.chat-compose-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-weight: 700;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.chat-compose-send:not(:disabled):active {
+  transform: scale(0.94);
 }
 
 /* Staff tools dropdown above compose */

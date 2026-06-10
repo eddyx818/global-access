@@ -1,8 +1,20 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { uploadChatAttachment, validateChatFile } from '../../lib/chatAttachments';
 import { useTheme } from '../../context/ThemeContext';
 
 const FILE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,application/pdf';
+
+function composeHeights(isMobile) {
+  const lineHeight = 1.4;
+  const fontSize = 16;
+  const visibleLines = isMobile ? 5 : 4;
+  const padY = isMobile ? 12 : 10;
+  const linePx = fontSize * lineHeight;
+  return {
+    minH: Math.round(linePx + padY * 2),
+    maxH: Math.round(linePx * visibleLines + padY * 2),
+  };
+}
 
 export default function MessageInput({
   onSend,
@@ -22,24 +34,37 @@ export default function MessageInput({
   const { t } = useTheme();
   const [text, setText] = useState('');
   const inputRef = useRef(null);
+  const [sending, setSending] = useState(false);
+  const [pendingFile, setPendingFile] = useState(null);
+  const [error, setError] = useState('');
+
+  const autoResize = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const { minH, maxH } = composeHeights(isMobile);
+    el.style.height = '0px';
+    const contentH = el.scrollHeight;
+    const next = Math.max(minH, Math.min(contentH, maxH));
+    el.style.height = `${next}px`;
+    el.style.overflowY = contentH > maxH ? 'auto' : 'hidden';
+    if (contentH > maxH) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [isMobile]);
+
+  useLayoutEffect(() => {
+    autoResize();
+  }, [text, autoResize]);
 
   useEffect(() => {
     if (!suggestedText) return;
     setText(suggestedText);
     onSuggestedTextApplied?.();
     requestAnimationFrame(() => {
-      const el = inputRef.current;
-      if (!el) return;
-      el.focus();
-      if (isMobile) {
-        el.style.height = 'auto';
-        el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-      }
+      inputRef.current?.focus();
+      autoResize();
     });
   }, [suggestedText]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [sending, setSending] = useState(false);
-  const [pendingFile, setPendingFile] = useState(null);
-  const [error, setError] = useState('');
 
   const handlePickFile = (e) => {
     const file = e.target.files?.[0];
@@ -67,14 +92,6 @@ export default function MessageInput({
     input.click();
   };
 
-  const autoResize = () => {
-    const el = inputRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    const max = isMobile ? 120 : 96;
-    el.style.height = `${Math.min(el.scrollHeight, max)}px`;
-  };
-
   const handleSend = async () => {
     if ((!text.trim() && !pendingFile) || sending) return;
     setSending(true);
@@ -87,9 +104,7 @@ export default function MessageInput({
       await onSend(text, attachment);
       setText('');
       setPendingFile(null);
-      if (inputRef.current) {
-        inputRef.current.style.height = 'auto';
-      }
+      requestAnimationFrame(() => autoResize());
     } catch (err) {
       setError(err?.message || 'Could not send message.');
     }
@@ -97,28 +112,6 @@ export default function MessageInput({
   };
 
   const canSend = (text.trim() || pendingFile) && !sending;
-
-  const fieldStyle = {
-    flex: 1,
-    minWidth: 0,
-    width: '100%',
-    background: t.inputBg,
-    border: t.borderHairline,
-    borderRadius: isMobile ? 12 : 10,
-    padding: isMobile ? '12px 14px' : '10px 12px',
-    fontSize: 16,
-    outline: 'none',
-    fontFamily: 'inherit',
-    minHeight: isMobile ? 44 : 40,
-    maxHeight: isMobile ? 120 : 96,
-    color: t.text,
-    resize: 'none',
-    lineHeight: 1.35,
-    boxSizing: 'border-box',
-    overflowX: 'hidden',
-    overflowWrap: 'anywhere',
-    wordBreak: 'break-word',
-  };
 
   const handleFocus = () => {
     onComposeFocus?.();
@@ -143,123 +136,121 @@ export default function MessageInput({
     ? { enterKeyHint: 'send', inputMode: 'text' }
     : { enterKeyHint: 'send' };
 
+  const actionBtnStyle = {
+    width: isMobile ? 44 : 40,
+    height: isMobile ? 44 : 40,
+    background: t.inputBg,
+    border: t.borderHairline,
+    borderRadius: isMobile ? 12 : 10,
+    cursor: sending ? 'not-allowed' : 'pointer',
+    fontFamily: 'inherit',
+    fontSize: 18,
+    flexShrink: 0,
+  };
+
   return (
-    <div style={{
-      borderTop: t.borderHairlineLight,
-      background: t.bgElevated,
-      flexShrink: 0,
-      minWidth: 0,
-      overflow: 'hidden',
-    }}>
+    <div
+      className={`chat-compose${isMobile ? ' chat-compose--mobile' : ''}`}
+      style={{
+        borderTop: t.borderHairlineLight,
+        background: t.bgElevated,
+        flexShrink: 0,
+        minWidth: 0,
+      }}
+    >
       {pendingFile && (
-        <div style={{
-          padding: '8px 14px 0',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          fontSize: 12,
-          color: t.textSecondary,
-        }}>
-          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            📎 {pendingFile.name}
-          </span>
-          <button type="button" onClick={() => setPendingFile(null)}
-            style={{ background: 'none', border: 'none', color: t.errorText, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
+        <div className="chat-compose-attachment">
+          <span className="chat-compose-attachment__name">📎 {pendingFile.name}</span>
+          <button type="button" onClick={() => setPendingFile(null)} className="chat-compose-attachment__remove" style={{ color: t.errorText }}>
             Remove
           </button>
         </div>
       )}
       {(error || aiError) && (
-        <div style={{ padding: '6px 14px 0', fontSize: 11, color: t.errorText }}>{error || aiError}</div>
+        <div className="chat-compose-error" style={{ color: t.errorText }}>{error || aiError}</div>
       )}
       <div
         className="chat-compose-row"
         style={{
-        padding: isMobile
-          ? `10px 14px ${keyboardInset > 0 ? 10 : 'max(10px, env(safe-area-inset-bottom, 0px))'}`
-          : '10px 12px',
-        display: 'flex',
-        gap: 8,
-        alignItems: 'flex-end',
-      }}>
+          padding: isMobile
+            ? `10px 14px ${keyboardInset > 0 ? 10 : 'max(10px, env(safe-area-inset-bottom, 0px))'}`
+            : '10px 12px',
+        }}
+      >
         <button
           type="button"
+          className="chat-compose-action"
           onClick={handleAttachClick}
           disabled={sending}
           title="Attach photo or document"
           tabIndex={-1}
-          style={{
-            width: isMobile ? 44 : 40,
-            height: isMobile ? 44 : 40,
-            background: t.inputBg,
-            border: t.borderHairline,
-            borderRadius: isMobile ? 12 : 10,
-            cursor: sending ? 'not-allowed' : 'pointer',
-            fontFamily: 'inherit',
-            fontSize: 18,
-            flexShrink: 0,
-          }}
+          style={actionBtnStyle}
         >
           📎
         </button>
         {showAiSuggest && (
           <button
             type="button"
+            className="chat-compose-action"
             onClick={onAiSuggest}
             disabled={aiSuggestLoading || sending}
             title="AI suggest reply"
             tabIndex={isMobile ? -1 : 0}
             style={{
-              width: isMobile ? 44 : 40,
-              height: isMobile ? 44 : 40,
+              ...actionBtnStyle,
               background: aiSuggestLoading ? t.border : t.goldBg,
               border: `0.5px solid ${t.gold}`,
-              borderRadius: isMobile ? 12 : 10,
-              cursor: aiSuggestLoading ? 'wait' : 'pointer',
-              fontFamily: 'inherit',
-              fontSize: 18,
-              flexShrink: 0,
               color: t.gold,
             }}
           >
             {aiSuggestLoading ? '…' : '✨'}
           </button>
         )}
-        <textarea
-          ref={inputRef}
-          className="chat-compose-field"
-          rows={1}
-          value={text}
-          onChange={(e) => { setText(e.target.value); autoResize(); }}
-          onKeyDown={handleKeyDown}
-          onFocus={handleFocus}
-          placeholder={placeholder}
-          autoComplete="off"
-          autoCorrect="on"
-          spellCheck
-          aria-label={placeholder}
-          {...mobileFieldNavProps}
-          style={fieldStyle}
-        />
+        <div
+          className="chat-compose-input-wrap"
+          style={{
+            background: t.inputBg,
+            border: t.borderHairline,
+          }}
+        >
+          <textarea
+            ref={inputRef}
+            className="chat-compose-field"
+            rows={1}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={handleFocus}
+            placeholder={placeholder}
+            autoComplete="off"
+            autoCorrect="on"
+            spellCheck
+            aria-label={placeholder}
+            style={{ color: t.text }}
+            {...mobileFieldNavProps}
+          />
+        </div>
         <button
           type="button"
+          className="chat-compose-send"
           onClick={handleSend}
           disabled={!canSend}
           tabIndex={isMobile ? -1 : 0}
+          aria-label="Send message"
           style={{
-            width: isMobile ? 48 : 40,
-            height: isMobile ? 48 : 40,
+            width: isMobile ? 44 : 40,
+            height: isMobile ? 44 : 40,
             background: canSend ? t.btnPrimaryBg : t.border,
             border: 'none',
-            borderRadius: isMobile ? 12 : 10,
+            borderRadius: isMobile ? 22 : 10,
             color: canSend ? t.btnPrimaryText : t.textDisabled,
             cursor: canSend ? 'pointer' : 'not-allowed',
             fontFamily: 'inherit',
-            fontSize: 18,
+            fontSize: isMobile ? 20 : 18,
             flexShrink: 0,
           }}
         >
-          →
+          ↑
         </button>
       </div>
     </div>
