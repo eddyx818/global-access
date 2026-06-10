@@ -6,11 +6,10 @@ export default function ChatStaffTools({
   assistMessages,
   inquiryNotes,
   onInsertText,
-  isMobile = false,
 }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
-  const [expanded, setExpanded] = useState(!isMobile);
+  const [expanded, setExpanded] = useState(true);
 
   const quickReplies = QUICK_REPLIES.slice(0, MAX_QUICK_REPLIES_SHOWN);
 
@@ -64,9 +63,8 @@ export default function ChatStaffTools({
                 type="button"
                 onClick={() => onInsertText?.(text)}
                 className="chat-reply-helpers__chip"
-                title={text}
               >
-                {text.length > 48 ? `${text.slice(0, 48)}…` : text}
+                {text}
               </button>
             ))}
           </div>

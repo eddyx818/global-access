@@ -865,13 +865,12 @@ export default function ChatSidebar({
                 paddingBottom: keyboardInset > 0 ? keyboardInset : undefined,
               }}
             >
-              {isStaff && !activeIsGroup && !isPage && (
+              {isStaff && !activeIsGroup && isFloatDesktop && (
                 <ChatStaffTools
                   customerName={activeCustomerProfile?.name}
                   assistMessages={messagesToAssistFormat(messages, customerUserId)}
                   inquiryNotes={customerInquiry?.notes}
                   onInsertText={(text) => setSuggestedReply(text)}
-                  isMobile={isPage}
                 />
               )}
               <MessageInput
