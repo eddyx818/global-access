@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { getPortalSessionToken } from './session';
 import { hasCallablePhone } from './whatsapp';
 import { createStaffPriceCheckRecord } from './priceChecks';
+import { loadConvoPrefs } from './conversationPrefs';
 
 const ADMIN_EMAILS = () => (process.env.REACT_APP_ADMIN_EMAIL || '')
   .split(',')
@@ -485,20 +486,41 @@ export async function markMessagesRead(conversationId, userId, { isAdmin = false
     .eq('read_status', false);
 }
 
+async function getStaffSenderIds() {
+  const { data: staff } = await supabase
+    .from('user_profiles')
+    .select('user_id')
+    .or('is_portal_admin.eq.true,is_sales_rep.eq.true');
+  return new Set((staff || []).map(s => s.user_id));
+}
+
+async function countStaffInboxUnread(userId, { isAdmin = false, isSalesRep = false } = {}) {
+  const hidden = new Set(loadConvoPrefs(userId).hidden || []);
+  const convos = await fetchConversations(userId, { isAdmin, isSalesRep });
+  const visibleIds = convos.filter(c => !hidden.has(c.id)).map(c => c.id);
+  if (!visibleIds.length) return 0;
+  const staffIds = await getStaffSenderIds();
+  const { data: msgs, error } = await supabase
+    .from('messages')
+    .select('id, from_user_id')
+    .in('conversation_id', visibleIds)
+    .eq('read_status', false);
+  if (error) return 0;
+  return (msgs || []).filter(m => !staffIds.has(m.from_user_id)).length;
+}
+
 export async function getUnreadCount(userId, { isAdmin = false, isSalesRep = false } = {}) {
-  if (isAdmin) {
-    const { data, error } = await supabase.rpc('get_admin_unread_count');
-    if (error) return 0;
-    return data || 0;
+  if (isAdmin || isSalesRep) {
+    return countStaffInboxUnread(userId, { isAdmin, isSalesRep });
   }
-  if (isSalesRep) {
-    const { data, error } = await supabase.rpc('get_sales_rep_unread_count');
-    if (error) return 0;
-    return data || 0;
-  }
+  const hidden = new Set(loadConvoPrefs(userId).hidden || []);
+  const convos = await fetchConversations(userId, { isAdmin: false, isSalesRep: false });
+  const visibleIds = convos.filter(c => !hidden.has(c.id)).map(c => c.id);
+  if (!visibleIds.length) return 0;
   const { count } = await supabase
     .from('messages')
     .select('*', { count: 'exact', head: true })
+    .in('conversation_id', visibleIds)
     .eq('to_user_id', userId)
     .eq('read_status', false);
   return count || 0;

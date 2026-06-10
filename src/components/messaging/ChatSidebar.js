@@ -273,6 +273,11 @@ export default function ChatSidebar({
       setMessages([]);
     }
     setConversations(prev => prev.filter(c => !next.hidden.includes(c.id)));
+    try {
+      const count = await getUnreadCount(user.id, { isAdmin, isSalesRep });
+      setUnread(count);
+      onUnreadChange?.(count);
+    } catch (_) {}
   };
 
   const handleSelectConvo = (convo) => {
