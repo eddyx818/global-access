@@ -1547,32 +1547,6 @@ html.chat-thread-open .app-main-content {
   overflow: hidden;
 }
 
-html.chat-compose-active.chat-thread-open,
-html.chat-compose-active.chat-thread-open body {
-  overflow: hidden;
-  overscroll-behavior: none;
-}
-
-html.chat-compose-active.chat-thread-open .app-viewport {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
-  height: var(--ga-vv-height, 100dvh);
-  max-height: var(--ga-vv-height, 100dvh);
-  overflow: hidden;
-  overscroll-behavior: none;
-}
-
-html.chat-compose-active.chat-thread-open .app-main-content {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  height: auto;
-  max-height: none;
-}
-
 html.chat-keyboard-open.chat-thread-open,
 html.chat-keyboard-open.chat-thread-open body {
   overflow: hidden;
@@ -1592,8 +1566,11 @@ html.chat-keyboard-open .app-main-content {
 }
 
 html.chat-keyboard-open.chat-thread-open .chat-page-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
-  touch-action: none;
 }
 
 html.chat-keyboard-open.chat-thread-open .chat-message-thread {

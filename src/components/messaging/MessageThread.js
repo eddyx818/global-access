@@ -13,6 +13,7 @@ export default function MessageThread({
   showStaffNames = false,
   isStaff = false,
   customerUserId = null,
+  scrollToBottomToken = 0,
 }) {
   const { t } = useTheme();
   const endRef = useRef(null);
@@ -26,6 +27,11 @@ export default function MessageThread({
       endRef.current?.scrollIntoView({ behavior: 'auto' });
     }
   }, [messages]);
+
+  useEffect(() => {
+    if (!scrollToBottomToken) return;
+    endRef.current?.scrollIntoView({ behavior: 'auto' });
+  }, [scrollToBottomToken]);
 
   if (loading) {
     return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textFaint, fontSize: 13 }}>Loading...</div>;

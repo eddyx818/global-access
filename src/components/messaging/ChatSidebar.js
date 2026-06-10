@@ -98,6 +98,7 @@ export default function ChatSidebar({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
   const [minimized, setMinimized] = useState(false);
+  const [threadScrollToken, setThreadScrollToken] = useState(0);
   const subRef = useRef(null);
   const staffPanelInnerRef = useRef(null);
   const composeInertRef = useRef(null);
@@ -529,7 +530,19 @@ export default function ChatSidebar({
         el.inert = active;
       });
     }
-  }, [onComposeActiveChange]);
+    if (active && isPage) {
+      setThreadScrollToken((n) => n + 1);
+    }
+  }, [onComposeActiveChange, isPage]);
+
+  useEffect(() => {
+    if (!isPage || !activeConvo) return undefined;
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+    const bumpScroll = () => setThreadScrollToken((n) => n + 1);
+    vv.addEventListener('resize', bumpScroll);
+    return () => vv.removeEventListener('resize', bumpScroll);
+  }, [isPage, activeConvo?.id]);
 
   useEffect(() => {
     setStaffActionsOpen(false);
@@ -891,6 +904,7 @@ export default function ChatSidebar({
               showStaffNames={isStaff}
               isStaff={isStaff}
               customerUserId={customerUserId}
+              scrollToBottomToken={threadScrollToken}
             />
             {!isStaff && activeConvo && (
               <ScheduleCallRequest
