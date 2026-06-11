@@ -440,6 +440,7 @@ html.app-mobile:not(.app-standalone) .app-bottom-nav--floating::before {
 
 .app-bottom-nav__pill {
   pointer-events: auto;
+  position: relative;
   display: flex;
   align-items: stretch;
   justify-content: space-around;
@@ -451,13 +452,23 @@ html.app-mobile:not(.app-standalone) .app-bottom-nav--floating::before {
   -webkit-backdrop-filter: blur(24px) saturate(1.35);
   padding: 4px 6px;
   box-sizing: border-box;
-  cursor: grab;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.app-bottom-nav__pill:active {
+.app-bottom-nav__pill--dragging {
   cursor: grabbing;
+}
+
+.app-bottom-nav__thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
 }
 
 .app-bottom-nav__item {
@@ -469,19 +480,19 @@ html.app-mobile:not(.app-standalone) .app-bottom-nav--floating::before {
   gap: 2px;
   padding: 6px 4px 8px;
   margin: 0 2px;
-  background: none;
+  background: transparent;
   border: none;
   border-radius: 999px;
-  cursor: pointer;
   font-family: inherit;
   position: relative;
+  z-index: 1;
   min-width: 0;
-  transition: background 0.22s ease, color 0.22s ease, transform 0.15s ease;
+  transition: color 0.18s ease, opacity 0.18s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.app-bottom-nav__item:active {
-  transform: scale(0.96);
+.app-bottom-nav__item--highlighted {
+  z-index: 2;
 }
 
 .app-bottom-nav__icon {
