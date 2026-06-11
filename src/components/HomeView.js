@@ -37,7 +37,7 @@ export default function HomeView({
   onBrowseSignIn = null,
   visible = true,
 }) {
-  const { t } = useTheme();
+  const { t, isNight } = useTheme();
   const [slideIdx, setSlideIdx] = useState(null);
   const [animating, setAnimating] = useState(false);
   const [customOrder, setCustomOrder] = useState(null);
@@ -92,7 +92,7 @@ export default function HomeView({
     return catalogPhotosFor(brand);
   };
 
-  const heroBg = heroConfig.background_color || '#0D0D0D';
+  const heroBg = heroConfig.background_color || (isNight ? '#0D0D0D' : '#F0EBE3');
 
   useEffect(() => {
     setCustomOrder(null);
@@ -453,7 +453,13 @@ export default function HomeView({
                 pointerEvents: 'none',
               }}
             >
-              <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 18% 55%, ${brand.color}55 0%, transparent 48%), radial-gradient(ellipse at 82% 28%, ${brand.color}28 0%, transparent 45%), ${heroBg}` }} />
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                background: isNight
+                  ? `radial-gradient(ellipse at 18% 55%, ${brand.color}55 0%, transparent 48%), radial-gradient(ellipse at 82% 28%, ${brand.color}28 0%, transparent 45%), ${heroBg}`
+                  : `radial-gradient(ellipse at 14% 50%, ${brand.color}28 0%, transparent 50%), radial-gradient(ellipse at 78% 30%, ${brand.color}14 0%, transparent 46%), linear-gradient(105deg, ${heroBg} 0%, rgba(255,255,255,0.55) 52%, rgba(255,255,255,0.12) 100%)`,
+              }} />
               {heroImg && (
                 <div className="hero-slide-image-wrap">
                   <img
@@ -514,9 +520,9 @@ export default function HomeView({
                   fontFamily: "'Bebas Neue', sans-serif",
                   fontSize: isMobile ? 54 : 88,
                   letterSpacing: '0.03em',
-                  color: '#FFF',
+                  color: isNight ? '#FFF' : t.text,
                   lineHeight: 0.9,
-                  textShadow: '0 2px 24px rgba(0,0,0,0.45)',
+                  textShadow: isNight ? '0 2px 24px rgba(0,0,0,0.45)' : '0 1px 0 rgba(255,255,255,0.6)',
                   minHeight: isMobile ? '2.6em' : '1.8em',
                   display: 'flex',
                   alignItems: 'center',
@@ -531,7 +537,7 @@ export default function HomeView({
                     ...heroPillStyle,
                     padding: isMobile ? '10px 18px' : '12px 22px',
                     fontSize: isMobile ? 13 : 15,
-                    color: 'rgba(255,255,255,0.9)',
+                    color: isNight ? 'rgba(255,255,255,0.9)' : t.textSecondary,
                     letterSpacing: '0.03em',
                     maxWidth: 380,
                     lineHeight: 1.5,
