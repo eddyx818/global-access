@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase';
 import { notifyContentUpdated } from '../lib/content';
 import { BRANDS } from '../lib/data';
 import { useTheme } from '../context/ThemeContext';
-import ThemeToggle from './ThemeToggle';
 import { getAdminUi } from '../lib/theme';
 import { getSamplePatternForBg } from '../lib/patternStyle';
 
@@ -152,15 +151,10 @@ export default function BrandManager({ onSaved }) {
 
       {/* Background Color */}
       <div style={card}>
-        <div style={ui.sectionLabel}>Portal appearance</div>
-        <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
-          Day / Night mode for the buyer portal (also in Profile → Appearance).
-        </div>
-        <ThemeToggle fullWidth />
-      </div>
-
-      <div style={card}>
         <div style={ui.sectionLabel}>Site Background Color</div>
+        <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
+          Portal day/night mode is in Dashboard → Profile → Appearance.
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8, marginBottom: 14 }}>
           {BG_PRESETS.map(preset => (
             <button key={preset.value} onClick={() => handleBgChange(preset.value)}

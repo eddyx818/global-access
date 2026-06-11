@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
 import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, getPortalReferral } from './lib/session';
 import { getRememberLogin, getSavedLogin } from './lib/loginPrefs';
@@ -17,6 +17,7 @@ import MobileBottomNav from './components/MobileBottomNav';
 import InstallAppBanner from './components/InstallAppBanner';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import useVisualViewportInset from './hooks/useVisualViewportInset';
+import useMobileTabSwipe from './hooks/useMobileTabSwipe';
 import { getNotificationPermission } from './lib/notificationPrefs';
 import { subscribeToPushNotifications } from './lib/pushNotifications';
 import { canAccessPortal } from './lib/authGate';
@@ -253,6 +254,26 @@ export default function App() {
     openProfile();
   };
 
+  const mobileTabActiveId = resolvedView === 'brand' ? 'home' : resolvedView;
+  const mobileBottomTabs = useMemo(() => [
+    { id: 'home', onSelect: navigateHome },
+    showCustomerList && { id: 'interest', onSelect: navigateList },
+    isStaffPortalUser && { id: 'quotes', onSelect: navigateQuotes },
+    isStaffCatalogPortal && { id: 'price_checks', onSelect: navigatePriceChecks },
+    isPortalCustomer && { id: 'my_quotes', onSelect: navigateMyQuotes },
+    isPortalCustomer && { id: 'profile', onSelect: navigateProfile },
+  ].filter(Boolean), [
+    showCustomerList, isStaffPortalUser, isStaffCatalogPortal, isPortalCustomer,
+    navigateHome, navigateList, navigateQuotes, navigatePriceChecks, navigateMyQuotes, navigateProfile,
+  ]);
+
+  useMobileTabSwipe({
+    enabled: showMobileBottomNav && resolvedView !== 'thanks' && mobileBottomTabs.length > 1,
+    tabs: mobileBottomTabs,
+    activeTabId: mobileTabActiveId,
+    containerRef: mainContentRef,
+  });
+
   const mobileContentPad = showMobileBottomNav
     ? { paddingBottom: 'var(--ga-bottom-nav-height)' }
     : {};
@@ -279,6 +300,11 @@ export default function App() {
 
     if (view === 'chat') {
       setView(isStaffPortalUser ? 'quotes' : (user ? 'my_quotes' : 'home'));
+      return;
+    }
+
+    if (view === 'profile' && isStaffPortalUser && mobileShell) {
+      setView('home');
       return;
     }
 
@@ -982,7 +1008,7 @@ export default function App() {
         globalStyles={globalStyles}
         onNavClick={handleNavClick}
         onHome={navigateHome}
-        onProfile={user && !showMobileNav ? openProfile : null}
+        onProfile={isPortalCustomer && !showMobileNav ? openProfile : null}
         onList={navigateList}
         onMyQuotes={isPortalCustomer ? navigateMyQuotes : null}
         isMobile={isMobile || isMobileDevice}
@@ -1201,7 +1227,7 @@ export default function App() {
           showQuotes={isStaffPortalUser}
           showMyQuotes={isPortalCustomer}
           showPriceChecks={isStaffCatalogPortal}
-          showProfile={!!user}
+          showProfile={isPortalCustomer}
           showChat={false}
           homeLabel={isStaffCatalogPortal ? 'Catalog' : 'Home'}
         />

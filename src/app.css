@@ -149,6 +149,7 @@ html.app-native body {
   --ga-safe-right: 0px;
   --ga-nav-bar: 48px;
   --ga-bottom-nav-bar: 56px;
+  --ga-bottom-nav-float-gap: 10px;
 }
 
 @supports (padding-top: constant(safe-area-inset-top)) {
@@ -177,6 +178,11 @@ html.app-native body {
   --ga-inset-right: max(var(--ga-safe-right), var(--ga-vv-right));
   --ga-nav-height: calc(var(--ga-nav-bar) + var(--ga-inset-top));
   --ga-bottom-nav-height: calc(var(--ga-bottom-nav-bar) + var(--ga-inset-bottom));
+}
+
+html.app-mobile {
+  --ga-bottom-nav-bar: 58px;
+  --ga-bottom-nav-height: calc(var(--ga-bottom-nav-bar) + var(--ga-bottom-nav-float-gap) + var(--ga-inset-bottom));
 }
 
 @media (min-width: 768px) {
@@ -392,6 +398,95 @@ html.app-mobile .app-portal-nav:not(.app-portal-nav--safe-top) {
 
 html.app-mobile .app-bottom-nav {
   box-sizing: border-box;
+}
+
+html.app-mobile .app-bottom-nav--floating {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 400;
+  display: flex;
+  justify-content: center;
+  padding-left: max(14px, var(--ga-inset-left));
+  padding-right: max(14px, var(--ga-inset-right));
+  padding-bottom: max(var(--ga-bottom-nav-float-gap), var(--ga-inset-bottom));
+  padding-top: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.app-bottom-nav__pill {
+  pointer-events: auto;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  width: 100%;
+  max-width: 420px;
+  min-height: var(--ga-bottom-nav-bar);
+  border-radius: 999px;
+  backdrop-filter: blur(24px) saturate(1.35);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+
+.app-bottom-nav__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 4px 8px;
+  margin: 0 2px;
+  background: none;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  position: relative;
+  min-width: 0;
+  transition: background 0.22s ease, color 0.22s ease, transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-bottom-nav__item:active {
+  transform: scale(0.96);
+}
+
+.app-bottom-nav__icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.app-bottom-nav__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-bottom-nav__badge {
+  position: absolute;
+  top: 2px;
+  right: 12%;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Legacy full-width bottom nav fallback */
+html.app-mobile .app-bottom-nav:not(.app-bottom-nav--floating) {
   padding-bottom: var(--ga-inset-bottom);
   padding-left: var(--ga-inset-left);
   padding-right: var(--ga-inset-right);
