@@ -3,37 +3,12 @@ import { supabase } from '../lib/supabase';
 import { saveProfile, checkUsernameAvailable, isProfileComplete } from '../lib/community';
 import { getPhoneValidationError } from '../lib/accessRequestGate';
 import { validatePersonName, validateCompanyName, validateUsername } from '../lib/nameValidation';
-import {
-  getNotificationPrefs,
-  saveNotificationPrefs,
-  getNotificationPermission,
-  requestNotificationPermission,
-} from '../lib/notificationPrefs';
-import { playMessageSound, vibrateDevice } from '../lib/messageAlerts';
-import { subscribeToPushNotifications, isPushSupported } from '../lib/pushNotifications';
 import { useTheme } from '../context/ThemeContext';
 import { PHONE_PLACEHOLDER } from '../lib/catalogPricing';
 import { APP_SESSION_HINT } from '../lib/appSession';
-import { validateAppointmentSlot, minAppointmentDateStr, SUPPORT_AVAILABILITY } from '../lib/appointments';
 import ThemeToggle from './ThemeToggle';
 import AddressFields, { EMPTY_ADDRESS } from './AddressFields';
 import { normalizeAddressParts } from '../lib/addressFormat';
-
-function splitAppointment(iso) {
-  if (!iso) return { date: '', time: '' };
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return { date: '', time: '' };
-  const date = d.toISOString().slice(0, 10);
-  const time = d.toTimeString().slice(0, 5);
-  return { date, time };
-}
-
-function combineAppointment(date, time) {
-  if (!date || !time) return null;
-  const d = new Date(`${date}T${time}:00`);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
-}
 
 export default function ProfileModal({
   user,
@@ -53,34 +28,22 @@ export default function ProfileModal({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [username, setUsername] = useState('');
-  const [showUsernameInChat, setShowUsernameInChat] = useState(false);
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
-  const [appointmentDate, setAppointmentDate] = useState('');
-  const [appointmentTime, setAppointmentTime] = useState('');
-  const [appointmentNotes, setAppointmentNotes] = useState('');
   const [addressParts, setAddressParts] = useState({ ...EMPTY_ADDRESS });
-  const [supportAvailability, setSupportAvailability] = useState('available');
   const [error, setError] = useState('');
-  const [notifyPrefs, setNotifyPrefs] = useState(getNotificationPrefs);
-  const [notifyPerm, setNotifyPerm] = useState(getNotificationPermission);
 
   useEffect(() => {
     if (!user?.id) return;
     const applyProfileExtras = (data) => {
       if (!data) return;
       setUsername(data.username || '');
-      setShowUsernameInChat(!!data.show_username_in_chat);
       setBio(data.bio || '');
       setAvatarUrl(data.profile_avatar_url || '');
-      setAppointmentNotes(data.appointment_notes || '');
-      const { date, time } = splitAppointment(data.preferred_appointment_at);
-      setAppointmentDate(date);
-      setAppointmentTime(time);
     };
 
     supabase.from('user_profiles')
-      .select('username, show_username_in_chat, bio, profile_avatar_url, preferred_appointment_at, appointment_notes, address, address_line2, city, state, zip, lat, lng, support_availability')
+      .select('username, bio, profile_avatar_url, address, address_line2, city, state, zip, lat, lng')
       .eq('user_id', user.id)
       .single()
       .then(async ({ data, error }) => {
@@ -95,12 +58,11 @@ export default function ProfileModal({
             lat: data.lat,
             lng: data.lng,
           }));
-          setSupportAvailability(data.support_availability || 'available');
           return;
         }
         if (!error) return;
         const { data: basic } = await supabase.from('user_profiles')
-          .select('username, show_username_in_chat, bio, profile_avatar_url')
+          .select('username, bio, profile_avatar_url')
           .eq('user_id', user.id)
           .single();
         applyProfileExtras(basic);
@@ -124,29 +86,7 @@ export default function ProfileModal({
   const { canInstall = false, showIosHint = false, isInstalled = false, install, isMobileDevice = false } = pwa;
   const showInstallInSettings = isMobileDevice && !isInstalled && (canInstall || showIosHint);
   const needsDetails = profileGate && !isProfileComplete(form);
-  const profileGateMessage = profileGate === 'quote'
-    ? 'Please add your name, company, and phone to request a quote.'
-    : 'Please add your name, company, and phone to use Support chat.';
-
-  const toggleNotify = (key, value) => {
-    const next = { ...notifyPrefs, [key]: value };
-    setNotifyPrefs(next);
-    saveNotificationPrefs(next);
-  };
-
-  const enablePush = async () => {
-    const result = await requestNotificationPermission();
-    setNotifyPerm(result);
-    if (result === 'granted') {
-      toggleNotify('notifications', true);
-      await subscribeToPushNotifications(user?.id);
-    }
-  };
-
-  const testAlert = () => {
-    if (notifyPrefs.sound) playMessageSound();
-    if (notifyPrefs.vibrate) vibrateDevice();
-  };
+  const profileGateMessage = 'Please add your name, company, and phone to request a quote.';
 
   const handleSave = async () => {
     setSaving(true);
@@ -188,31 +128,15 @@ export default function ProfileModal({
       if (!ok) { setError('Username is already taken.'); setSaving(false); return; }
     }
 
-    const appointmentCheck = (!isStaff && appointmentDate && appointmentTime)
-      ? validateAppointmentSlot(appointmentDate, appointmentTime)
-      : { ok: true, iso: null };
-    if (!appointmentCheck.ok) {
-      setError(appointmentCheck.error);
-      setSaving(false);
-      return;
-    }
-    const appointmentAt = appointmentCheck.iso;
-
     try {
       const result = await saveProfile(user.id, user.email, {
         username: cleanUsername,
-        show_username_in_chat: !isStaff && !!cleanUsername && showUsernameInChat,
         name: nameCheck.value,
         company: companyCheck.value,
         phone: form.phone,
         bio: bio.trim() || null,
         profile_avatar_url: avatarUrl.trim() || null,
-        ...(isStaff ? { support_availability: supportAvailability } : { user_type: userType, role: userType }),
-        ...(!isStaff && appointmentAt ? {
-          preferred_appointment_at: appointmentAt,
-          appointment_notes: appointmentNotes.trim() || null,
-          appointment_status: 'pending',
-        } : {}),
+        ...(!isStaff ? { user_type: userType, role: userType } : {}),
         ...(!isStaff ? {
           address: addressParts.address_line1?.trim() || null,
           address_line2: addressParts.address_line2?.trim() || null,
@@ -260,12 +184,12 @@ export default function ProfileModal({
             Staff account
           </div>
           <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.55 }}>
-            This is your team profile — not a customer account. Scheduling a call and quote lists are customer-only. Use the Quotes tab or Dashboard button next to Sign out up top.
+            This is your team profile — not a customer account. Use the Quotes tab in the catalog or Dashboard next to Sign out for leads and pricing.
           </div>
         </div>
       ) : (
         <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: '1rem', padding: '0 2px' }}>
-          Customer account — your team uses this info for quotes, chat, and scheduling.
+          Customer account — your team uses this info for quotes and WhatsApp follow-up.
         </div>
       )}
 
@@ -281,27 +205,9 @@ export default function ProfileModal({
         <label style={labelStyle}>Username{!isStaff ? ' *' : ''}</label>
         <input value={username} onChange={e => setUsername(e.target.value)} placeholder="yourname" style={inputStyle} autoCapitalize="none" />
         <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6, lineHeight: 1.45 }}>
-          Unique handle — used to sign in and optionally shown in chat instead of your real name.
+          Unique handle for signing in.
         </div>
       </div>
-
-      {!isStaff && (
-        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: '1rem', fontSize: 13, color: t.textSecondary, cursor: username.trim() ? 'pointer' : 'not-allowed', opacity: username.trim() ? 1 : 0.6 }}>
-          <input
-            type="checkbox"
-            checked={showUsernameInChat}
-            disabled={!username.trim()}
-            onChange={e => setShowUsernameInChat(e.target.checked)}
-            style={{ marginTop: 2 }}
-          />
-          <span>
-            Show my username in chat instead of my real name
-            <span style={{ display: 'block', fontSize: 11, color: t.textMuted, marginTop: 4, lineHeight: 1.45 }}>
-              Our team still sees your full name. Other members only see your username when this is on.
-            </span>
-          </span>
-        </label>
-      )}
 
       <div style={{ marginBottom: '1rem' }}>
         <label style={labelStyle}>Avatar URL</label>
@@ -368,108 +274,10 @@ export default function ProfileModal({
         </div>
       )}
 
-      {isStaff && (
-        <div style={sectionStyle}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Support availability</div>
-          <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: 12 }}>
-            Let customers know if the team is available for live support.
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {Object.entries(SUPPORT_AVAILABILITY).map(([key, meta]) => (
-              <button key={key} type="button" onClick={() => setSupportAvailability(key)}
-                style={{
-                  textAlign: 'left',
-                  background: supportAvailability === key ? t.successBg : t.inputBg,
-                  border: supportAvailability === key ? `0.5px solid ${t.successBorder}` : t.borderHairline,
-                  borderRadius: 10,
-                  padding: '10px 12px',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{meta.label}</div>
-                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>{meta.hint}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div style={{ marginBottom: '1rem' }}>
         <label style={labelStyle}>{isStaff ? 'Internal notes' : 'Notes for our team'}</label>
         <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder={isStaff ? 'Optional internal notes…' : 'Optional notes about your business…'}
           style={{ ...inputStyle, height: 72, resize: 'none' }} />
-      </div>
-
-      {!isStaff && (
-      <div style={sectionStyle}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Schedule a call (optional)</div>
-        <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: 12 }}>
-          Pick a date and time if you would like us to reach out to discuss your order or account.
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-          <div>
-            <label style={labelStyle}>Date</label>
-            <input type="date" value={appointmentDate} min={minAppointmentDateStr()}
-              onChange={e => setAppointmentDate(e.target.value)} style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Time</label>
-            <input type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)} style={inputStyle} />
-          </div>
-        </div>
-        <label style={labelStyle}>Appointment notes</label>
-        <textarea value={appointmentNotes} onChange={e => setAppointmentNotes(e.target.value)}
-          placeholder="What would you like to discuss?" style={{ ...inputStyle, height: 64, resize: 'none' }} />
-      </div>
-      )}
-
-      <div style={sectionStyle}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Message alerts</div>
-        <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.45, marginBottom: 12 }}>
-          Sound, vibration, and badge when you receive chat messages.
-        </div>
-        {[
-          ['sound', 'Sound'],
-          ['vibrate', 'Vibrate (mobile)'],
-          ['badge', 'App icon badge'],
-        ].map(([key, label]) => (
-          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, fontSize: 13, color: t.textSecondary, cursor: 'pointer' }}>
-            <input type="checkbox" checked={!!notifyPrefs[key]} onChange={e => toggleNotify(key, e.target.checked)} />
-            {label}
-          </label>
-        ))}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, fontSize: 13, color: t.textSecondary, cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={!!notifyPrefs.notifications && notifyPerm === 'granted'}
-            disabled={notifyPerm === 'denied' || notifyPerm === 'unsupported'}
-            onChange={e => toggleNotify('notifications', e.target.checked)}
-          />
-          Push notifications
-        </label>
-        {notifyPerm === 'default' && (
-          <button type="button" onClick={enablePush}
-            style={{ background: t.btnPrimaryBg, color: t.btnPrimaryText, border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8 }}>
-            Allow notifications
-          </button>
-        )}
-        {notifyPerm === 'granted' && isPushSupported() && (
-          <div style={{ fontSize: 11, color: t.successText, marginBottom: 8 }}>
-            Push enabled — you will get banners when the app is in the background.
-          </div>
-        )}
-        {notifyPerm === 'granted' && !isPushSupported() && (
-          <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 8 }}>
-            In-app alerts work here. For background banners on iPhone, install the app from Safari and allow notifications.
-          </div>
-        )}
-        {notifyPerm === 'denied' && (
-          <div style={{ fontSize: 11, color: t.errorText, marginBottom: 8 }}>Notifications blocked in browser settings.</div>
-        )}
-        <button type="button" onClick={testAlert}
-          style={{ background: t.bgElevated, color: t.textSecondary, border: t.borderHairline, borderRadius: 8, padding: '7px 12px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-          Test sound & vibrate
-        </button>
       </div>
 
       {showInstallInSettings && (

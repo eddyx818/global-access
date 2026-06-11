@@ -18,8 +18,6 @@ import InstallAppBanner from './components/InstallAppBanner';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import useVisualViewportInset from './hooks/useVisualViewportInset';
 import useMobileTabSwipe from './hooks/useMobileTabSwipe';
-import { getNotificationPermission } from './lib/notificationPrefs';
-import { subscribeToPushNotifications } from './lib/pushNotifications';
 import { canAccessPortal } from './lib/authGate';
 import { isHoneypotClean, isValidPhone, getPhoneValidationError } from './lib/accessRequestGate';
 import { validatePersonName, validateCompanyName } from './lib/nameValidation';
@@ -360,12 +358,6 @@ export default function App() {
       ? `calc(100dvh - ${mobileNavHeight}${mobileBottomOffset})`
       : undefined,
   };
-
-  useEffect(() => {
-    if (!user?.id || !inPortalView || !isMobileDevice) return;
-    if (getNotificationPermission() !== 'granted') return;
-    subscribeToPushNotifications(user.id);
-  }, [user?.id, inPortalView, isMobileDevice]);
 
   // Handle direct hash URL links (e.g. global-access.vercel.app/#goldwhip)
   useEffect(() => {
