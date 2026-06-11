@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase, trackEvent, getSessionId } from './lib/supabase';
 import { isPortalCodeVerified, setPortalCodeVerified, linkPortalSessionToUser, getPortalReferral } from './lib/session';
 import { getRememberLogin, getSavedLogin } from './lib/loginPrefs';
@@ -266,6 +266,15 @@ export default function App() {
     showCustomerList, isStaffPortalUser, isStaffCatalogPortal, isPortalCustomer,
     navigateHome, navigateList, navigateQuotes, navigatePriceChecks, navigateMyQuotes, navigateProfile,
   ]);
+
+  const goAdjacentMobileTab = useCallback((direction) => {
+    const idx = mobileBottomTabs.findIndex(t => t.id === mobileTabActiveId);
+    if (idx < 0) return;
+    const next = idx + direction;
+    if (next >= 0 && next < mobileBottomTabs.length) {
+      mobileBottomTabs[next].onSelect();
+    }
+  }, [mobileBottomTabs, mobileTabActiveId]);
 
   useMobileTabSwipe({
     enabled: showMobileBottomNav && resolvedView !== 'thanks' && mobileBottomTabs.length > 1,
@@ -1230,6 +1239,7 @@ export default function App() {
           showProfile={isPortalCustomer}
           showChat={false}
           homeLabel={isStaffCatalogPortal ? 'Catalog' : 'Home'}
+          onAdjacentTab={mobileBottomTabs.length > 1 ? goAdjacentMobileTab : null}
         />
       )}
     </div>

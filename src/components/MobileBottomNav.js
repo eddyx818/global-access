@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { COPY, portalType } from '../lib/portalCopy';
+import { attachNavPillSwipe } from '../hooks/useMobileTabSwipe';
 
 export default function MobileBottomNav({
   activeView,
@@ -26,8 +27,12 @@ export default function MobileBottomNav({
   showChat = false,
   showProfile = true,
   homeLabel = COPY.home,
+  onAdjacentTab = null,
 }) {
   const { t, isNight } = useTheme();
+  const pillRef = useRef(null);
+  const adjacentRef = useRef(onAdjacentTab);
+  adjacentRef.current = onAdjacentTab;
 
   const priceCheckBadge = (priceCheckCount || 0) + (priceCheckDraftCount > 0 ? priceCheckDraftCount : 0);
 
@@ -46,6 +51,14 @@ export default function MobileBottomNav({
     showProfile, onProfile,
   ]);
 
+  useEffect(() => {
+    if (!onAdjacentTab || !pillRef.current) return undefined;
+    return attachNavPillSwipe(pillRef.current, {
+      onSwipeLeft: () => adjacentRef.current?.(1),
+      onSwipeRight: () => adjacentRef.current?.(-1),
+    });
+  }, [onAdjacentTab, items.length]);
+
   const pillBg = isNight ? 'rgba(28, 28, 34, 0.72)' : 'rgba(255, 255, 255, 0.78)';
   const pillBorder = isNight ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)';
   const activePillBg = isNight ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.07)';
@@ -56,6 +69,7 @@ export default function MobileBottomNav({
       aria-label="Main navigation"
     >
       <div
+        ref={pillRef}
         className="app-bottom-nav__pill"
         style={{
           background: pillBg,
@@ -63,6 +77,7 @@ export default function MobileBottomNav({
           boxShadow: isNight
             ? '0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
             : '0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.65)',
+          touchAction: 'pan-y',
         }}
       >
         {items.map(item => (
@@ -77,10 +92,13 @@ export default function MobileBottomNav({
               color: item.active ? t.text : t.textMuted,
             }}
           >
-            <span className="app-bottom-nav__icon" style={{
-              filter: item.active ? 'none' : 'grayscale(0.25)',
-              opacity: item.active ? 1 : 0.8,
-            }}>
+            <span
+              className={`app-bottom-nav__icon${item.id === 'home' ? ' app-bottom-nav__icon--home' : ''}`}
+              style={{
+                filter: item.active ? 'none' : 'grayscale(0.25)',
+                opacity: item.active ? 1 : 0.8,
+              }}
+            >
               {item.icon}
             </span>
             <span className="app-bottom-nav__label" style={{

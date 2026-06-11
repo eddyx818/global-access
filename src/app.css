@@ -185,6 +185,15 @@ html.app-mobile {
   --ga-bottom-nav-height: calc(var(--ga-bottom-nav-bar) + var(--ga-bottom-nav-float-gap) + var(--ga-inset-bottom));
 }
 
+html.app-mobile:not(.app-standalone) {
+  --ga-bottom-nav-float-gap: 4px;
+  --ga-bottom-nav-height: calc(var(--ga-bottom-nav-bar) + 4px + var(--ga-inset-bottom));
+}
+
+html.app-standalone.app-mobile {
+  --ga-bottom-nav-float-gap: 10px;
+}
+
 @media (min-width: 768px) {
   html:not(.app-mobile) {
     --ga-nav-bar: 52px;
@@ -410,11 +419,22 @@ html.app-mobile .app-bottom-nav--floating {
   justify-content: center;
   padding-left: max(14px, var(--ga-inset-left));
   padding-right: max(14px, var(--ga-inset-right));
-  padding-bottom: max(var(--ga-bottom-nav-float-gap), var(--ga-inset-bottom));
+  padding-bottom: calc(var(--ga-bottom-nav-float-gap) + var(--ga-inset-bottom));
   padding-top: 0;
   background: transparent;
   border: none;
   box-shadow: none;
+  pointer-events: none;
+}
+
+html.app-mobile:not(.app-standalone) .app-bottom-nav--floating::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--ga-bottom-nav-bar) + 28px);
+  background: linear-gradient(to top, var(--ga-bg) 55%, transparent);
   pointer-events: none;
 }
 
@@ -431,6 +451,13 @@ html.app-mobile .app-bottom-nav--floating {
   -webkit-backdrop-filter: blur(24px) saturate(1.35);
   padding: 4px 6px;
   box-sizing: border-box;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.app-bottom-nav__pill:active {
+  cursor: grabbing;
 }
 
 .app-bottom-nav__item {
@@ -458,8 +485,18 @@ html.app-mobile .app-bottom-nav--floating {
 }
 
 .app-bottom-nav__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   font-size: 20px;
   line-height: 1;
+}
+
+.app-bottom-nav__icon--home {
+  font-size: 26px;
+  transform: translateY(-1px);
 }
 
 .app-bottom-nav__label {
